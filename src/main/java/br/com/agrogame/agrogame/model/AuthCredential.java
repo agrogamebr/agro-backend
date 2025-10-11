@@ -1,8 +1,9 @@
 package br.com.agrogame.agrogame.model;
 
 import jakarta.persistence.*;
-import lombok.*;
-
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,8 +11,6 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class AuthCredential {
 
     @Id
@@ -35,10 +34,10 @@ public class AuthCredential {
     private LocalDateTime lastLoginAt;
 
     @Column(name = "failed_attempts")
-    private Integer failedAttempts = 0;
+    private Integer failedAttempts;
 
     @Column(name = "is_active")
-    private Boolean isActive = true;
+    private Boolean isActive;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -55,6 +54,6 @@ public class AuthCredential {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
 }
+
 

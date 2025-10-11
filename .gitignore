@@ -31,3 +31,33 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Senhas e configuracoes locais
+.env
+.env.local
+.env.production
+application-local.yml
+
+# Maven
+target/
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDEs
+.idea/
+*.iml
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+

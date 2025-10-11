@@ -1,10 +1,9 @@
 package br.com.agrogame.agrogame.model;
 
-import br.com.agrogame.agrogame.enumerator.UserStatus;
-import br.com.agrogame.agrogame.enumerator.UserType;
 import jakarta.persistence.*;
-import lombok.*;
-
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,40 +11,55 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "name")
-    private String name;
+    @Column(name = "fullname", nullable = false)
+    private String fullname;
 
-    @Column(name = "email", unique = true, nullable = false)
-    private String email;
+    @Column(name = "first_name")
+    private String firstName;
 
-    @Column(name = "cpf", unique = true, nullable = false)
-    private String cpf;
+    @Column(name = "last_name")
+    private String lastName;
+
+    @Column(name = "email1", nullable = false)
+    private String email1;
+
+    @Column(name = "email2")
+    private String email2;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "user_type", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_type_id", nullable = false)
     private UserType userType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "user_status", nullable = false)
-    private UserStatus userStatus = UserStatus.NEW;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_status_id", nullable = false)
+    private UserStatus userStatus;
+
+    @Column(name = "points_balance")
+    private Integer pointsBalance = 0;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by")
+    private User updatedBy;
 
     @PrePersist
     protected void onCreate() {
@@ -57,4 +71,3 @@ public class User {
         updatedAt = LocalDateTime.now();
     }
 }
-
