@@ -59,8 +59,6 @@ server:
   port: 8080
   compression:
     enabled: true
-  tomcat:
-    basedir: C:/Users/Gabriel/Documents/FREELA/AGROGAME/agro-backend/temp
   error:
     include-message: always
     include-binding-errors: always
