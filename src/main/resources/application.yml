@@ -128,3 +128,13 @@ logging:
     root: WARN
     br.com.agrogame.agrogame: INFO
     org.hibernate.SQL: WARN
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs  # Endpoint JSON da documentação
+  swagger-ui:
+    path: /swagger-ui.html  # Página do Swagger UI
+    operationsSorter: method  # Ordena por método HTTP
+    tagsSorter: alpha  # Ordena tags alfabeticamente
+    tryItOutEnabled: true  # Habilita botão "Try it out"

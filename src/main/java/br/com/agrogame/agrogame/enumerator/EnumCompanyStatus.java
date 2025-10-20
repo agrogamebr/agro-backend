@@ -1,7 +1,9 @@
 package br.com.agrogame.agrogame.enumerator;
 
-public enum ActivityStatus {
+public enum EnumCompanyStatus {
     PENDING,
     APPROVED,
-    CLOSED
+    REJECT,
+    CLOSED,
+    NEW
 }

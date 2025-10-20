@@ -1,6 +1,6 @@
 package br.com.agrogame.agrogame.enumerator;
 
-public enum UserStatus {
+public enum EnumUserStatus {
     PENDING,
     APPROVED,
     REJECT,
