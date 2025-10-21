@@ -1,6 +1,6 @@
 package br.com.agrogame.agrogame.enumerator;
 
-public enum UserRewardStatus {
+public enum EnumUserRewardStatus {
     PENDING,
     REDEEMED,
     EXPIRED,

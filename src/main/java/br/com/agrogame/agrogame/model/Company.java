@@ -84,4 +84,156 @@ public class Company {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getFullCompanyName() {
+		return fullCompanyName;
+	}
+
+	public void setFullCompanyName(String fullCompanyName) {
+		this.fullCompanyName = fullCompanyName;
+	}
+
+	public String getFantansyName() {
+		return fantansyName;
+	}
+
+	public void setFantansyName(String fantansyName) {
+		this.fantansyName = fantansyName;
+	}
+
+	public String getEmail1() {
+		return email1;
+	}
+
+	public void setEmail1(String email1) {
+		this.email1 = email1;
+	}
+
+	public String getEmail2() {
+		return email2;
+	}
+
+	public void setEmail2(String email2) {
+		this.email2 = email2;
+	}
+
+	public String getPhone1() {
+		return phone1;
+	}
+
+	public void setPhone1(String phone1) {
+		this.phone1 = phone1;
+	}
+
+	public String getPhone2() {
+		return phone2;
+	}
+
+	public void setPhone2(String phone2) {
+		this.phone2 = phone2;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	public String getCity() {
+		return city;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getCountry() {
+		return country;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+
+	public String getResponsibleName() {
+		return responsibleName;
+	}
+
+	public void setResponsibleName(String responsibleName) {
+		this.responsibleName = responsibleName;
+	}
+
+	public String getResponsiblePhone() {
+		return responsiblePhone;
+	}
+
+	public void setResponsiblePhone(String responsiblePhone) {
+		this.responsiblePhone = responsiblePhone;
+	}
+
+	public CompanyStatus getCompanyStatus() {
+		return companyStatus;
+	}
+
+	public void setCompanyStatus(CompanyStatus companyStatus) {
+		this.companyStatus = companyStatus;
+	}
+	
+	public CompanyType getCompanyType() {
+		return companyType;
+	}
+
+	public void setCompanyType(CompanyType companyType) {
+		this.companyType = companyType;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public User getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public User getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(User updatedBy) {
+		this.updatedBy = updatedBy;
+	}
 }

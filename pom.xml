@@ -56,7 +56,7 @@
 			<version>1.18.30</version>
 			<scope>provided</scope>
 		</dependency>
-
+		
 		<!-- PostgreSQL (runtime) -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -70,6 +70,24 @@
 			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
 			<optional>true</optional>
+		</dependency>
+		
+		<!-- Swagger/OpenAPI 3 para Spring Boot 3 -->
+		<dependency>
+		    <groupId>org.springdoc</groupId>
+		    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+		    <version>2.6.0</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>org.hibernate.validator</groupId>
+		    <artifactId>hibernate-validator</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.glassfish.expressly</groupId>
+		    <artifactId>expressly</artifactId>
+		    <version>5.0.0</version>
+		    <scope>runtime</scope>
 		</dependency>
 
 		<!-- Testes -->
