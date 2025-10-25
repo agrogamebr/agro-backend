@@ -30,3 +30,10 @@ logging:
 
 server:
   port: 8080
+
+# ===========================================
+# JWT CONFIGURATION (para testes)
+# ===========================================
+jwt:
+  secret: 
+  expiration: 86400000
