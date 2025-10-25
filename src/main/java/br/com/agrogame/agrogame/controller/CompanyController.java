@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import br.com.agrogame.agrogame.dto.CompanyDTO;
 import br.com.agrogame.agrogame.dto.CompanyDocumentDTO;
 import br.com.agrogame.agrogame.dto.CompanyListDTO;
+import br.com.agrogame.agrogame.dto.CreateCompanyDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyDocumentType;
 import br.com.agrogame.agrogame.model.Company;
 import br.com.agrogame.agrogame.service.CompanyService;
@@ -38,7 +38,7 @@ public class CompanyController {
         @ApiResponse(responseCode = "400", description = "Erro de validação dos dados")
     })
     @PostMapping("/createCompany")
-    public ResponseEntity<?> createCompany(@Valid @RequestBody CompanyDTO dto) {
+    public ResponseEntity<?> createCompany(@Valid @RequestBody CreateCompanyDTO dto) {
         try {
             // Pega CNPJ da lista de documentos enviada no DTO
             String cnpj = dto.getDocumentos().stream()
@@ -48,7 +48,7 @@ public class CompanyController {
                 .orElse(null);
 
             // Toda lógica de conversão e persistência está na service
-            Company saved = service.save(dto);
+            Company saved = service.registerCompany(dto);
 
             // TODO: enviar e-mail de boas-vindas
             // TODO: notificar dono do Agro App
@@ -56,8 +56,11 @@ public class CompanyController {
             return ResponseEntity.status(201)
                 .body("Cadastro realizado com sucesso! Sua solicitação está pendente de aprovação.");
         } catch (Exception e) {
-            return ResponseEntity.status(500)
-                .body("Houve um erro ao processar seu cadastro. Por favor, tente novamente.");
+        	 e.printStackTrace();  // Imprime stacktrace completo
+             System.err.println("ERRO: " + e.getMessage());
+             e.getCause(); // Se houver causa raiz
+             return ResponseEntity.status(400)
+                 .body("Erro ao cadastrar empresa: " + e.getMessage());
         }
     }
 

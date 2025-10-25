@@ -1,0 +1,11 @@
+package br.com.agrogame.agrogame.repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import br.com.agrogame.agrogame.model.UserStatus;
+
+public interface UserStatusRepository  extends JpaRepository<UserStatus, Integer> {
+	 Optional<UserStatus> findByCode(String code);
+}

@@ -95,6 +95,13 @@ app:
   points:
     max-transaction-per-day: 50
 
+# ===========================================
+# JWT CONFIGURATION
+# ===========================================
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000  # 24 horas em milissegundos
+
 ---
 # ===========================================
 # PROFILE: DEVELOPMENT
@@ -128,6 +135,10 @@ logging:
     root: WARN
     br.com.agrogame.agrogame: INFO
     org.hibernate.SQL: WARN
+
+# JWT em produção deve usar variável de ambiente
+jwt:
+  secret: ${JWT_SECRET}  # OBRIGATÓRIO definir em variável de ambiente
 
 
 springdoc:
