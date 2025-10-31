@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -144,7 +145,7 @@ public class CompanyController {
 
 	@Operation(
 			summary = "Aprovar empresa", 
-			description = "Altera o status da empresa de PENDING para APPROVED. **Apenas usuários com perfil MANAGER podem aprovar.**"
+			description = "Altera o status da empresa de PENDING para APPROVED. **Apenas usuários com perfil administrator podem aprovar.**"
 			)
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Empresa aprovada com sucesso",
@@ -157,7 +158,7 @@ public class CompanyController {
 			examples = @ExampleObject(value = "{\"error\": \"Somente empresas com status PENDING podem ser aprovadas\"}")
 					)
 					),
-			@ApiResponse(responseCode = "403", description = "Acesso negado - apenas MANAGER pode aprovar",
+			@ApiResponse(responseCode = "403", description = "Acesso negado - apenas administrator pode aprovar",
 			content = @Content(mediaType = "application/json",
 			examples = @ExampleObject(value = "{\"error\": \"Acesso negado\"}")
 					)
@@ -165,6 +166,7 @@ public class CompanyController {
 			@ApiResponse(responseCode = "404", description = "Empresa não encontrada")
 	})
 	@PatchMapping("/approve/{companyId}")
+	@PreAuthorize("hasAuthority('administrator')")
 	public ResponseEntity<?> approveCompany(@PathVariable Integer companyId) {
 		try {
 			String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
