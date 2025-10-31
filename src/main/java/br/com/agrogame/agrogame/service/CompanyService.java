@@ -192,4 +192,52 @@ public class CompanyService {
 	public List<Company> findAll() {
 		return companyRepository.findAllWithStatusAndType();
 	}
+
+	public List<CompanyType> findAllCompanyTypes() {
+		return companyTypeRepository.findAll();
+	}
+
+	/**
+	 * Aprova uma empresa, mudando status de PENDING para APPROVED
+	 * @param companyId ID da empresa
+	 * @param userEmail Email do usuário autenticado
+	 * @return Company atualizada
+	 */
+	@Transactional
+	public Company approveCompany(Integer companyId, String userEmail) {
+		// 1. Buscar usuário
+		User user = userRepository.findByEmail1(userEmail)
+				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+		// 2. Validar se é MANAGER usando Enum
+		if (!user.getUserType().getCode().equals(EnumUserType.MANAGER.getCode())) {
+			throw new SecurityException("Acesso negado - apenas gerentes podem aprovar empresas");
+		}
+
+		// 3. Buscar empresa
+		Company company = companyRepository.findById(companyId)
+				.orElseThrow(() -> new RuntimeException("Empresa não encontrada com ID: " + companyId));
+
+		// 4. Validar se está PENDING
+		if (!company.getCompanyStatus().getCode().equals(EnumCompanyStatus.PENDING.getCode())) {
+			throw new IllegalStateException("Somente empresas com status PENDING podem ser aprovadas. Status atual: " 
+					+ company.getCompanyStatus().getCode());
+		}
+
+		// 5. Buscar status APPROVED
+		CompanyStatus approvedStatus = companyStatusRepository
+				.findByCode(EnumCompanyStatus.APPROVED.getCode())
+				.orElseThrow(() -> new RuntimeException("Status 'approved' não encontrado"));
+
+		// 6. Atualizar status
+		company.setCompanyStatus(approvedStatus);
+		company.setUpdatedAt(LocalDateTime.now());
+		company.setUpdatedBy(user); // Registrar quem aprovou
+
+		// 7. Salvar
+		Company savedCompany = companyRepository.save(company);
+
+		return savedCompany;
+	}
+
 }
