@@ -61,3 +61,7 @@ logs/
 .DS_Store
 Thumbs.db
 
+# GCP Service Account keys
+bitbucket-deployer-key.json
+bitbucket-deployer-key.json.base64
+

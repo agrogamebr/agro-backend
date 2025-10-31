@@ -1,0 +1,29 @@
+image: google/cloud-sdk:slim
+
+pipelines:
+  branches:
+    pipeline_test:
+      - step:
+          name: Build and Deploy to Cloud Run (QA)
+          script:
+            # 1) Autenticação
+            - echo $GCP_KEYFILE_BASE64 | base64 --decode > gcp-key.json
+            - gcloud auth activate-service-account --key-file=gcp-key.json
+            - gcloud config set project $GCP_PROJECT
+
+            # 2) Configura docker para Artifact Registry
+            - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+            # 3) Build e push da imagem
+            - gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG
+
+            # 4) Deploy no Cloud Run
+            - gcloud run deploy $CLOUD_RUN_SERVICE \
+              --image $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG \
+              --region $CLOUD_RUN_REGION \
+              --platform managed \
+              --service-account $CLOUD_RUN_SERVICE_ACCOUNT \
+              --add-cloudsql-instances $CLOUDSQL_INSTANCE \
+              --update-env-vars APP_ENV=qa,DB_USER=agrogame-db-qa-cloudrun,DB_NAME=postgres,DB_HOST=/cloudsql/$CLOUDSQL_INSTANCE \
+              --update-secrets DB_PASS=$SECRET_NAME:latest \
+              --quiet
