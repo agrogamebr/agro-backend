@@ -15,7 +15,8 @@ pipelines:
             - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
             # 3) Build e push da imagem para o Artifact Registry
-            - gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG --no-stream
+            - BUILD_ID=$(gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG --format='value(id'))
+            - gcloud builds wait $BUILD_ID
 
             # 4) Deploy no Cloud Run
             - gcloud run deploy $CLOUD_RUN_SERVICE \
