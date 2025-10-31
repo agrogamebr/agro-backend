@@ -8,4 +8,5 @@ import br.com.agrogame.agrogame.model.CompanyDocument;
 
 public interface CompanyDocumentsRepository extends JpaRepository<CompanyDocument, Integer>{
 	List<CompanyDocument> findAllByCompanyId(Integer companyId);
+	boolean existsByDocumentNumberAndDocumentType_Code(String documentNumber, String code);
 }
