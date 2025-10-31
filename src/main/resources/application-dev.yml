@@ -10,7 +10,7 @@ spring:
   # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
   # ===========================================
   datasource:
-    url: jdbc:postgresql://${DB_HOST}/${DB_NAME}
+    url: jdbc:postgresql://${DB_NAME}?host=/cloudsql/${DB_HOST}
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
