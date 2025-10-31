@@ -1,7 +1,6 @@
 # ===========================================
 # PROFILE: DEVELOPMENT
 # ===========================================
-
 spring:
   application:
     name: agrogame-api
@@ -35,8 +34,11 @@ spring:
       max-file-size: 10MB
       max-request-size: 50MB
 
+# ===========================================
+# SERVER CONFIGURATION
+# ===========================================
 server:
-  port: 8080
+  port: ${PORT:8080}
   compression:
     enabled: true
   error:
