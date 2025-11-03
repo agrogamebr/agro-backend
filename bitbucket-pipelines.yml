@@ -46,7 +46,7 @@ pipelines:
               --service-account $CLOUD_RUN_SERVICE_ACCOUNT
               --add-cloudsql-instances $CLOUDSQL_INSTANCE
               --update-env-vars SPRING_PROFILES_ACTIVE=dev,APP_ENV=dev,DB_USER=agrogame_db_qa_cloudrun,DB_NAME=postgres
-              --update-secrets DB_PASS=db-password-qa:2,JWT_SECRET=jwt-secret:latest
+              --update-secrets DB_PASS=db-password-qa:latest,JWT_SECRET=jwt-secret:latest
               --allow-unauthenticated
               --quiet
 
