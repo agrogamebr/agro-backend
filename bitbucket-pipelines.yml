@@ -2,7 +2,7 @@ image: google/cloud-sdk:slim
 
 pipelines:
   branches:
-    pipeline_test:
+    develop:
       - step:
           name: Build and Deploy to Cloud Run (Dev)
           script:
