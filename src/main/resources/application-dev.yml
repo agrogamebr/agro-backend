@@ -9,7 +9,7 @@ spring:
   # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
   # ===========================================
   datasource:
-    url: jdbc:postgresql:///${DB_NAME}?host=/cloudsql/agrogame:us-central1:agrogame-db-qa
+    url: jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=agrogame:us-central1:agrogame-db-qa&socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
@@ -52,12 +52,9 @@ server:
 # ===========================================
 logging:
   level:
-    root: DEBUG
+    root: INFO
     br.com.agrogame.agrogame: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.web: INFO
-    org.springframework.security: DEBUG
+    org.hibernate.SQL: INFO  # ou DEBUG só quando necessário
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
@@ -84,9 +81,9 @@ management:
 # APPLICATION CUSTOM PROPERTIES
 # ===========================================
 app:
-  storage:
-    base-path: /var/uploads
-    cdn-url: http://localhost:8080/files
+#  storage:
+#    base-path: ""
+#    cdn-url: ""
 
   pagination:
     default-page-size: 20

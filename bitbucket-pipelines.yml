@@ -14,18 +14,35 @@ pipelines:
             # 2) Configura docker para Artifact Registry
             - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-            # 3) Build e push da imagem para o Artifact Registry
-            - gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG --format='value(id)' > build_id.txt
+            # 3) Build e push da imagem (ASYNC)
+            - gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG --async --format='value(id)' > build_id.txt
             - export BUILD_ID=$(cat build_id.txt)
-            - gcloud builds wait $BUILD_ID
+            - echo "Build ID:" $BUILD_ID
 
-            # 4) Deploy no Cloud Run
+            # 4) Aguarda o build completar
+            - |
+              echo "Aguardando build finalizar..."
+              while true; do
+                STATUS=$(gcloud builds describe $BUILD_ID --format='value(status)')
+                echo "Status atual: $STATUS"
+                if [ "$STATUS" = "SUCCESS" ]; then
+                  echo "Build concluído com sucesso!"
+                  break
+                elif [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ]; then
+                  echo "Build falhou com status: $STATUS"
+                  exit 1
+                fi
+                sleep 10
+              done
+
+            # 5) Deploy no Cloud Run
             - gcloud run deploy $CLOUD_RUN_SERVICE \
               --image $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG \
               --region $CLOUD_RUN_REGION \
               --platform managed \
               --service-account $CLOUD_RUN_SERVICE_ACCOUNT \
               --add-cloudsql-instances $CLOUDSQL_INSTANCE \
-              --update-env-vars APP_ENV=dev,DB_USER=agrogame-db-qa-cloudrun,DB_NAME=postgres,DB_HOST=/cloudsql/$CLOUDSQL_INSTANCE \
-              --update-secrets DB_PASS=$SECRET_NAME:latest \
+              --update-env-vars SPRING_PROFILES_ACTIVE=dev,APP_ENV=dev,DB_USER=agrogame-db-qa-cloudrun,DB_NAME=postgres \
+              --update-secrets DB_PASS=$SECRET_NAME:latest,JWT_SECRET=jwt-secret:latest \
+              --allow-unauthenticated \
               --quiet
