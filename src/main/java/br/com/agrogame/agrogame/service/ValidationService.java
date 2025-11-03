@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.agrogame.agrogame.repository.CompanyDocumentsRepository;
 import br.com.agrogame.agrogame.repository.CompanyRepository;
+import br.com.agrogame.agrogame.repository.UserRepository;
 
 @Service
 public class ValidationService {
@@ -14,6 +15,9 @@ public class ValidationService {
     
     @Autowired
     private CompanyRepository companyRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Valida se CNPJ já existe na base (busca em company_documents)
@@ -26,13 +30,17 @@ public class ValidationService {
     }
     
     /**
-     * Valida se email já existe na base
+     * Valida se email já existe em Company OU User
      */
     public boolean emailAlreadyExists(String email) {
         if (email == null || email.isBlank()) {
             return false;
         }
-        return companyRepository.existsByEmail1(email);
+        
+        boolean existsInCompany = companyRepository.existsByEmail1(email);
+        boolean existsInUser = userRepository.existsByEmail1(email);
+
+        return existsInCompany || existsInUser;
     }
     
     /**
