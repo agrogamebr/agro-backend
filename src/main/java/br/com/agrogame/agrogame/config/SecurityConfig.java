@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.servers.Server;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,13 +34,13 @@ import java.util.Map;
 @EnableWebSecurity
 public class SecurityConfig {
 
-	@Autowired
-	private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-	@Bean
-	public PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
@@ -64,8 +65,8 @@ public class SecurityConfig {
         };
     }
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // 🔑 CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -111,11 +112,15 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-	}
+    }
 
-	@Bean
-	public OpenAPI customOpenAPI() {
+    @Bean
+    public OpenAPI customOpenAPI() {
         return new OpenAPI()
+                .addServersItem(new io.swagger.v3.oas.models.servers.Server()
+                        .url("https://agrogame-api-dev-1017408486443.us-central1.run.app")
+                        .description("Development / QA")
+                )
                 .components(new Components()
                         .addSecuritySchemes("bearer-jwt",
                                 new SecurityScheme()
@@ -124,7 +129,7 @@ public class SecurityConfig {
                                         .bearerFormat("JWT")
                                         .description("JWT token para autenticação. Cole apenas o token sem 'Bearer'")))
                 .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"));
-	}
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
