@@ -208,11 +208,6 @@ public class CompanyService {
 		// 1. Buscar usuário
 		User user = userRepository.findByEmail1(userEmail)
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-//
-//		// 2. Validar se é MANAGER usando Enum
-//		if (!user.getUserType().getCode().equals(EnumUserType.MANAGER.getCode())) {
-//			throw new SecurityException("Acesso negado - apenas gerentes podem aprovar empresas");
-//		}
 		
 		// 3. Buscar empresa
 		Company company = companyRepository.findById(companyId)
