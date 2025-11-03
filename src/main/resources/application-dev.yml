@@ -41,6 +41,10 @@ server:
   port: ${PORT:8080}
   compression:
     enabled: true
+    tomcat:
+      remoteip:
+        remote-ip-header: X-Forwarded-For
+        protocol-header: X-Forwarded-Proto
   error:
     include-message: always
     include-binding-errors: always
@@ -81,9 +85,9 @@ management:
 # APPLICATION CUSTOM PROPERTIES
 # ===========================================
 app:
-#  storage:
-#    base-path: ""
-#    cdn-url: ""
+  #  storage:
+  #    base-path: ""
+  #    cdn-url: ""
 
   pagination:
     default-page-size: 20
