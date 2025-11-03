@@ -1,0 +1,97 @@
+# ===========================================
+# PROFILE: DEVELOPMENT
+# ===========================================
+spring:
+  application:
+    name: agrogame-api
+
+  # ===========================================
+  # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
+  # ===========================================
+  datasource:
+    url: jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=agrogame:us-central1:agrogame-db-qa&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+
+  # ===========================================
+  # FILE UPLOAD CONFIGURATION
+  # ===========================================
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# ===========================================
+# SERVER CONFIGURATION
+# ===========================================
+server:
+  port: ${PORT:8080}
+  compression:
+    enabled: true
+    tomcat:
+      remoteip:
+        remote-ip-header: X-Forwarded-For
+        protocol-header: X-Forwarded-Proto
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+# ===========================================
+# LOGGING CONFIGURATION
+# ===========================================
+logging:
+  level:
+    root: INFO
+    br.com.agrogame.agrogame: DEBUG
+    org.hibernate.SQL: INFO  # ou DEBUG só quando necessário
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# ===========================================
+# JWT CONFIGURATION
+# ===========================================
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000  # 24 horas em milissegundos
+
+# ===========================================
+# ACTUATOR CONFIGURATION
+# ===========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# ===========================================
+# APPLICATION CUSTOM PROPERTIES
+# ===========================================
+app:
+  #  storage:
+  #    base-path: ""
+  #    cdn-url: ""
+
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+
+  points:
+    max-transaction-per-day: 50
