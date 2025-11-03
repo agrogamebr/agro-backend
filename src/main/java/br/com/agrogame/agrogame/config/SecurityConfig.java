@@ -96,6 +96,7 @@ public class SecurityConfig {
 						"/api/company/validate-email",
 						"/api/company/validate-cnpj",
 						"/api/company/createCompany",
+					    "/api/company/company-types", 
 						"/swagger-ui/**",
 						"/v3/api-docs/**",
 						"/swagger-ui.html",
