@@ -5,21 +5,15 @@ pipelines:
     develop:
       - step:
           name: Build and Deploy to Cloud Run (Dev)
+          trigger: automatic
           script:
-            # 1) Autenticação no GCP
             - echo $GCP_KEYFILE_BASE64 | base64 --decode > gcp-key.json
             - gcloud auth activate-service-account --key-file=gcp-key.json
             - gcloud config set project $GCP_PROJECT
-
-            # 2) Configura docker para Artifact Registry
             - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-            # 3) Build e push da imagem (ASYNC)
             - gcloud builds submit --tag $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG --async --format='value(id)' > build_id.txt
             - export BUILD_ID=$(cat build_id.txt)
             - echo "Build ID:" $BUILD_ID
-
-            # 4) Aguarda o build completar
             - |
               echo "Aguardando build finalizar..."
               while true; do
@@ -30,14 +24,11 @@ pipelines:
                   break
                 elif [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ]; then
                   echo "Build falhou com status: $STATUS"
-                  echo "Capturando logs do build..."
                   gcloud builds log $BUILD_ID --project $GCP_PROJECT
                   exit 1
                 fi
                 sleep 10
               done
-
-            # 5) Deploy no Cloud Run (CORRIGIDO: novo username e versão 2 do secret)
             - >-
               gcloud run deploy $CLOUD_RUN_SERVICE
               --image $ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG
@@ -49,28 +40,5 @@ pipelines:
               --update-secrets DB_PASS=db-password-qa:latest,JWT_SECRET=jwt-secret:latest
               --allow-unauthenticated
               --quiet
-
           after-script:
-            - echo "========================================"
-            - echo "Exit code:" $BITBUCKET_EXIT_CODE
-            - echo "========================================"
-
-            # Sempre mostra informações do build
-            - |
-              if [ -f build_id.txt ]; then
-                BUILD_ID=$(cat build_id.txt)
-                echo "Build ID:" $BUILD_ID
-                echo "Ver build completo em:"
-                echo "https://console.cloud.google.com/cloud-build/builds/$BUILD_ID?project=$GCP_PROJECT"
-              fi
-
-            # Logs condicionais
-            - |
-              if [ "$BITBUCKET_EXIT_CODE" -eq 0 ]; then
-                echo "Deploy bem-sucedido! Aguardando logs da aplicação..."
-                sleep 30
-                gcloud beta run services logs read $CLOUD_RUN_SERVICE --region $CLOUD_RUN_REGION --project $GCP_PROJECT --limit=50 || echo "Logs ainda não disponíveis"
-              else
-                echo "Pipeline falhou. Status do serviço:"
-                gcloud run services describe $CLOUD_RUN_SERVICE --region $CLOUD_RUN_REGION --project $GCP_PROJECT --format="value(status.conditions)" 2>/dev/null || echo "Serviço não existe"
-              fi
+            - echo "Pipeline completed with exit code:" $BITBUCKET_EXIT_CODE
