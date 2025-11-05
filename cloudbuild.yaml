@@ -4,23 +4,23 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:latest'
       - '.'
 
   # Step 2: Push para Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
 
   # Step 3: Deploy para Cloud Run (Dev)
   - name: 'gcr.io/cloud-builders/run'
     args:
       - 'deploy'
       - 'agrogame-api-dev'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
       - '--region=us-central1'
       - '--platform=managed'
       - '--service-account=bitbucket-deployer@$PROJECT_ID.iam.gserviceaccount.com'
