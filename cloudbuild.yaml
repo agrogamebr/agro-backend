@@ -36,6 +36,9 @@ images:
 
 timeout: '3600s'
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _ARTIFACT_REGISTRY_REPO: 'us-central1-docker.pkg.dev/${PROJECT_ID}/agrogame'
   _IMAGE_NAME: 'agro-backend'
