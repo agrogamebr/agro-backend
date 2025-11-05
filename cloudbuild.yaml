@@ -31,10 +31,6 @@ steps:
       - '--allow-unauthenticated'
       - '--quiet'
 
-images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:develop'
-
 timeout: '3600s'
 
 options:
