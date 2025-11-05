@@ -4,46 +4,37 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:${_IMAGE_TAG}'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
       - '-t'
-      - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:latest'
       - '.'
 
   # Step 2: Push para Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:${_IMAGE_TAG}'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
 
   # Step 3: Deploy para Cloud Run (Dev)
   - name: 'gcr.io/cloud-builders/run'
     args:
       - 'deploy'
-      - '${_CLOUD_RUN_SERVICE}'
-      - '--image=${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:${_IMAGE_TAG}'
-      - '--region=${_CLOUD_RUN_REGION}'
+      - 'agrogame-api-dev'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
+      - '--region=us-central1'
       - '--platform=managed'
-      - '--service-account=${_CLOUD_RUN_SERVICE_ACCOUNT}'
-      - '--add-cloudsql-instances=${_CLOUDSQL_INSTANCE}'
+      - '--service-account=bitbucket-deployer@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--add-cloudsql-instances=$PROJECT_ID:us-central1:agrogame-db-qa'
       - '--update-env-vars=SPRING_PROFILES_ACTIVE=dev,APP_ENV=dev,DB_USER=agrogame_db_qa_cloudrun,DB_NAME=postgres'
       - '--update-secrets=DB_PASS=db-password-qa:latest,JWT_SECRET=jwt-secret:latest'
       - '--allow-unauthenticated'
       - '--quiet'
 
 images:
-  - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:${_IMAGE_TAG}'
-  - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:latest'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:$SHORT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame/agro-backend:latest'
 
 timeout: '3600s'
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-substitutions:
-  _ARTIFACT_REGISTRY_REPO: 'us-central1-docker.pkg.dev/${PROJECT_ID}/agrogame'
-  _IMAGE_NAME: 'agro-backend'
-  _IMAGE_TAG: '${SHORT_SHA}'
-  _CLOUD_RUN_SERVICE: 'agrogame-api-dev'
-  _CLOUD_RUN_REGION: 'us-central1'
-  _CLOUD_RUN_SERVICE_ACCOUNT: 'bitbucket-deployer@${PROJECT_ID}.iam.gserviceaccount.com'
-  _CLOUDSQL_INSTANCE: '${PROJECT_ID}:us-central1:agrogame-db-qa'
