@@ -56,5 +56,85 @@ public class UserStatus {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getCode() {
+		return code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public Boolean getIsActive() {
+		return isActive;
+	}
+
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public User getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public User getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(User updatedBy) {
+		this.updatedBy = updatedBy;
+	}
+
+	public LocalDateTime getDeactivatedAt() {
+		return deactivatedAt;
+	}
+
+	public void setDeactivatedAt(LocalDateTime deactivatedAt) {
+		this.deactivatedAt = deactivatedAt;
+	}
+
+	public User getDeactivatedBy() {
+		return deactivatedBy;
+	}
+
+	public void setDeactivatedBy(User deactivatedBy) {
+		this.deactivatedBy = deactivatedBy;
+	}
 }
 
