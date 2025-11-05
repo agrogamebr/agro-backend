@@ -29,7 +29,6 @@ steps:
       - '--update-secrets=DB_PASS=db-password-qa:latest,JWT_SECRET=jwt-secret:latest'
       - '--allow-unauthenticated'
       - '--quiet'
-    serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/${_CLOUD_RUN_SERVICE_ACCOUNT}'
 
 images:
   - '${_ARTIFACT_REGISTRY_REPO}/${_IMAGE_NAME}:${_IMAGE_TAG}'
