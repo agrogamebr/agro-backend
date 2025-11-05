@@ -127,7 +127,7 @@ public class CompanyService {
 		User user = new User();
 
 		// Nome completo do responsável
-		user.setFullname(dto.getResponsibleName());
+		user.setFullName(dto.getResponsibleName());
 
 		// Dividir nome em firstName e lastName
 		String[] parts = dto.getResponsibleName().trim().split("\\s+", 2);
