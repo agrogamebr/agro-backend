@@ -1,20 +1,26 @@
 package br.com.agrogame.agrogame.enumerator;
 
 public enum EnumCompanyStatus {
-    PENDING("pending", "Pendente de Aprovação"),
-    APPROVED("approved", "Aprovada"),
-    REJECTED("rejected", "Rejeitada"),
-    SUSPENDED("suspended", "Suspensa"),
-    INACTIVE("inactive", "Inativa"),
-    ARCHIVED("archived", "Arquivada");
+	APPROVED(1, "approved", "Aprovada"),
+    PENDING(2, "pending", "Pendente de Aprovação"),
+    REJECTED(3, "rejected", "Rejeitada"),
+    SUSPENDED(4, "suspended", "Suspensa"),
+    INACTIVE(5, "inactive", "Inativa"),
+    ARCHIVED(6, "archived", "Arquivada");
 
+	private final Integer id;
     private final String code;
     private final String description;
 
-    EnumCompanyStatus(String code, String description) {
+    EnumCompanyStatus(Integer id, String code, String description) {
+    	this.id = id;
         this.code = code;
         this.description = description;
     }
+    
+	public Integer getId() {
+		return id;
+	}
 
     public String getCode() {
         return code;

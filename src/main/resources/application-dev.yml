@@ -85,9 +85,9 @@ management:
 # APPLICATION CUSTOM PROPERTIES
 # ===========================================
 app:
-  #  storage:
-  #    base-path: ""
-  #    cdn-url: ""
+  swagger:
+    server-url: https://agrogame-api-dev-1017408486443.us-central1.run.app
+    server-description: Development / QA
 
   pagination:
     default-page-size: 20

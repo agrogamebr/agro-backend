@@ -1,0 +1,125 @@
+# ===========================================
+# PROFILE: LOCAL (Eclipse)
+# ===========================================
+spring:
+  application:
+    name: agrogame-api
+
+  # ===========================================
+  # DATABASE CONFIGURATION - PostgreSQL Local ou Cloud SQL Proxy
+  # ===========================================
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:agrogame_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  # Connection Pool (HikariCP)
+  hikari:
+    maximum-pool-size: 5
+    minimum-idle: 2
+    connection-timeout: 30000
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none  # Nunca use create/update em local se compartilha banco com dev
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  # ===========================================
+  # FILE UPLOAD CONFIGURATION
+  # ===========================================
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# ===========================================
+# SERVER CONFIGURATION
+# ===========================================
+server:
+  port: 8080
+  compression:
+    enabled: true
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param  # Mostra stack em local para debug
+    include-exception: true       # Mostra exception em local
+
+# ===========================================
+# LOGGING CONFIGURATION (mais detalhado em local)
+# ===========================================
+logging:
+  level:
+    root: INFO
+    br.com.agrogame.agrogame: DEBUG
+    org.hibernate.SQL: DEBUG           # Mostra SQL
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # Mostra parâmetros SQL
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# ===========================================
+# JWT CONFIGURATION
+# ===========================================
+jwt:
+  secret: ${JWT_SECRET:minha-chave-desenvolvimento-local-super-secreta-123456}
+  expiration: 86400000  # 24 horas em milissegundos
+
+# ===========================================
+# ACTUATOR CONFIGURATION
+# ===========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,metrics  # Mais endpoints em local
+  endpoint:
+    health:
+      show-details: always
+
+# ===========================================
+# SWAGGER CONFIGURATION
+# ===========================================
+app:
+  swagger:
+    server-url: http://localhost:8080
+    server-description: Local Development (Eclipse)
+
+  # ===========================================
+  # APPLICATION CUSTOM PROPERTIES
+  # ===========================================
+  storage:
+    base-path: /tmp/agrogame-uploads  # Path local
+    cdn-url: http://localhost:8080/files
+
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+
+  points:
+    max-transaction-per-day: 50
+
+# ===========================================
+# SPRINGDOC (Swagger UI)
+# ===========================================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true  # Habilitado em local
