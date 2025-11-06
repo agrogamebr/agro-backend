@@ -1,6 +1,6 @@
 steps:
   # 1. Compila o código e gera o .jar
-  - name: 'maven:3.8-openjdk-17'
+  - name: 'maven:3.9.6-eclipse-temurin-21'
     entrypoint: 'mvn'
     args: [ 'package', '-DskipTests=true' ]
     id: 'Package Application'
