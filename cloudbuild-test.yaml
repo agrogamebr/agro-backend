@@ -13,3 +13,8 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'temp-validation-image', '.']
     id: 'Validate Docker Build'
+
+    timeout: '3600s'
+
+    options:
+      logging: CLOUD_LOGGING_ONLY
