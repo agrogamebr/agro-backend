@@ -1,0 +1,15 @@
+steps:
+  # 1. Compila o código e gera o .jar
+  - name: 'maven:3.9.6-eclipse-temurin-21'
+    entrypoint: 'mvn'
+    args: [ 'package', '-DskipTests=true' ]
+    id: 'Package Application'
+
+  # 2. Builda a imagem Docker para validar o Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [ 'build', '-t', 'temp-validation-image', '.' ]
+    id: 'Validate Docker Build'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
