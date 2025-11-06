@@ -99,6 +99,8 @@ public class SecurityConfig {
 						"/api/company/createCompany",
 					    "/api/company/company-types", 
 					    "/api/producer/register",
+					    "/api/producer/validate-email",
+					    "/api/producer/validate-document",
 						"/swagger-ui/**",
 						"/v3/api-docs/**",
 						"/swagger-ui.html",
