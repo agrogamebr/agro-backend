@@ -1,0 +1,15 @@
+steps:
+  # 1. Compila o código e gera o .jar
+  # O 'package' é mais rápido que 'install' e suficiente para criar o JAR.
+  # Usamos -DskipTests=true para pular a fase de testes, que está vazia.
+  - name: 'maven:3.8-openjdk-17'
+    entrypoint: 'mvn'
+    args: ['package', '-DskipTests=true']
+    id: 'Package Application'
+
+  # 2. Builda a imagem Docker para validar o Dockerfile
+  # Este passo garante que a imagem pode ser construída com o JAR do passo anterior.
+  # Não há 'push', então a imagem é descartada ao final do build.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'temp-validation-image', '.']
+    id: 'Validate Docker Build'
