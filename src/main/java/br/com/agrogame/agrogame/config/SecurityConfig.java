@@ -101,6 +101,8 @@ public class SecurityConfig {
 					    "/api/producer/register",
 					    "/api/producer/validate-email",
 					    "/api/producer/validate-document",
+					    "/api/producer/document-types",
+					    "/api/producer/companies/active",
 						"/swagger-ui/**",
 						"/v3/api-docs/**",
 						"/swagger-ui.html",

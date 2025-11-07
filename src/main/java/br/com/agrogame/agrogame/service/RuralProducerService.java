@@ -140,4 +140,47 @@ public class RuralProducerService {
         
         return savedProducer;
     }
+    
+    /**
+     * Aprova um produtor rural (User), mudando status de PENDING para APPROVED
+     * @param userId ID do usuário a aprovar
+     * @param userEmail Email do usuário autenticado
+     * @return User atualizado
+     */
+    @Transactional
+    public User associateProducer(Long userId, String userEmail) {
+        // 1. Buscar usuário autenticado (admin)
+        User admin = ruralProducerRepository.findByEmail1(userEmail)
+            .orElseThrow(() -> new RuntimeException("Usuário autenticado não encontrado"));
+
+        // 2. Buscar produtor rural pelo ID
+        User producer = ruralProducerRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("Produtor rural não encontrado com ID: " + userId));
+
+        if (admin.getCompany() == null || producer.getCompany() == null ||
+            !admin.getCompany().getId().equals(producer.getCompany().getId())) {
+            throw new IllegalStateException("Você só pode aprovar produtores da sua empresa!");
+        }
+
+        // 4. Validar se status está PENDING
+        if (!producer.getUserStatus().getCode().equals(EnumUserStatus.PENDING.getCode())) {
+            throw new IllegalStateException("Somente usuários com status PENDING podem ser aprovados. Status atual: "
+                    + producer.getUserStatus().getCode());
+        }
+
+        // 5. Buscar status APPROVED
+        UserStatus approvedStatus = userStatusRepository
+            .findByCode(EnumUserStatus.APPROVED.getCode())
+            .orElseThrow(() -> new RuntimeException("Status 'approved' não encontrado"));
+
+        // 6. Atualizar status e auditoria
+        producer.setUserStatus(approvedStatus);
+        producer.setUpdatedAt(LocalDateTime.now());
+        producer.setUpdatedBy(admin); // Quem aprovou
+
+        // 7. Salvar
+        User savedProducer = ruralProducerRepository.save(producer);
+        return savedProducer;
+    }
+
 }

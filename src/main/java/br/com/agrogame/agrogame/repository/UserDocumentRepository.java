@@ -8,8 +8,8 @@ import java.util.Optional;
 
 @Repository
 public interface UserDocumentRepository extends JpaRepository<UserDocument, Integer> {
-    Optional<UserDocument> findByUserIdAndDocumentTypeId(Integer userId, Integer documentTypeId);
-    boolean existsByDocumentNumberAndIsActiveTrue(String documentNumber);
-    boolean existsByDocumentTypeIdAndDocumentNumber(Integer documentTypeId, String documentNumber);
+	Optional<UserDocument> findByUserIdAndDocumentTypeId(Integer userId, Integer documentTypeId);
+	boolean existsByDocumentNumberAndIsActiveTrue(String documentNumber);
+	boolean existsByDocumentTypeIdAndDocumentNumber(Integer documentTypeId, String documentNumber);
 
 }
