@@ -125,7 +125,11 @@ public class RuralProducerService {
         document.setIsPrimary(true);
         document.setIsActive(true);
         document.setCreatedAt(LocalDateTime.now());
-        document.setCreatedBy(null); // Auto-cadastro
+        document.setCreatedBy(null); 
+
+        String[] parts = dto.getFullName().trim().split("\\s+", 2);
+     	producer.setFirstName(parts[0]);
+     	producer.setLastName(parts.length > 1 ? parts[1] : "");
         
         // 8. Salvar documento
         userDocumentRepository.save(document);

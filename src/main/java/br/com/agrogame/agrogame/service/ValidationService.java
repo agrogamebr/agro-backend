@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.agrogame.agrogame.repository.CompanyDocumentsRepository;
 import br.com.agrogame.agrogame.repository.CompanyRepository;
+import br.com.agrogame.agrogame.repository.UserDocumentRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 
 @Service
@@ -18,6 +19,9 @@ public class ValidationService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private UserDocumentRepository userDocumentRepository;
 
     /**
      * Valida se CNPJ já existe na base (busca em company_documents)
@@ -56,4 +60,12 @@ public class ValidationService {
     public boolean isValidEmailFormat(String email) {
         return email != null && email.matches(".+@.+\\..+");
     }
+    
+    public boolean documentAlreadyExists(Integer documentTypeId, String documentNumber) {
+        // Remover formatação caso seja necessário (ex: CPF)
+        String docNumberNormalized = documentNumber.replaceAll("[^A-Za-z0-9]", "");
+
+        return userDocumentRepository.existsByDocumentTypeIdAndDocumentNumber(documentTypeId, docNumberNormalized);
+    }
+
 }
