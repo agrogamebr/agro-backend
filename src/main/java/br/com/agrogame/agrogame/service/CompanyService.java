@@ -188,7 +188,7 @@ public class CompanyService {
 
 		CompanyStatus status = companyStatusRepository
 				.findByCode(EnumCompanyStatus.PENDING.getCode())
-				.orElseThrow(() -> new IllegalArgumentException("sTATUS pending não encontrado"));
+				.orElseThrow(() -> new IllegalArgumentException("Status pending não encontrado"));
 		company.setCompanyStatus(status);
 
 		CompanyType companyType = companyTypeRepository
