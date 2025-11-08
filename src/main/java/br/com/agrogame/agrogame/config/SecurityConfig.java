@@ -96,7 +96,7 @@ public class SecurityConfig {
 						"/api/auth/register",
 						"/api/company/validate-email",
 						"/api/company/validate-cnpj",
-						"/api/company/createCompany",
+						"/api/company/create-company",
 					    "/api/company/company-types", 
 					    "/api/producer/register",
 					    "/api/producer/validate-email",

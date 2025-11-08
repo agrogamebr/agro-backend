@@ -61,16 +61,8 @@ public class CreateCompanyDTO {
     @NotEmpty(message = "Pelo menos um documento é obrigatório")
     private List<CompanyDocumentDTO> documentos;
 
-    // ===== SEGMENTO E TIPO =====
-    
-    @NotBlank(message = "Segmento é obrigatório")
-    private String segment;
-
     @NotNull(message = "Tipo de empresa é obrigatório")
     private Integer companyTypeId;
-
-    @NotNull(message = "Segmento é obrigatório")
-    private Integer segmentoId;
 
     // ===== DADOS DO USUÁRIO ADMINISTRADOR PADRÃO =====
     
@@ -197,28 +189,12 @@ public class CreateCompanyDTO {
         this.documentos = documentos;
     }
 
-    public String getSegment() {
-        return segment;
-    }
-
-    public void setSegment(String segment) {
-        this.segment = segment;
-    }
-
     public Integer getCompanyTypeId() {
         return companyTypeId;
     }
 
     public void setCompanyTypeId(Integer companyTypeId) {
         this.companyTypeId = companyTypeId;
-    }
-
-    public Integer getSegmentoId() {
-        return segmentoId;
-    }
-
-    public void setSegmentoId(Integer segmentoId) {
-        this.segmentoId = segmentoId;
     }
 
     public String getAdminPassword() {
