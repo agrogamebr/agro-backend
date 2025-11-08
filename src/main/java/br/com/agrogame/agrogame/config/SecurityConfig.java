@@ -90,29 +90,12 @@ public class SecurityConfig {
 
 		// 4️⃣ AUTORIZAÇÃO
 		.authorizeHttpRequests(auth -> auth
-				// Endpoints públicos
-				.requestMatchers(
-						"/api/auth/login",
-						"/api/auth/register",
-						"/api/company/validate-email",
-						"/api/company/validate-cnpj",
-						"/api/company/create-company",
-					    "/api/company/company-types", 
-					    "/api/producer/register",
-					    "/api/producer/validate-email",
-					    "/api/producer/validate-document",
-					    "/api/producer/document-types",
-					    "/api/producer/companies/active",
-						"/swagger-ui/**",
-						"/v3/api-docs/**",
-						"/swagger-ui.html",
-						"/actuator/**",
-						"/actuator/health",
-						"/actuator/info"
-						).permitAll()
-				// Todos os outros precisam de autenticação
-				.anyRequest().authenticated()
-				)
+			    // Endpoints públicos - USAR A MESMA LISTA
+			    .requestMatchers(PublicEndpoints.ENDPOINTS.toArray(new String[0]))
+			    .permitAll()
+			    // Todos os outros precisam de autenticação
+			    .anyRequest().authenticated()
+			)
 
 		// 5️⃣ DESABILITAR LOGIN FORM (evita redirect)
 		.formLogin(form -> form.disable())

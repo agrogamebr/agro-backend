@@ -32,6 +32,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+    	
+        String requestPath = request.getRequestURI();
+        if (PublicEndpoints.isPublic(requestPath)) {
+            System.out.println("DEBUG: Endpoint público acessado - " + requestPath);
+            filterChain.doFilter(request, response);
+            return; 
+        }
         try {
             String jwt = extractJwtFromRequest(request);
             
