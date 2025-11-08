@@ -64,6 +64,9 @@ public class CompanyService {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+	
+    @Autowired
+	private ValidationService validationService;
 
 	/**
 	 * Cadastra uma nova empresa com usuário administrador padrão
@@ -75,6 +78,18 @@ public class CompanyService {
 	 */
 	@Transactional
 	public Company registerCompany(CreateCompanyDTO dto, String cnpj) {
+		
+	    if (validationService.cnpjAlreadyExists(cnpj)) {
+	        throw new IllegalArgumentException("CNPJ já cadastrado");
+	    }
+	    
+	    if (!validationService.isValidEmailFormat(dto.getEmail1())) {
+	        throw new IllegalArgumentException("Formato de e-mail inválido");
+	    }
+	    
+	    if (validationService.emailAlreadyExists(dto.getEmail1())) {
+	        throw new IllegalArgumentException("E-mail já cadastrado");
+	    }
 
 		// 1. Criar e salvar Company (status PENDING)
 		Company company = fromDto(dto);
@@ -106,7 +121,7 @@ public class CompanyService {
 
 			CompanyDocumentType docType = companyDocumentTypeRepository
 					.findByCode(docDTO.getDocument().toString())
-					.orElseThrow(() -> new RuntimeException(
+					.orElseThrow(() -> new IllegalArgumentException(
 							"Tipo de documento não encontrado: " + docDTO.getDocument()));
 
 			doc.setDocumentType(docType);
@@ -173,12 +188,12 @@ public class CompanyService {
 
 		CompanyStatus status = companyStatusRepository
 				.findByCode(EnumCompanyStatus.PENDING.getCode())
-				.orElseThrow(() -> new RuntimeException("Status 'PENDING' não encontrado"));
+				.orElseThrow(() -> new IllegalArgumentException("Status pending não encontrado"));
 		company.setCompanyStatus(status);
 
 		CompanyType companyType = companyTypeRepository
 				.findById(dto.getCompanyTypeId())
-				.orElseThrow(() -> new RuntimeException("Tipo de empresa não encontrado"));
+				.orElseThrow(() -> new IllegalArgumentException("Tipo de empresa não encontrado"));
 		company.setCompanyType(companyType);
 
 		company.setCreatedAt(LocalDateTime.now());
