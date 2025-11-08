@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import br.com.agrogame.agrogame.model.Company;
@@ -12,5 +13,12 @@ import br.com.agrogame.agrogame.model.Company;
 public interface CompanyRepository extends JpaRepository<Company, Integer> {
 	@Query("SELECT c FROM Company c JOIN FETCH c.companyStatus JOIN FETCH c.companyType")
 	List<Company> findAllWithStatusAndType();
-    boolean existsByEmail1(String email);
+	boolean existsByEmail1(String email);
+	
+	@Query("SELECT c FROM Company c " +
+		       "JOIN FETCH c.companyStatus cs " +
+		       "JOIN FETCH c.companyType ct " +
+		       "WHERE cs.code = :code")
+		List<Company> findActiveCompanies(@Param("code") String code);
+
 }

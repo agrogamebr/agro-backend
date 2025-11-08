@@ -234,5 +234,9 @@ public class CompanyService {
 
 		return savedCompany;
 	}
+	
+	public List<Company> findAllActive() {
+	    return companyRepository.findActiveCompanies(EnumCompanyStatus.APPROVED.getCode());
+	}
 
 }
