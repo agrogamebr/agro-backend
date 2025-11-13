@@ -11,6 +11,10 @@ import br.com.agrogame.agrogame.dto.RuralProducerDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
+import br.com.agrogame.agrogame.exceptions.BadRequestException;
+import br.com.agrogame.agrogame.exceptions.BusinessException;
+import br.com.agrogame.agrogame.exceptions.DuplicateResourceException;
+import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.AuthCredential;
 import br.com.agrogame.agrogame.model.Company;
 import br.com.agrogame.agrogame.model.User;
@@ -52,23 +56,26 @@ public class RuralProducerService {
     
     @Autowired
     private UserStatusRepository userStatusRepository;
+
+	@Autowired
+	private ValidationService validationService; 
     
     @Transactional
     public User registerRuralProducer(RuralProducerDTO dto) {
         
         // 1. Buscar empresa pelo ID e validar se está ATIVA (code = 1)
         Company company = companyRepository.findById(dto.getCompanyId())
-            .orElseThrow(() -> new IllegalArgumentException("Empresa não encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
         
         // Verifica se a empresa tem status APPROVED (code = 1)
         if (company.getCompanyStatus() == null || 
             company.getCompanyStatus().getCode().equals(EnumCompanyStatus.APPROVED.getId().toString())) {
-            throw new IllegalArgumentException("Empresa parceira não está ativa para receber produtores");
+            throw new BusinessException("Empresa parceira não está ativa para receber produtores");
         }
         
         // 2. Buscar o tipo de documento selecionado
         UserDocumentType documentType = userDocumentTypeRepository.findById(dto.getDocumentTypeId())
-            .orElseThrow(() -> new IllegalArgumentException("Tipo de documento não encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Tipo de documento não encontrado"));
         
         // 3. Criar entidade User (Produtor Rural)
         User producer = new User();
@@ -76,13 +83,22 @@ public class RuralProducerService {
         producer.setEmail1(dto.getEmail());
         
         UserType userType = userTypeRepository.findByCode(EnumUserType.USER.getCode())
-            .orElseThrow(() -> new IllegalArgumentException("Tipo de usuário não encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Tipo de usuário não encontrado"));
         
         producer.setUserType(userType);
         
         UserStatus pendingStatus = userStatusRepository.findByCode(EnumUserStatus.PENDING.getCode())
-                .orElseThrow(() -> new IllegalArgumentException("Status PENDING não encontrado"));
-            
+                .orElseThrow(() -> new ResourceNotFoundException("Status PENDING não encontrado"));
+        
+        if (!validationService.isValidEmailFormat(dto.getEmail())) {
+            throw new BadRequestException("Formato de e-mail inválido");
+        }
+        if (validationService.emailAlreadyExists(dto.getEmail())) {
+            throw new DuplicateResourceException("E-mail já cadastrado");
+        }
+        if (validationService.documentAlreadyExists(dto.getDocumentTypeId(), dto.getDocumentNumber())) {
+            throw new DuplicateResourceException("Documento já cadastrado");
+        }
         
         producer.setUserStatus(pendingStatus);
         
@@ -151,27 +167,27 @@ public class RuralProducerService {
     public User associateProducer(Long userId, String userEmail) {
         // 1. Buscar usuário autenticado (admin)
         User admin = ruralProducerRepository.findByEmail1(userEmail)
-            .orElseThrow(() -> new RuntimeException("Usuário autenticado não encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
 
         // 2. Buscar produtor rural pelo ID
         User producer = ruralProducerRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("Produtor rural não encontrado com ID: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado com ID: " + userId));
 
         if (admin.getCompany() == null || producer.getCompany() == null ||
             !admin.getCompany().getId().equals(producer.getCompany().getId())) {
-            throw new IllegalStateException("Você só pode aprovar produtores da sua empresa!");
+            throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
         }
 
         // 4. Validar se status está PENDING
         if (!producer.getUserStatus().getCode().equals(EnumUserStatus.PENDING.getCode())) {
-            throw new IllegalStateException("Somente usuários com status PENDING podem ser aprovados. Status atual: "
+            throw new BusinessException("Somente usuários com status PENDING podem ser aprovados. Status atual: "
                     + producer.getUserStatus().getCode());
         }
 
         // 5. Buscar status APPROVED
         UserStatus approvedStatus = userStatusRepository
             .findByCode(EnumUserStatus.APPROVED.getCode())
-            .orElseThrow(() -> new RuntimeException("Status 'approved' não encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Status 'approved' não encontrado"));
 
         // 6. Atualizar status e auditoria
         producer.setUserStatus(approvedStatus);
