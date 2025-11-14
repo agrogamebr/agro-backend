@@ -30,6 +30,7 @@ import br.com.agrogame.agrogame.service.UserDocumentTypeService;
 import br.com.agrogame.agrogame.service.ValidationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -50,37 +51,40 @@ public class RuralProducerController {
 	@Autowired
 	private CompanyService companyService;
 
+	@Operation(
+		    summary = "Cadastrar produtor rural",
+		    description = """
+		      Cria novo produtor vinculado a uma empresa parceira.
+		      Principais erros:
+		      - 400: Dados inválidos (formato obrigatório, campos ausentes)
+		      - 404: Empresa ou tipo de documento não encontrado
+		      - 409: E-mail ou documento já cadastrado para outro usuário
+		      - 422: Regra de negócio impedindo cadastro (ex: empresa não ativa para receber produtores)
+		      - 500: Erro inesperado no servidor
+		    """
+		)
+		@ApiResponses(value = {
+		    @ApiResponse(responseCode = "201", description = "Produtor cadastrado com sucesso"),
+		    @ApiResponse(responseCode = "400", description = "Dados inválidos (ex: formato de email)"),
+		    @ApiResponse(responseCode = "404", description = "Empresa ou tipo de documento não encontrado"),
+		    @ApiResponse(responseCode = "409", description = "E-mail ou documento já cadastrado"),
+		    @ApiResponse(responseCode = "422", description = "Regras de negócio não atendidas"),
+		    @ApiResponse(responseCode = "500", description = "Erro inesperado no servidor")
+		})
+		@PostMapping("/register")
+		public ResponseEntity<?> registerProducer(@Valid @RequestBody RuralProducerDTO dto) {
+		    User producer = ruralProducerService.registerRuralProducer(dto);
 
-	@Operation(summary = "Cadastrar produtor rural", description = "Cria novo produtor vinculado a uma empresa parceira")
-	@PostMapping("/register")
-	public ResponseEntity<?> registerProducer(@Valid @RequestBody RuralProducerDTO dto) {
-		try {
-			User producer = ruralProducerService.registerRuralProducer(dto);
+		    Map<String, Object> response = new HashMap<>();
+		    response.put("success", true);
+		    response.put("message", "Cadastro realizado com sucesso! Aguarde a aprovação da empresa parceira.");
+		    response.put("producerId", producer.getId());
+		    response.put("producerName", producer.getFullName());
+		    response.put("status", producer.getUserStatus().getName());
 
-			Map<String, Object> response = new HashMap<>();
-			response.put("success", true);
-			response.put("message", "Cadastro realizado com sucesso! Aguarde a aprovação da empresa parceira.");
-			response.put("producerId", producer.getId());
-			response.put("producerName", producer.getFullName());
-			response.put("status", producer.getUserStatus().getName());
-
-			return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-		} catch (IllegalArgumentException e) {
-			Map<String, Object> errorResponse = new HashMap<>();
-			errorResponse.put("success", false);
-			errorResponse.put("message", e.getMessage());
-
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-
-		} catch (Exception e) {
-			Map<String, Object> errorResponse = new HashMap<>();
-			errorResponse.put("success", false);
-			errorResponse.put("message", "Erro ao processar cadastro. Tente novamente mais tarde.");
-
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+		    return ResponseEntity.status(HttpStatus.CREATED).body(response);
 		}
-	}
+
 
 	@Operation(summary = "Validar Email em tempo real", description = "Verifica se o email já está cadastrado em empresas ou usuários.")
 	@ApiResponse(responseCode = "200", description = "Retorna {'valid': true/false, 'message': '...'}")
@@ -112,7 +116,6 @@ public class RuralProducerController {
 			) {
 		Map<String, Object> response = new HashMap<>();
 
-		// (Opcional) você pode adicionar regras de validação de formato aqui
 		if (documentNumber == null || documentNumber.isBlank()) {
 			response.put("valid", false);
 			response.put("message", "Número do documento não informado");
@@ -141,41 +144,42 @@ public class RuralProducerController {
 				.map(CompanyListDTO::new)
 				.toList();
 	}
-	
-	
-	@Operation(summary = "Aprovar associação de funcionário na empresa", description = "Faz a aprovação da associação de um produtor rural à empresa do usuário autenticado. Somente Manager e employee podem aprovar.")
-	@PatchMapping("/associate/{userId}")
-	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee')")
-	public ResponseEntity<?> associateProducer(@PathVariable Long userId) {
-		try {
-			String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-			User approved = ruralProducerService.associateProducer(userId, userEmail);
 
-			Map<String, Object> response = new HashMap<>();
-			response.put("id", approved.getId());
-			response.put("userName", approved.getFullName());
-			response.put("status", approved.getUserStatus().getCode());
-			response.put("message", "Produtor rural associado com sucesso!");
+	@Operation(
+		    summary = "Aprovar associação de funcionário na empresa",
+		    description = """
+		      Faz a aprovação da associação de um produtor rural à empresa do usuário autenticado.
+		      Somente administrador, manager ou employee da empresa do produtor podem aprovar.
 
-			return ResponseEntity.ok(response);
+		      Principais erros:
+		      - 400: Regra de negócio violada (ex: status do produtor não está PENDING)
+		      - 403: Acesso negado (usuário não tem autoridade para aprovar)
+		      - 404: Produtor rural ou usuário autenticado não encontrado, ou não pertencem à mesma empresa
+		      - 422: Regra de negócio específica não atendida (ex: já aprovado, associação não permitida)
+		      - 500: Erro inesperado no servidor
+		    """
+		)
+		@ApiResponses(value = {
+		    @ApiResponse(responseCode = "200", description = "Produtor aprovado/associado com sucesso"),
+		    @ApiResponse(responseCode = "400", description = "Regra de negócio violada"),
+		    @ApiResponse(responseCode = "403", description = "Acesso negado ao recurso"),
+		    @ApiResponse(responseCode = "404", description = "Usuário/Produtor não encontrado ou não pertence à sua empresa"),
+		    @ApiResponse(responseCode = "422", description = "Regras específicas de negócio não atendidas"),
+		    @ApiResponse(responseCode = "500", description = "Erro inesperado no servidor")
+		})
+		@PatchMapping("/associate/{userId}")
+		@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee')")
+		public ResponseEntity<?> associateProducer(@PathVariable Long userId) {
+		    String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+		    User approved = ruralProducerService.associateProducer(userId, userEmail);
 
-		} catch (IllegalStateException e) {
-			Map<String, String> error = new HashMap<>();
-			error.put("error", e.getMessage());
-			return ResponseEntity.status(400).body(error);
+		    Map<String, Object> response = new HashMap<>();
+		    response.put("id", approved.getId());
+		    response.put("userName", approved.getFullName());
+		    response.put("status", approved.getUserStatus().getCode());
+		    response.put("message", "Produtor rural associado com sucesso!");
 
-		} catch (RuntimeException e) {
-			Map<String, String> error = new HashMap<>();
-			error.put("error", e.getMessage());
-			return ResponseEntity.status(404).body(error);
-
-		} catch (Exception e) {
-			e.printStackTrace();
-			Map<String, String> error = new HashMap<>();
-			error.put("error", "Erro ao aprovar associação do produtor rural. Tente novamente.");
-			return ResponseEntity.status(500).body(error);
+		    return ResponseEntity.ok(response);
 		}
-	}
-
 
 }

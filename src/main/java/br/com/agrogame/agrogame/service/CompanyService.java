@@ -13,6 +13,8 @@ import br.com.agrogame.agrogame.dto.CreateCompanyDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
+import br.com.agrogame.agrogame.exceptions.BadRequestException;
+import br.com.agrogame.agrogame.exceptions.DuplicateResourceException;
 import br.com.agrogame.agrogame.model.AuthCredential;
 import br.com.agrogame.agrogame.model.Company;
 import br.com.agrogame.agrogame.model.CompanyDocument;
@@ -79,18 +81,15 @@ public class CompanyService {
 	@Transactional
 	public Company registerCompany(CreateCompanyDTO dto, String cnpj) {
 		
-	    if (validationService.cnpjAlreadyExists(cnpj)) {
-	        throw new IllegalArgumentException("CNPJ já cadastrado");
-	    }
-	    
-	    if (!validationService.isValidEmailFormat(dto.getEmail1())) {
-	        throw new IllegalArgumentException("Formato de e-mail inválido");
-	    }
-	    
-	    if (validationService.emailAlreadyExists(dto.getEmail1())) {
-	        throw new IllegalArgumentException("E-mail já cadastrado");
-	    }
-
+		if (validationService.cnpjAlreadyExists(cnpj)) {
+		    throw new DuplicateResourceException("CNPJ já cadastrado");
+		}
+		if (!validationService.isValidEmailFormat(dto.getEmail1())) {
+		    throw new BadRequestException("Formato de e-mail inválido");
+		}
+		if (validationService.emailAlreadyExists(dto.getEmail1())) {
+		    throw new DuplicateResourceException("E-mail já cadastrado");
+		}
 		// 1. Criar e salvar Company (status PENDING)
 		Company company = fromDto(dto);
 		Company savedCompany = companyRepository.save(company);
