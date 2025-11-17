@@ -16,9 +16,17 @@ public interface CompanyRepository extends JpaRepository<Company, Integer> {
 	boolean existsByEmail1(String email);
 	
 	@Query("SELECT c FROM Company c " +
-		       "JOIN FETCH c.companyStatus cs " +
-		       "JOIN FETCH c.companyType ct " +
-		       "WHERE cs.code = :code")
-		List<Company> findActiveCompanies(@Param("code") String code);
+			"JOIN FETCH c.companyStatus cs " +
+			"JOIN FETCH c.companyType ct " +
+			"WHERE cs.code = :code")
+	List<Company> findActiveCompanies(@Param("code") String code);
+	
+	@Query("SELECT c FROM Company c " +
+			"JOIN FETCH c.companyStatus cs " +
+			"JOIN FETCH c.companyType ct " +
+			"WHERE ((:status IS NULL OR :status = '') OR LOWER(cs.code) = LOWER(:status)) " +
+			"AND (:companyTypeId IS NULL OR ct.id = :companyTypeId)")
+	List<Company> findByStatusAndTypeFetch(@Param("status") String status,
+			@Param("companyTypeId") Integer companyTypeId);
 
 }
