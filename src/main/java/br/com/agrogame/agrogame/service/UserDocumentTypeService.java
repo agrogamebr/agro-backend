@@ -14,8 +14,12 @@ public class UserDocumentTypeService {
 	@Autowired
 	private UserDocumentTypeRepository userDocumentTypeRepository;
 
-	public List<UserDocumentType> listAll() {
-		return userDocumentTypeRepository.findAll();
+	public List<UserDocumentType> listAllDocumentTypes(String status) {
+	    Boolean isActive = null;
+	    if ("active".equalsIgnoreCase(status))      isActive = true;
+	    else if ("inactive".equalsIgnoreCase(status)) isActive = false;
+
+	    return userDocumentTypeRepository.findAllByIsActive(isActive);
 	}
 }
 

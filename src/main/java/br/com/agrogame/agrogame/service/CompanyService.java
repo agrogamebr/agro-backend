@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.CompanyDocumentDTO;
+import br.com.agrogame.agrogame.dto.CompanyListDTO;
+import br.com.agrogame.agrogame.dto.CompanyTypeDTO;
 import br.com.agrogame.agrogame.dto.CreateCompanyDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
@@ -66,29 +68,29 @@ public class CompanyService {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
-	
-    @Autowired
+
+	@Autowired
 	private ValidationService validationService;
 
 	/**
 	 * Cadastra uma nova empresa com usuário administrador padrão
 	 * 
-	 * @param dto DTO com dados da empresa
-	 * @param cnpj CNPJ extraído dos documentos
+	 * @param dto           DTO com dados da empresa
+	 * @param cnpj          CNPJ extraído dos documentos
 	 * @param adminPassword Senha do usuário administrador
 	 * @return Company salva no banco
 	 */
 	@Transactional
 	public Company registerCompany(CreateCompanyDTO dto, String cnpj) {
-		
+
 		if (validationService.cnpjAlreadyExists(cnpj)) {
-		    throw new DuplicateResourceException("CNPJ já cadastrado");
+			throw new DuplicateResourceException("CNPJ já cadastrado");
 		}
 		if (!validationService.isValidEmailFormat(dto.getEmail1())) {
-		    throw new BadRequestException("Formato de e-mail inválido");
+			throw new BadRequestException("Formato de e-mail inválido");
 		}
 		if (validationService.emailAlreadyExists(dto.getEmail1())) {
-		    throw new DuplicateResourceException("E-mail já cadastrado");
+			throw new DuplicateResourceException("E-mail já cadastrado");
 		}
 		// 1. Criar e salvar Company (status PENDING)
 		Company company = fromDto(dto);
@@ -118,8 +120,7 @@ public class CompanyService {
 			CompanyDocument doc = new CompanyDocument();
 			doc.setCompany(savedCompany);
 
-			CompanyDocumentType docType = companyDocumentTypeRepository
-					.findByCode(docDTO.getDocument().toString())
+			CompanyDocumentType docType = companyDocumentTypeRepository.findByCode(docDTO.getDocument().toString())
 					.orElseThrow(() -> new IllegalArgumentException(
 							"Tipo de documento não encontrado: " + docDTO.getDocument()));
 
@@ -156,13 +157,13 @@ public class CompanyService {
 		user.setCompany(company);
 
 		// UserType: administrador
-		UserType adminType = userTypeRepository.findByCode(EnumUserType.ADMINISTRATOR.getCode())
-				.orElseThrow(() -> new RuntimeException("UserType '" + EnumUserType.ADMINISTRATOR.getCode() + "' não encontrado"));
+		UserType adminType = userTypeRepository.findByCode(EnumUserType.ADMINISTRATOR.getCode()).orElseThrow(
+				() -> new RuntimeException("UserType '" + EnumUserType.ADMINISTRATOR.getCode() + "' não encontrado"));
 		user.setUserType(adminType);
 
 		// UserStatus: ativo
-		UserStatus activeStatus = userStatusRepository.findByCode(EnumUserStatus.ACTIVE.getCode())
-				.orElseThrow(() -> new RuntimeException("UserStatus '" + EnumUserStatus.ACTIVE.getCode() + "' não encontrado"));
+		UserStatus activeStatus = userStatusRepository.findByCode(EnumUserStatus.ACTIVE.getCode()).orElseThrow(
+				() -> new RuntimeException("UserStatus '" + EnumUserStatus.ACTIVE.getCode() + "' não encontrado"));
 		user.setUserStatus(activeStatus);
 
 		user.setCreatedAt(LocalDateTime.now());
@@ -185,13 +186,11 @@ public class CompanyService {
 		company.setResponsibleName(dto.getResponsibleName());
 		company.setResponsiblePhone(dto.getResponsiblePhone());
 
-		CompanyStatus status = companyStatusRepository
-				.findByCode(EnumCompanyStatus.PENDING.getCode())
+		CompanyStatus status = companyStatusRepository.findByCode(EnumCompanyStatus.PENDING.getCode())
 				.orElseThrow(() -> new IllegalArgumentException("Status pending não encontrado"));
 		company.setCompanyStatus(status);
 
-		CompanyType companyType = companyTypeRepository
-				.findById(dto.getCompanyTypeId())
+		CompanyType companyType = companyTypeRepository.findById(dto.getCompanyTypeId())
 				.orElseThrow(() -> new IllegalArgumentException("Tipo de empresa não encontrado"));
 		company.setCompanyType(companyType);
 
@@ -207,12 +206,22 @@ public class CompanyService {
 		return companyRepository.findAllWithStatusAndType();
 	}
 
-	public List<CompanyType> findAllCompanyTypes() {
-		return companyTypeRepository.findAll();
+	public List<CompanyTypeDTO> findAllCompanyTypes(String status) {
+		Boolean isActive = null;
+		if ("active".equalsIgnoreCase(status)) {
+			isActive = true;
+		} else if ("inactive".equalsIgnoreCase(status)) {
+			isActive = false;
+		}
+
+		List<CompanyType> list = companyTypeRepository.findAllByIsActive(isActive);
+
+		return list.stream().map(CompanyTypeDTO::new).toList();
 	}
 
 	/**
 	 * Aprova uma empresa, mudando status de PENDING para APPROVED
+	 * 
 	 * @param companyId ID da empresa
 	 * @param userEmail Email do usuário autenticado
 	 * @return Company atualizada
@@ -222,20 +231,19 @@ public class CompanyService {
 		// 1. Buscar usuário
 		User user = userRepository.findByEmail1(userEmail)
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-		
+
 		// 3. Buscar empresa
 		Company company = companyRepository.findById(companyId)
 				.orElseThrow(() -> new RuntimeException("Empresa não encontrada com ID: " + companyId));
 
 		// 4. Validar se está PENDING
 		if (!company.getCompanyStatus().getCode().equals(EnumCompanyStatus.PENDING.getCode())) {
-			throw new IllegalStateException("Somente empresas com status PENDING podem ser aprovadas. Status atual: " 
+			throw new IllegalStateException("Somente empresas com status PENDING podem ser aprovadas. Status atual: "
 					+ company.getCompanyStatus().getCode());
 		}
 
 		// 5. Buscar status APPROVED
-		CompanyStatus approvedStatus = companyStatusRepository
-				.findByCode(EnumCompanyStatus.APPROVED.getCode())
+		CompanyStatus approvedStatus = companyStatusRepository.findByCode(EnumCompanyStatus.APPROVED.getCode())
 				.orElseThrow(() -> new RuntimeException("Status 'approved' não encontrado"));
 
 		// 6. Atualizar status
@@ -248,9 +256,14 @@ public class CompanyService {
 
 		return savedCompany;
 	}
-	
+
 	public List<Company> findAllActive() {
-	    return companyRepository.findActiveCompanies(EnumCompanyStatus.APPROVED.getCode());
+		return companyRepository.findActiveCompanies(EnumCompanyStatus.APPROVED.getCode());
+	}
+
+	public List<CompanyListDTO> findCompanies(String status, Integer companyTypeId) {
+		List<Company> companies = companyRepository.findByStatusAndTypeFetch(status, companyTypeId);
+		return companies.stream().map(CompanyListDTO::new).toList();
 	}
 
 }

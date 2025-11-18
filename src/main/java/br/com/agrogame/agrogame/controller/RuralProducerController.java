@@ -3,7 +3,6 @@ package br.com.agrogame.agrogame.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,6 +28,7 @@ import br.com.agrogame.agrogame.service.RuralProducerService;
 import br.com.agrogame.agrogame.service.UserDocumentTypeService;
 import br.com.agrogame.agrogame.service.ValidationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -128,14 +128,18 @@ public class RuralProducerController {
 		return ResponseEntity.ok(response);
 	}
 
-	@Operation(summary = "Listar tipos de documento", description = "Obtém todos os tipos de documento cadastrados")
+	@Operation(summary = "Listar tipos de documento", description = "Obtém todos os tipos de documento cadastrados. Use status='active' para apenas ativos, status='inactive' para inativos ou deixe em branco para todos.")
 	@GetMapping("/document-types")
-	public ResponseEntity<List<UserDocumentTypeDTO>> listAllDocumentTypes() {
-		List<UserDocumentType> entities = userDocumentTypeService.listAll();
-		List<UserDocumentTypeDTO> dtos = entities.stream()
-				.map(UserDocumentTypeDTO::new)
-				.collect(Collectors.toList());
-		return ResponseEntity.ok(dtos);
+	public ResponseEntity<Map<String, Object>> listAllDocumentTypes(
+			@Parameter(description = "Status do tipo de documento: 'active' para ativos, 'inactive' para inativos. Se em branco, retorna todos.", example = "active") @RequestParam(required = false) String status) {
+		List<UserDocumentType> entities = userDocumentTypeService.listAllDocumentTypes(status);
+		List<UserDocumentTypeDTO> dtos = entities.stream().map(UserDocumentTypeDTO::new).toList();
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("items", dtos);
+		response.put("count", dtos.size());
+
+		return ResponseEntity.ok(response);
 	}
 
 	@GetMapping("/companies/active")
