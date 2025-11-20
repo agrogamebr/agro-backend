@@ -1,23 +1,23 @@
 package br.com.agrogame.agrogame.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
 public class LoginRequestDTO {
-    @NotBlank @Email
-    private String email;
-    
-    @NotBlank
-    private String password;
 
-	public String getEmail() {
-		return email;
+	@NotBlank(message = "Identificador (email, CPF ou CNPJ) é obrigatório")
+	private String identifier;
+
+	@NotBlank(message = "Senha é obrigatória")
+	private String password;
+
+	public String getIdentifier() {
+		return identifier;
 	}
 
-	public void setEmail(String email) {
-		this.email = email;
+	public void setIdentifier(String identifier) {
+		this.identifier = identifier;
 	}
 
 	public String getPassword() {
@@ -27,6 +27,4 @@ public class LoginRequestDTO {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-   
-    
 }

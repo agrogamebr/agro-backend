@@ -12,10 +12,14 @@ import br.com.agrogame.agrogame.model.UserDocumentType;
 
 @Repository
 public interface UserDocumentTypeRepository extends JpaRepository<UserDocumentType, Integer> {
-    
-    Optional<UserDocumentType> findByName(String name);
-    
-    @Query("SELECT udt FROM UserDocumentType udt WHERE (:isActive IS NULL OR udt.isActive = :isActive)")
-    List<UserDocumentType> findAllByIsActive(@Param("isActive") Boolean isActive);
+
+	Optional<UserDocumentType> findByName(String name);
+
+	@Query("SELECT udt FROM UserDocumentType udt WHERE (:isActive IS NULL OR udt.isActive = :isActive)")
+	List<UserDocumentType> findAllByIsActive(@Param("isActive") Boolean isActive);
+
+	Optional<UserDocumentType> findByCode(String code);
+
+	Optional<UserDocumentType> findByCodeAndIsActiveTrue(String code);
 
 }
