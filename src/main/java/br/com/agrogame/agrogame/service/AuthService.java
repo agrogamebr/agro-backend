@@ -1,16 +1,30 @@
 package br.com.agrogame.agrogame.service;
 
+import java.time.LocalDateTime;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.LoginRequestDTO;
 import br.com.agrogame.agrogame.dto.LoginResponseDTO;
+import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
+import br.com.agrogame.agrogame.enumerator.EnumUserType;
+import br.com.agrogame.agrogame.exceptions.AuthenticationException;
 import br.com.agrogame.agrogame.model.AuthCredential;
+import br.com.agrogame.agrogame.model.Company;
+import br.com.agrogame.agrogame.model.CompanyDocument;
 import br.com.agrogame.agrogame.model.User;
+import br.com.agrogame.agrogame.model.UserDocument;
 import br.com.agrogame.agrogame.repository.AuthCredentialRepository;
+import br.com.agrogame.agrogame.repository.CompanyDocumentsRepository;
+import br.com.agrogame.agrogame.repository.UserDocumentRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.util.JwtUtil;
+import br.com.agrogame.auth.util.IdentifierValidator;
+import br.com.agrogame.auth.util.IdentifierValidator.IdentifierType;
 
 @Service
 public class AuthService {
@@ -22,39 +36,145 @@ public class AuthService {
     private UserRepository userRepository;
 
     @Autowired
+    private UserDocumentRepository userDocumentRepository;
+    
+    @Autowired
+    private CompanyDocumentsRepository companyDocumentsRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Value("${auth.max-login-attempts:5}")
+    private Integer maxLoginAttempts;
+
+    @Value("${auth.token-expiration-ms:3600000}")
+    private Long tokenExpirationMs;
+
+    @Transactional
     public LoginResponseDTO login(LoginRequestDTO dto) {
-        // Buscar credencial pelo email
-        AuthCredential credential = authCredentialRepository
-            .findByIdentifier(dto.getEmail())
-            .orElseThrow(() -> new RuntimeException("Credenciais inválidas"));
+        String normalizedIdentifier = IdentifierValidator.getNormalizedIfValid(dto.getIdentifier());
+        IdentifierType identifierType = IdentifierValidator.detectType(dto.getIdentifier());
 
-        // Verificar se está ativo
+        // Resolve o email a partir do tipo de identifier
+        String loginEmail = resolveEmailFromIdentifier(normalizedIdentifier, identifierType);
+
+        // Busca a credencial de autenticação pelo email
+        AuthCredential credential = authCredentialRepository.findByIdentifier(loginEmail)
+            .orElseThrow(() -> new AuthenticationException("INVALID_CREDENTIALS", "Login ou senha inválidos"));
+
+        // Verifica se a conta está ativa
         if (!credential.getIsActive()) {
-            throw new RuntimeException("Usuário inativo");
+            throw new AuthenticationException("ACCOUNT_LOCKED", "Sua conta foi bloqueada. Entre em contato com o suporte para desbloquear.");
         }
 
-        // Validar senha
+        // Valida a senha
         if (!passwordEncoder.matches(dto.getPassword(), credential.getPasswordHash())) {
-            throw new RuntimeException("Credenciais inválidas");
+            incrementFailedLoginAttempts(credential);
+            throw new AuthenticationException("INVALID_CREDENTIALS", "Login ou senha inválidos");
         }
 
-        // Atualizar último login
-        credential.setLastLoginAt(java.time.LocalDateTime.now());
+        // Busca o usuário completo
+        User user = credential.getUser();
+
+        // Valida o status do usuário
+        validateUserStatus(user);
+
+        // Reseta tentativas de login falhadas e atualiza o último login
+        credential.setFailedAttempts(0);
+        credential.setLastLoginAt(LocalDateTime.now());
         authCredentialRepository.save(credential);
 
-        // Buscar User completo pelo ID
-        User user = userRepository.findById(credential.getUser().getId())
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        // Gerar token
+        // Gera o token JWT
         String token = jwtUtil.generateToken(user.getEmail1(), user.getId());
 
-        return new LoginResponseDTO(token, user.getId(), user.getEmail1(), user.getFullName());
+        return new LoginResponseDTO(
+            token,
+            user.getId(),
+            user.getEmail1(),
+            user.getFullName(),
+            user.getUserType() != null ? user.getUserType().getName() : null,
+            tokenExpirationMs
+        );
+    }
+
+    /**
+     * Resolve o email a partir do identifier normalizado e seu tipo
+     */
+    private String resolveEmailFromIdentifier(String normalizedIdentifier, IdentifierType identifierType) {
+        switch (identifierType) {
+            case EMAIL:
+                // Se for email, retorna direto
+                return normalizedIdentifier;
+
+            case CPF:
+                // Se for CPF, busca em UserDocuments com tipo CPF
+                UserDocument cpfDoc = userDocumentRepository
+                    .findByDocumentNumberAndDocumentType_CodeAndIsActiveTrue(normalizedIdentifier, "CPF")
+                    .orElseThrow(() -> new AuthenticationException("INVALID_CREDENTIALS", "Login ou senha inválidos"));
+                return cpfDoc.getUser().getEmail1();
+
+            case CNPJ:
+                // Se for CNPJ, busca em CompanyDocuments com empresa aprovada
+                CompanyDocument cnpjDoc = companyDocumentsRepository
+                    .findByDocumentNumberAndDocumentType_CodeAndCompanyApproved(normalizedIdentifier, "CNPJ")
+                    .orElseThrow(() -> new AuthenticationException("INVALID_CREDENTIALS", "Login ou senha inválidos"));
+                
+                Company company = cnpjDoc.getCompany();
+                
+                // Validação extra: verifica se a empresa está aprovada
+                if (!EnumCompanyStatus.APPROVED.getId().equals(company.getCompanyStatus().getId())) {
+                    throw new AuthenticationException(
+                        "COMPANY_NOT_APPROVED", 
+                        "Empresa não aprovada para login"
+                    );
+                }
+                
+                return company.getEmail1();
+
+            case INVALID:
+            default:
+                throw new AuthenticationException("INVALID_IDENTIFIER", "Identificador inválido. Aceitar email, CPF (11 dígitos) ou CNPJ (14 dígitos).");
+        }
+    }
+
+    @Transactional
+    private void incrementFailedLoginAttempts(AuthCredential credential) {
+        Integer currentAttempts = credential.getFailedAttempts() != null ? credential.getFailedAttempts() : 0;
+        credential.setFailedAttempts(currentAttempts + 1);
+
+        // Se atingiu o máximo de tentativas, desativa a credencial
+        if (credential.getFailedAttempts() >= maxLoginAttempts) {
+            credential.setIsActive(false);
+        }
+
+        authCredentialRepository.save(credential);
+    }
+
+    private void validateUserStatus(User user) {
+        if (!user.getUserStatus().getIsActive()) {
+            throw new AuthenticationException(
+                "USER_INACTIVE",
+                "Sua conta foi desativada. Entre em contato com o suporte."
+            );
+        }
+
+        if (EnumUserType.EMPLOYEE.equals(user.getUserType())) {
+            if ("PENDING".equalsIgnoreCase(user.getUserStatus().getCode())) {
+                throw new AuthenticationException(
+                    "PRODUCER_PENDING",
+                    "Seu cadastro aguarda aprovação da empresa parceira"
+                );
+            }
+
+            if ("REJECTED".equalsIgnoreCase(user.getUserStatus().getCode())) {
+                throw new AuthenticationException(
+                    "PRODUCER_REJECTED",
+                    "Seu cadastro foi recusado. Entre em contato com a empresa parceira"
+                );
+            }
+        }
     }
 }
-
