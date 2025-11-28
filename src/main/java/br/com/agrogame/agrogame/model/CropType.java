@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "activity_statuses")
-public class ActivityStatus {
+@Table(name = "crop_types")
+public class CropType {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,14 +13,15 @@ public class ActivityStatus {
 
 	private String code;
 	private String name;
+	private String description;
 	private Boolean isActive;
 
 	private LocalDateTime createdAt;
-	private Integer createdBy;
+	private Long createdBy;
 	private LocalDateTime updatedAt;
-	private Integer updatedBy;
+	private Long updatedBy;
 	private LocalDateTime deactivatedAt;
-	private Integer deactivatedBy;
+	private Long deactivatedBy;
 
 	public Integer getId() {
 		return id;
@@ -46,6 +47,14 @@ public class ActivityStatus {
 		this.name = name;
 	}
 
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
 	public Boolean getIsActive() {
 		return isActive;
 	}
@@ -62,11 +71,11 @@ public class ActivityStatus {
 		this.createdAt = createdAt;
 	}
 
-	public Integer getCreatedBy() {
+	public Long getCreatedBy() {
 		return createdBy;
 	}
 
-	public void setCreatedBy(Integer createdBy) {
+	public void setCreatedBy(Long createdBy) {
 		this.createdBy = createdBy;
 	}
 
@@ -78,11 +87,11 @@ public class ActivityStatus {
 		this.updatedAt = updatedAt;
 	}
 
-	public Integer getUpdatedBy() {
+	public Long getUpdatedBy() {
 		return updatedBy;
 	}
 
-	public void setUpdatedBy(Integer updatedBy) {
+	public void setUpdatedBy(Long updatedBy) {
 		this.updatedBy = updatedBy;
 	}
 
@@ -94,11 +103,11 @@ public class ActivityStatus {
 		this.deactivatedAt = deactivatedAt;
 	}
 
-	public Integer getDeactivatedBy() {
+	public Long getDeactivatedBy() {
 		return deactivatedBy;
 	}
 
-	public void setDeactivatedBy(Integer deactivatedBy) {
+	public void setDeactivatedBy(Long deactivatedBy) {
 		this.deactivatedBy = deactivatedBy;
 	}
 

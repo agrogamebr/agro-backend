@@ -122,4 +122,5 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
-    tryItOutEnabled: true  # Habilitado em local
+    tryItOutEnabled: true
+	persist-authorization: true  # Habilitado em local
