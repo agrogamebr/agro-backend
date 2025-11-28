@@ -1,64 +1,134 @@
 package br.com.agrogame.agrogame.model;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
 @Entity
 @Table(name = "activities")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Activity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "company_id", nullable = false)
+	private Company company;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+	private String description;
+	private Integer points;
 
-    @Column(name = "points", nullable = false)
-    private Integer points = 0;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "activity_status_id", nullable = false)
+	private ActivityStatus activityStatus;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "activity_status_id", nullable = false)
-    private ActivityStatus activityStatus;
+	@Column(name = "valid_from")
+	private LocalDate validFrom;
 
-    @Column(name = "valid_from")
-    private LocalDate validFrom;
+	@Column(name = "valid_to")
+	private LocalDate validTo;
 
-    @Column(name = "valid_to")
-    private LocalDate validTo;
+	private LocalDateTime createdAt;
+	private Integer createdBy;
+	private LocalDateTime updatedAt;
+	private Integer updatedBy;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+	public Integer getId() {
+		return id;
+	}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+	public void setId(Integer id) {
+		this.id = id;
+	}
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+	public Company getCompany() {
+		return company;
+	}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by")
-    private User updatedBy;
+	public void setCompany(Company company) {
+		this.company = company;
+	}
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
+	public String getDescription() {
+		return description;
+	}
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public Integer getPoints() {
+		return points;
+	}
+
+	public void setPoints(Integer points) {
+		this.points = points;
+	}
+
+	public ActivityStatus getActivityStatus() {
+		return activityStatus;
+	}
+
+	public void setActivityStatus(ActivityStatus activityStatus) {
+		this.activityStatus = activityStatus;
+	}
+
+	public LocalDate getValidFrom() {
+		return validFrom;
+	}
+
+	public void setValidFrom(LocalDate validFrom) {
+		this.validFrom = validFrom;
+	}
+
+	public LocalDate getValidTo() {
+		return validTo;
+	}
+
+	public void setValidTo(LocalDate validTo) {
+		this.validTo = validTo;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public Integer getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(Integer createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(Integer updatedBy) {
+		this.updatedBy = updatedBy;
+	}
+
 }
