@@ -7,7 +7,9 @@ public enum EnumUserType {
     USER("user", "Usuário"),
     PARTNER("partner", "Parceiro"),
     AUDITOR("auditor", "Auditor"),
-    GUEST("guest", "Convidado");
+    GUEST("guest", "Convidado"),
+    PRODUCER("producer", "Produtor Rural"),
+    WORKER("worker", "Auxiliar Rural");
 
     private final String code;
     private final String description;

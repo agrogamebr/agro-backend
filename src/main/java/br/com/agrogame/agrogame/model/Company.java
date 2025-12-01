@@ -21,7 +21,7 @@ public class Company {
     private String fullCompanyName;
 
     @Column(name = "fantansy_name", nullable = false)
-    private String fantansyName;
+    private String fantasyName;
 
     @Column(name = "email1", nullable = false)
     private String email1;
@@ -101,12 +101,12 @@ public class Company {
 		this.fullCompanyName = fullCompanyName;
 	}
 
-	public String getFantansyName() {
-		return fantansyName;
+	public String getFantasyName() {
+		return fantasyName;
 	}
 
-	public void setFantansyName(String fantansyName) {
-		this.fantansyName = fantansyName;
+	public void setFantasyName(String fantasyName) {
+		this.fantasyName = fantasyName;
 	}
 
 	public String getEmail1() {

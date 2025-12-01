@@ -174,7 +174,7 @@ public class CompanyService {
 	public Company fromDto(CreateCompanyDTO dto) {
 		Company company = new Company();
 		company.setFullCompanyName(dto.getFullCompanyName());
-		company.setFantansyName(dto.getFantasyName());
+		company.setFantasyName(dto.getFantasyName());
 		company.setEmail1(dto.getEmail1()); // Email corporativo
 		company.setEmail2(dto.getEmail2());
 		company.setPhone1(dto.getPhone1());
