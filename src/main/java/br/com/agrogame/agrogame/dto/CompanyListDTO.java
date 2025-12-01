@@ -18,7 +18,7 @@ public class CompanyListDTO {
 	public CompanyListDTO(br.com.agrogame.agrogame.model.Company company) {
 		this.companyId = company.getId();
 		this.fullCompanyName = company.getFullCompanyName();
-		this.fantansyName = company.getFantansyName();
+		this.fantansyName = company.getFantasyName();
 		this.email1 = company.getEmail1();
 		this.phone1 = company.getPhone1();
 		this.address = company.getAddress();
