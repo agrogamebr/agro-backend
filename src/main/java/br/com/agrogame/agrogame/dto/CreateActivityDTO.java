@@ -15,6 +15,9 @@ public class CreateActivityDTO {
 
 	@NotBlank(message = "Descrição é obrigatória")
 	private String description;
+	
+    @NotBlank(message = "Nome é obrigatório")
+    private String name; 
 
 	@NotNull(message = "Pontos são obrigatórios")
 	@Positive(message = "Pontos deve ser maior que zero")
@@ -75,6 +78,14 @@ public class CreateActivityDTO {
 
 	public void setCropTypeIds(List<Integer> cropTypeIds) {
 		this.cropTypeIds = cropTypeIds;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 }

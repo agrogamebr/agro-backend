@@ -13,6 +13,7 @@ public class ProducerActivityDTO {
 	private List<String> cropTypes; // culturas vinculadas
 	private String status;
 	private String companyName;
+	private String name;
 
 	// getters e setters
 	public Integer getActivityId() {
@@ -77,5 +78,13 @@ public class ProducerActivityDTO {
 
 	public void setCompanyName(String companyName) {
 		this.companyName = companyName;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 }

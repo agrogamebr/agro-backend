@@ -28,6 +28,9 @@ public class Activity {
 	private String description;
 	private Integer points;
 
+	@Column(nullable = false)
+	private String name;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "activity_status_id", nullable = false)
 	private ActivityStatus activityStatus;
@@ -42,6 +45,14 @@ public class Activity {
 	private Integer createdBy;
 	private LocalDateTime updatedAt;
 	private Integer updatedBy;
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
 
 	public Integer getId() {
 		return id;

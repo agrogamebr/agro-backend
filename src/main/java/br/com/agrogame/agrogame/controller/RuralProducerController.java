@@ -2,11 +2,13 @@ package br.com.agrogame.agrogame.controller;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -185,12 +187,15 @@ public class RuralProducerController {
 
 	@Operation(summary = "Listar atividades disponíveis para produtor", description = """
 			  Retorna as atividades cadastradas pela empresa do produtor,
-			  filtradas por fazenda e cultura compatíveis com suas plantações.
+			  filtradas por fazenda, cultura, datas de validade e descrição.
 			  Apenas atividades em status 'send' são exibidas.
 
 			  Filtros opcionais:
 			  - farmId: filtrar por fazenda específica
 			  - cropTypeId: filtrar por cultura específica
+			  - validFromStart / validFromEnd: filtrar por data de início (formato: yyyy-MM-dd)
+			  - validToStart / validToEnd: filtrar por data de término (formato: yyyy-MM-dd)
+			  - description: filtrar por trecho da descrição da atividade (contains, case-insensitive)
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista de atividades agrupadas por fazenda"),
 			@ApiResponse(responseCode = "400", description = "Produtor ou fazenda inválido"),
@@ -203,13 +208,23 @@ public class RuralProducerController {
 
 			@Parameter(description = "ID do tipo de cultura para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer cropTypeId,
 
+			@Parameter(description = "Data inicial de validade (formato: yyyy-MM-dd, opcional)", example = "2025-11-26") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromStart,
+
+			@Parameter(description = "Data final de validade (formato: yyyy-MM-dd, opcional)", example = "2025-12-31") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromEnd,
+
+			@Parameter(description = "Data inicial de término (formato: yyyy-MM-dd, opcional)", example = "2025-11-26") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToStart,
+
+			@Parameter(description = "Data final de término (formato: yyyy-MM-dd, opcional)", example = "2025-11-30") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToEnd,
+
+			@Parameter(description = "Trecho do nome da atividade para filtrar (opcional)", example = "Plantio Soja") @RequestParam(required = false) String name,
+
 			Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
 		List<ProducerActivityByFarmDTO> activities = ruralProducerService.listActivitiesForProducer(producerId, farmId,
-				cropTypeId);
+				cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activities);
