@@ -6,6 +6,7 @@ import java.util.List;
 public class ActivityListDTO {
 
 	private Integer id;
+	private String name;
 	private Integer companyId;
 	private String description;
 	private Integer points;
@@ -76,6 +77,14 @@ public class ActivityListDTO {
 
 	public void setCropTypeIds(List<Integer> cropTypeIds) {
 		this.cropTypeIds = cropTypeIds;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 }

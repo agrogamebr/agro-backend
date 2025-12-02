@@ -1,7 +1,9 @@
 package br.com.agrogame.agrogame.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,7 +72,7 @@ public class RuralProducerService {
 	private UserStatusRepository userStatusRepository;
 
 	@Autowired
-	private ValidationService validationService; 
+	private ValidationService validationService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -95,8 +97,8 @@ public class RuralProducerService {
 				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
 
 		// Verifica se a empresa tem status APPROVED (code = 1)
-		if (company.getCompanyStatus() == null || 
-				company.getCompanyStatus().getCode().equals(EnumCompanyStatus.APPROVED.getId().toString())) {
+		if (company.getCompanyStatus() == null
+				|| company.getCompanyStatus().getCode().equals(EnumCompanyStatus.APPROVED.getId().toString())) {
 			throw new BusinessException("Empresa parceira não está ativa para receber produtores");
 		}
 
@@ -168,7 +170,7 @@ public class RuralProducerService {
 		document.setIsPrimary(true);
 		document.setIsActive(true);
 		document.setCreatedAt(LocalDateTime.now());
-		document.setCreatedBy(null); 
+		document.setCreatedBy(null);
 
 		String[] parts = dto.getFullName().trim().split("\\s+", 2);
 		producer.setFirstName(parts[0]);
@@ -186,7 +188,8 @@ public class RuralProducerService {
 
 	/**
 	 * Aprova um produtor rural (User), mudando status de PENDING para APPROVED
-	 * @param userId ID do usuário a aprovar
+	 * 
+	 * @param userId    ID do usuário a aprovar
 	 * @param userEmail Email do usuário autenticado
 	 * @return User atualizado
 	 */
@@ -200,8 +203,8 @@ public class RuralProducerService {
 		User producer = ruralProducerRepository.findById(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado com ID: " + userId));
 
-		if (admin.getCompany() == null || producer.getCompany() == null ||
-				!admin.getCompany().getId().equals(producer.getCompany().getId())) {
+		if (admin.getCompany() == null || producer.getCompany() == null
+				|| !admin.getCompany().getId().equals(producer.getCompany().getId())) {
 			throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
 		}
 
@@ -212,8 +215,7 @@ public class RuralProducerService {
 		}
 
 		// 5. Buscar status APPROVED
-		UserStatus approvedStatus = userStatusRepository
-				.findByCode(EnumUserStatus.APPROVED.getCode())
+		UserStatus approvedStatus = userStatusRepository.findByCode(EnumUserStatus.APPROVED.getCode())
 				.orElseThrow(() -> new ResourceNotFoundException("Status 'approved' não encontrado"));
 
 		// 6. Atualizar status e auditoria
@@ -227,9 +229,9 @@ public class RuralProducerService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProducerActivityByFarmDTO> listActivitiesForProducer(Integer producerId, 
-			Integer farmIdFilter,
-			Integer cropTypeIdFilter) {
+	public List<ProducerActivityByFarmDTO> listActivitiesForProducer(Integer producerId, Integer farmIdFilter,
+			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
+			LocalDate validToStart, LocalDate validToEnd) {
 
 		// 1. Buscar produtor
 		User producer = userRepository.findByIdWithUserType(producerId)
@@ -247,13 +249,12 @@ public class RuralProducerService {
 		if (farmIdFilter != null) {
 			Farm farm = farmRepository.findById(farmIdFilter)
 					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-			if (!farm.getOwner().getId().equals(producerId) || 
-					!farm.getCompany().getId().equals(companyId)) {
+			if (!farm.getOwner().getId().equals(producerId) || !farm.getCompany().getId().equals(companyId)) {
 				throw new BusinessException("Fazenda não pertence ao produtor");
 			}
 			farms = List.of(farm);
 		} else {
-			farms = farmRepository.findByOwnerIdAndCompanyId(producerId, companyId); 
+			farms = farmRepository.findByOwnerIdAndCompanyId(producerId, companyId);
 		}
 
 		if (farms.isEmpty()) {
@@ -265,46 +266,57 @@ public class RuralProducerService {
 
 		for (Farm farm : farms) {
 			// Buscar atividades desta fazenda com suas culturas
-			List<Activity> activities = activityRepository
-					.findActivitiesForFarm(farm.getId(), companyId);
-
+			List<Activity> activities = activityRepository.findActivitiesForFarm(farm.getId(), companyId);
 			if (activities.isEmpty()) {
 				continue;
 			}
-
-			// Buscar culturas da fazenda para agrupamento
-			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
 
 			// Se filtro de cropTypeId enviado, filtrar apenas atividades com esse crop
 			if (cropTypeIdFilter != null) {
 				activities = activities.stream()
-						.filter(activity -> activityCropTypeRepository.findByActivityId(activity.getId())
-								.stream()
+						.filter(activity -> activityCropTypeRepository.findByActivityId(activity.getId()).stream()
 								.anyMatch(act -> act.getCropType().getId().equals(cropTypeIdFilter)))
 						.toList();
+				if (activities.isEmpty()) {
+					continue;
+				}
 			}
+
+			// Filtro de datas
+			activities = activities.stream().filter(
+					activity -> applyDateFilter(activity, validFromStart, validFromEnd, validToStart, validToEnd))
+					.toList();
+			if (activities.isEmpty()) {
+				continue;
+			}
+
+			activities = activities.stream().filter(activity -> {
+				if (nameFilter == null || nameFilter.isBlank()) {
+					return true;
+				}
+				String name = activity.getName();
+				return name != null && name.toLowerCase().contains(nameFilter.toLowerCase());
+			}).toList();
 
 			if (activities.isEmpty()) {
 				continue;
 			}
 
-			// Montar DTO para cada farm
-			for (FarmCrop farmCrop : farmCrops) {
-				ProducerActivityByFarmDTO farmDto = 
-						new ProducerActivityByFarmDTO(
-								farm.getId(),
-								farm.getName(),
-								farmCrop.getCropType().getName()
-								);
+			// Ordenar pela data de expiração
+			activities = activities.stream().sorted(Comparator.comparing(Activity::getValidTo)).toList();
 
-				// Filtrar atividades que têm esse crop_type específico
+			// Buscar culturas da fazenda para agrupamento
+			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
+
+			// Montar DTO para cada farm/crop
+			for (FarmCrop farmCrop : farmCrops) {
+				ProducerActivityByFarmDTO farmDto = new ProducerActivityByFarmDTO(farm.getId(), farm.getName(),
+						farmCrop.getCropType().getName());
+
 				List<ProducerActivityDTO> activitiesForCrop = activities.stream()
-						.filter(activity -> activityCropTypeRepository.findByActivityId(activity.getId())
-								.stream()
-								.anyMatch(act -> act.getCropType().getId()
-										.equals(farmCrop.getCropType().getId())))
-						.map(activity -> toProducerActivityDTO(activity))
-						.toList();
+						.filter(activity -> activityCropTypeRepository.findByActivityId(activity.getId()).stream()
+								.anyMatch(act -> act.getCropType().getId().equals(farmCrop.getCropType().getId())))
+						.map(this::toProducerActivityDTO).toList();
 
 				if (!activitiesForCrop.isEmpty()) {
 					farmDto.setActivities(activitiesForCrop);
@@ -316,9 +328,29 @@ public class RuralProducerService {
 		return result;
 	}
 
+	private boolean applyDateFilter(Activity activity, LocalDate validFromStart, LocalDate validFromEnd,
+			LocalDate validToStart, LocalDate validToEnd) {
+
+		if (validFromStart != null && activity.getValidFrom().isBefore(validFromStart)) {
+			return false;
+		}
+		if (validFromEnd != null && activity.getValidFrom().isAfter(validFromEnd)) {
+			return false;
+		}
+		if (validToStart != null && activity.getValidTo().isBefore(validToStart)) {
+			return false;
+		}
+		if (validToEnd != null && activity.getValidTo().isAfter(validToEnd)) {
+			return false;
+		}
+
+		return true;
+	}
+
 	private ProducerActivityDTO toProducerActivityDTO(Activity activity) {
 		ProducerActivityDTO dto = new ProducerActivityDTO();
 		dto.setActivityId(activity.getId());
+		dto.setName(activity.getName());
 		dto.setDescription(activity.getDescription());
 		dto.setPoints(activity.getPoints());
 		dto.setValidFrom(activity.getValidFrom());
@@ -327,10 +359,8 @@ public class RuralProducerService {
 		dto.setCompanyName(activity.getCompany().getFantasyName());
 
 		// Buscar crop types dessa atividade
-		List<String> cropTypeNames = activityCropTypeRepository.findByActivityId(activity.getId())
-				.stream()
-				.map(act -> act.getCropType().getName())
-				.toList();
+		List<String> cropTypeNames = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
+				.map(act -> act.getCropType().getName()).toList();
 
 		dto.setCropTypes(cropTypeNames);
 

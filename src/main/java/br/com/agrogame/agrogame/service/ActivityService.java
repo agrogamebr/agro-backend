@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
+import br.com.agrogame.agrogame.exceptions.BusinessException;
+import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.model.ActivityCropType;
 import br.com.agrogame.agrogame.model.ActivityReward;
@@ -57,19 +59,20 @@ public class ActivityService {
 	public Map<String, Object> registerActivity(CreateActivityDTO dto, Integer createdBy) {
 
 		Company company = companyRepository.findById(dto.getCompanyId())
-				.orElseThrow(() -> new IllegalArgumentException("Empresa não encontrada"));
+				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
 
 		ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
-				.orElseThrow(() -> new IllegalArgumentException("Status 'draft' não configurado"));
+				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
 
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
-			throw new IllegalArgumentException("Data inicial não pode ser maior que a data final");
+			throw new BusinessException("Data inicial não pode ser maior que a data final");
 		}
 
 		// ========== CRIAR ACTIVITY ==========
 		Activity activity = new Activity();
 		activity.setCompany(company);
 		activity.setDescription(dto.getDescription());
+		activity.setName(dto.getName()); 
 		activity.setPoints(dto.getPoints());
 		activity.setActivityStatus(draftStatus);
 		activity.setValidFrom(dto.getValidFrom());
@@ -82,7 +85,7 @@ public class ActivityService {
 		// ========== VINCULAR CROP TYPES ==========
 		for (Integer cropTypeId : dto.getCropTypeIds()) {
 			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new IllegalArgumentException("Tipo de cultura não encontrado: " + cropTypeId));
+					.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
 
 			ActivityCropType activityCropType = new ActivityCropType();
 			activityCropType.setActivity(savedActivity);
@@ -95,7 +98,7 @@ public class ActivityService {
 
 		// ========== CRIAR REWARD ==========
 		RewardStatus rewardStatus = rewardStatusRepository.findByCode("active")
-				.orElseThrow(() -> new IllegalArgumentException("Status de recompensa 'active' não configurado"));
+				.orElseThrow(() -> new BusinessException("Status de recompensa 'active' não configurado"));
 
 		Reward reward = new Reward();
 		reward.setName("Recompensa - " + savedActivity.getDescription());
@@ -123,6 +126,7 @@ public class ActivityService {
 		// ========== RESPONSE ==========
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", savedActivity.getId());
+		response.put("name", activity.getName());
 		response.put("companyId", company.getId());
 		response.put("description", savedActivity.getDescription());
 		response.put("points", savedActivity.getPoints());
@@ -140,15 +144,15 @@ public class ActivityService {
 	public Map<String, Object> sendActivity(Integer activityId, Integer sentBy) {
 
 		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new IllegalArgumentException("Atividade não encontrada"));
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
 		if (!"draft".equals(activity.getActivityStatus().getCode())) {
-			throw new IllegalArgumentException("Apenas atividades em draft podem ser enviadas");
+			throw new BusinessException("Apenas atividades em draft podem ser enviadas");
 		}
 
 		// Mudar status para "send"
 		ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
-				.orElseThrow(() -> new IllegalArgumentException("Status 'send' não configurado"));
+				.orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
 
 		activity.setActivityStatus(sendStatus);
 		activity.setUpdatedAt(LocalDateTime.now());
@@ -179,20 +183,20 @@ public class ActivityService {
 
 		// 1. Buscar atividade
 		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new IllegalArgumentException("Atividade não encontrada"));
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
 		// 2. Validar status = draft
 		if (!"draft".equals(activity.getActivityStatus().getCode())) {
-			throw new IllegalArgumentException("Atividade não pode ser editada pois não está em status 'draft'");
+			throw new BusinessException("Atividade não pode ser editada pois não está em status 'draft'");
 		}
 
 		// 3. Validar empresa
 		Company company = companyRepository.findById(dto.getCompanyId())
-				.orElseThrow(() -> new IllegalArgumentException("Empresa não encontrada"));
+				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
 
 		// 4. Validar datas
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
-			throw new IllegalArgumentException("Data inicial não pode ser maior que a data final");
+			throw new BusinessException("Data inicial não pode ser maior que a data final");
 		}
 
 		// 5. Atualizar campos básicos
@@ -211,7 +215,7 @@ public class ActivityService {
 
 		for (Integer cropTypeId : dto.getCropTypeIds()) {
 			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new IllegalArgumentException("Tipo de cultura não encontrado: " + cropTypeId));
+					.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
 
 			ActivityCropType activityCropType = new ActivityCropType();
 			activityCropType.setActivity(savedActivity);
