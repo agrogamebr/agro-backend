@@ -34,6 +34,15 @@ spring:
       max-file-size: 10MB
       max-request-size: 50MB
 
+  # ===========================================
+  # SPRING CLOUD GCP
+  # ===========================================
+  cloud:
+    gcp:
+      credentials:
+        location: file:${GCP_CREDENTIALS_FILE_PATH}
+      project-id: agrogame-qa-project-id  # id do projeto de homolog/dev
+
 # ===========================================
 # SERVER CONFIGURATION
 # ===========================================
@@ -58,7 +67,7 @@ logging:
   level:
     root: INFO
     br.com.agrogame.agrogame: DEBUG
-    org.hibernate.SQL: INFO  # ou DEBUG só quando necessário
+    org.hibernate.SQL: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
@@ -67,7 +76,7 @@ logging:
 # ===========================================
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 86400000  # 24 horas em milissegundos
+  expiration: 86400000  # 24 horas
 
 # ===========================================
 # ACTUATOR CONFIGURATION
@@ -95,3 +104,10 @@ app:
 
   points:
     max-transaction-per-day: 50
+
+# ===========================================
+# GCP STORAGE (BUCKET)
+# ===========================================
+gcp:
+  storage:
+    bucket-name: agrogame-uploads-dev     # bucket de dev/qa

@@ -44,6 +44,15 @@ spring:
       max-file-size: 10MB
       max-request-size: 50MB
 
+  # ===========================================
+  # SPRING CLOUD GCP
+  # ===========================================
+  cloud:
+    gcp:
+      credentials:
+        location: file:${GCP_CREDENTIALS_FILE_PATH}
+      project-id: seu-project-id
+
 # ===========================================
 # SERVER CONFIGURATION
 # ===========================================
@@ -91,16 +100,13 @@ management:
       show-details: always
 
 # ===========================================
-# SWAGGER CONFIGURATION
+# SWAGGER / APP CUSTOM PROPERTIES
 # ===========================================
 app:
   swagger:
     server-url: http://localhost:8080
     server-description: Local Development (Eclipse)
 
-  # ===========================================
-  # APPLICATION CUSTOM PROPERTIES
-  # ===========================================
   storage:
     base-path: /tmp/agrogame-uploads  # Path local
     cdn-url: http://localhost:8080/files
@@ -123,4 +129,11 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
     tryItOutEnabled: true
-	persist-authorization: true  # Habilitado em local
+    persist-authorization: true  # mantém o Bearer após refresh
+
+# ===========================================
+# GCP STORAGE (BUCKET)
+# ===========================================
+gcp:
+  storage:
+    bucket-name: agrogame-uploads-dev

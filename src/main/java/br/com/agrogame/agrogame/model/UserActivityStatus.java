@@ -13,48 +13,127 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class UserActivityStatus {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+	public Integer getId() {
+		return id;
+	}
 
-    @Column(name = "code", unique = true, nullable = false)
-    private String code;
+	public void setId(Integer id) {
+		this.id = id;
+	}
 
-    @Column(name = "name", nullable = false)
-    private String name;
+	public String getCode() {
+		return code;
+	}
 
-    @Column(name = "is_active")
-    private Boolean isActive;
+	public void setCode(String code) {
+		this.code = code;
+	}
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+	public String getName() {
+		return name;
+	}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+	public void setName(String name) {
+		this.name = name;
+	}
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+	public Boolean getIsActive() {
+		return isActive;
+	}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by")
-    private User updatedBy;
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
 
-    @Column(name = "deactivated_at")
-    private LocalDateTime deactivatedAt;
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "deactivated_by")
-    private User deactivatedBy;
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
+	public User getCreatedBy() {
+		return createdBy;
+	}
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public User getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(User updatedBy) {
+		this.updatedBy = updatedBy;
+	}
+
+	public LocalDateTime getDeactivatedAt() {
+		return deactivatedAt;
+	}
+
+	public void setDeactivatedAt(LocalDateTime deactivatedAt) {
+		this.deactivatedAt = deactivatedAt;
+	}
+
+	public User getDeactivatedBy() {
+		return deactivatedBy;
+	}
+
+	public void setDeactivatedBy(User deactivatedBy) {
+		this.deactivatedBy = deactivatedBy;
+	}
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Integer id;
+
+	@Column(name = "code", unique = true, nullable = false)
+	private String code;
+
+	@Column(name = "name", nullable = false)
+	private String name;
+
+	@Column(name = "is_active")
+	private Boolean isActive;
+
+	@Column(name = "created_at")
+	private LocalDateTime createdAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "created_by")
+	private User createdBy;
+
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "updated_by")
+	private User updatedBy;
+
+	@Column(name = "deactivated_at")
+	private LocalDateTime deactivatedAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "deactivated_by")
+	private User deactivatedBy;
+
+	@PrePersist
+	protected void onCreate() {
+		createdAt = LocalDateTime.now();
+	}
+
+	@PreUpdate
+	protected void onUpdate() {
+		updatedAt = LocalDateTime.now();
+	}
 }
-

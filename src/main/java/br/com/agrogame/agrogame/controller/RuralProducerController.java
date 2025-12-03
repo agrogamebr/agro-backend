@@ -1,5 +1,6 @@
 package br.com.agrogame.agrogame.controller;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -19,15 +20,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.com.agrogame.agrogame.dto.CompanyListDTO;
+import br.com.agrogame.agrogame.dto.FileUploadResponseDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
+import br.com.agrogame.agrogame.dto.SubmitActivityResponseDTO;
 import br.com.agrogame.agrogame.dto.UserDocumentTypeDTO;
+import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.model.UserDocumentType;
 import br.com.agrogame.agrogame.repository.UserRepository;
+import br.com.agrogame.agrogame.service.ActivitySubmissionService;
 import br.com.agrogame.agrogame.service.CompanyService;
 import br.com.agrogame.agrogame.service.RuralProducerService;
 import br.com.agrogame.agrogame.service.UserDocumentTypeService;
@@ -58,6 +65,9 @@ public class RuralProducerController {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private ActivitySubmissionService activitySubmissionService;
 
 	@Operation(summary = "Cadastrar produtor rural", description = """
 			  Cria novo produtor vinculado a uma empresa parceira.
@@ -223,6 +233,113 @@ public class RuralProducerController {
 		response.put("message", "Atividades carregadas com sucesso");
 
 		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Upload de arquivo para atividade", description = """
+			  Permite que o produtor anexe arquivos (fotos, documentos) a uma atividade.
+			  Arquivos permitidos: PDF, DOCX, PNG, JPEG, JPG.
+			  Múltiplos uploads são permitidos enquanto a atividade estiver em status 'pending'.
+
+			  A primeira vez que um arquivo é enviado, um vínculo (user_activity) é criado automaticamente.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "201", description = "Arquivo enviado com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Arquivo inválido ou vazio"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Sem permissão para esta atividade/fazenda"),
+			@ApiResponse(responseCode = "404", description = "Atividade, fazenda ou produtor não encontrado"),
+			@ApiResponse(responseCode = "422", description = "Atividade não está em status 'send' ou já foi submetida"),
+			@ApiResponse(responseCode = "500", description = "Erro interno ao enviar arquivo") })
+	@PostMapping(value = "/activities/{activityId}/farms/{farmId}/files", consumes = "multipart/form-data")
+	public ResponseEntity<Map<String, Object>> uploadFile(
+			@Parameter(description = "ID da atividade", example = "1") @PathVariable Integer activityId,
+
+			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
+
+			@Parameter(description = "Arquivo para anexar") @RequestPart("file") MultipartFile file,
+
+			@Parameter(description = "Descrição ou comentário sobre o arquivo", example = "Foto da atividade realizada") @RequestPart("description") String description,
+
+			Principal principal) throws IOException {
+
+		Integer producerId = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
+
+		FileUploadResponseDTO responseDto = activitySubmissionService.uploadFile(producerId, activityId, farmId, file,
+				description);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("submission", responseDto);
+		response.put("message", "Arquivo enviado com sucesso!");
+
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
+
+	// ============ API 2: SUBMETER ATIVIDADE ============
+
+	@Operation(summary = "Submeter atividade para aprovação", description = """
+			  Finaliza a submissão de uma atividade, mudando seu status de 'pending' para 'submitted'.
+
+			  Pré-requisitos:
+			  - Atividade deve estar em status 'pending' (estado inicial).
+			  - Pelo menos um arquivo deve ter sido enviado anteriormente.
+
+			  Após a submissão:
+			  - Nenhum arquivo adicional pode ser enviado para esta atividade.
+			  - A atividade fica aguardando aprovação pelo backoffice.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade submetida com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Sem permissão para esta atividade/fazenda"),
+			@ApiResponse(responseCode = "404", description = "Atividade, fazenda ou produtor não encontrado"),
+			@ApiResponse(responseCode = "422", description = "Atividade já foi submetida ou nenhum arquivo foi enviado"),
+			@ApiResponse(responseCode = "500", description = "Erro interno ao submeter atividade") })
+	@PostMapping("/activities/{activityId}/farms/{farmId}/submit")
+	public ResponseEntity<Map<String, Object>> submitActivity(
+			@Parameter(description = "ID da atividade", example = "1") @PathVariable Integer activityId,
+
+			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
+
+			Principal principal) {
+
+		Integer producerId = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
+
+		SubmitActivityResponseDTO responseDto = activitySubmissionService.submitActivity(producerId, activityId,
+				farmId);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("submission", responseDto);
+
+		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Download de arquivo enviado na submissão", description = """
+			  Permite que o produtor baixe um arquivo que ele já enviou em uma submissão
+			  de atividade para uma fazenda específica.
+
+			  Respeita o vínculo entre produtor, atividade, fazenda e submissão.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Arquivo retornado com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Sem permissão para acessar este arquivo"),
+			@ApiResponse(responseCode = "404", description = "Atividade, fazenda, submissão ou arquivo não encontrado"),
+			@ApiResponse(responseCode = "500", description = "Erro interno ao baixar arquivo") })
+	@GetMapping("/activities/{activityId}/farms/{farmId}/files/{submissionId}/download")
+	public ResponseEntity<byte[]> downloadSubmissionFile(
+			@Parameter(description = "ID da atividade", example = "6") @PathVariable Integer activityId,
+
+			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
+
+			@Parameter(description = "ID do registro de submissão (user_activity_submission)", example = "10") @PathVariable Integer submissionId,
+
+			Principal principal) {
+
+		Integer producerId = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
+
+		return activitySubmissionService.downloadSubmissionFile(producerId, activityId, farmId, submissionId);
 	}
 
 }
