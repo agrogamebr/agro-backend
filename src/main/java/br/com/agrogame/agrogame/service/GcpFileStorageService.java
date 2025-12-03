@@ -15,8 +15,10 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 
+import br.com.agrogame.agrogame.util.StoredFileInfo;
+
 @Service
-public class GcpFileStorageService implements FileStorageService {	
+public class GcpFileStorageService implements FileStorageService {
 
 	private final Storage storage;
 
@@ -28,31 +30,29 @@ public class GcpFileStorageService implements FileStorageService {
 	}
 
 	@Override
-	public String uploadFile(MultipartFile file) throws IOException {
+	public StoredFileInfo uploadFile(MultipartFile file) throws IOException {
 		if (file.isEmpty()) {
 			throw new IllegalArgumentException("Arquivo não pode estar vazio");
 		}
 
-		// Validar tipo de arquivo
 		String contentType = file.getContentType();
 		if (!isAllowedFileType(contentType)) {
 			throw new IllegalArgumentException("Tipo de arquivo não permitido: " + contentType);
 		}
 
-		// Gerar nome único para o arquivo
 		String fileName = generateFileName(file.getOriginalFilename());
+		String objectName = "submissions/" + fileName;
 
-		// Fazer upload para GCP
-		BlobId blobId = BlobId.of(bucketName, "submissions/" + fileName);
+		BlobId blobId = BlobId.of(bucketName, objectName);
 		BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
 
 		Blob blob = storage.create(blobInfo, file.getBytes());
 
-		// URL pública padrão do GCS
 		String fileUrl = String.format("https://storage.googleapis.com/%s/%s", blob.getBucket(), blob.getName());
 
-		return fileUrl;
+		String gsutilUri = String.format("gs://%s/%s", blob.getBucket(), blob.getName());
 
+		return new StoredFileInfo(fileUrl, gsutilUri);
 	}
 
 	@Override

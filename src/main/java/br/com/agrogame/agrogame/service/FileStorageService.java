@@ -4,8 +4,10 @@ import java.io.IOException;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import br.com.agrogame.agrogame.util.StoredFileInfo;
+
 public interface FileStorageService {
-	String uploadFile(MultipartFile file) throws IOException;
+	StoredFileInfo uploadFile(MultipartFile file) throws IOException;
 
 	String generateFileHash(MultipartFile file) throws IOException;
 }
