@@ -19,10 +19,21 @@ public interface UserDocumentRepository extends JpaRepository<UserDocument, Inte
 
 	Optional<UserDocument> findByDocumentNumberAndIsActiveTrue(String documentNumber);
 
-	@Query("SELECT ud FROM UserDocument ud " +
-		       "WHERE ud.documentNumber = :documentNumber " +
-		       "AND LOWER(ud.documentType.code) = LOWER(:documentTypeCode) " +
-		       "AND ud.isActive = true")
-		Optional<UserDocument> findByDocumentNumberAndDocumentType_CodeAndIsActiveTrue(@Param("documentNumber") String documentNumber, @Param("documentTypeCode") String documentTypeCode);
+	@Query("SELECT ud FROM UserDocument ud " + "WHERE ud.documentNumber = :documentNumber "
+			+ "AND LOWER(ud.documentType.code) = LOWER(:documentTypeCode) " + "AND ud.isActive = true")
+	Optional<UserDocument> findByDocumentNumberAndDocumentType_CodeAndIsActiveTrue(
+			@Param("documentNumber") String documentNumber, @Param("documentTypeCode") String documentTypeCode);
 
+	// Documento primário ativo do usuário (independente do tipo)
+	Optional<UserDocument> findFirstByUserIdAndIsPrimaryTrueAndIsActiveTrue(Integer userId);
+
+	// Fallback: primeiro CPF ativo do usuário
+	@Query("""
+			    SELECT ud FROM UserDocument ud
+			    WHERE ud.user.id = :userId
+			      AND ud.isActive = true
+			      AND LOWER(ud.documentType.code) = 'cpf'
+			    ORDER BY ud.createdAt ASC
+			""")
+	Optional<UserDocument> findFirstCpfByUserId(@Param("userId") Integer userId);
 }

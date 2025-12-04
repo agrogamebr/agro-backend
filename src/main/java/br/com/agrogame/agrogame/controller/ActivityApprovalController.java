@@ -1,0 +1,146 @@
+package br.com.agrogame.agrogame.controller;
+
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
+import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
+import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
+import br.com.agrogame.agrogame.exceptions.BusinessException;
+import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
+import br.com.agrogame.agrogame.model.User;
+import br.com.agrogame.agrogame.repository.UserRepository;
+import br.com.agrogame.agrogame.service.ActivityApprovalService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/backoffice/activities")
+@Tag(name = "Backoffice Activities", description = "Endpoints para aprovação de atividades no backoffice")
+public class ActivityApprovalController {
+
+	private final ActivityApprovalService activityApprovalService;
+	private final UserRepository userRepository;
+
+	public ActivityApprovalController(ActivityApprovalService activityApprovalService, UserRepository userRepository) {
+		this.activityApprovalService = activityApprovalService;
+		this.userRepository = userRepository;
+	}
+
+	@Operation(summary = "Listar atividades submetidas para aprovação", description = """
+			    Retorna lista de atividades em status 'submitted' que aguardam aprovação pelo backoffice.
+
+			    Acesso restrito a:
+			    - user_type 1 (Manager)
+			    - user_type 2 (Administrator)
+			    - user_type 3 (Employee)
+			    - user_type 6 (Auditor)
+
+			    Mostra apenas atividades da empresa do usuário autenticado.
+			    Inclui informações do produtor, fazenda, data de submissão e lista de arquivos.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Sem permissão (não é backoffice ou não pertence à empresa)"),
+			@ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
+			@ApiResponse(responseCode = "500", description = "Erro interno ao listar atividades") })
+	@GetMapping("/submissions")
+	public ResponseEntity<Map<String, Object>> listSubmittedActivities(Principal principal) {
+
+		// 1. Buscar usuário autenticado
+		Integer backofficeUserId = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
+
+		// 2. Chamar service
+		List<BackofficeSubmissionListDTO> submissions = activityApprovalService
+				.listSubmittedActivities(backofficeUserId);
+
+		// 3. Retornar resposta formatada
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("submissions", submissions);
+		response.put("total", submissions.size());
+		response.put("message",
+				submissions.isEmpty() ? "Nenhuma atividade aguardando aprovação" : "Atividades carregadas com sucesso");
+
+		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Aprovar ou rejeitar atividade submetida", description = """
+			Processa a decisão do backoffice sobre uma atividade em status 'submitted'.
+
+			Request body:
+			{
+			  "decision": "approved" | "rejected",   // case-insensitive
+			  "reason": "texto opcional (obrigatório quando rejected)"
+			}
+
+			Regras:
+			- decision: obrigatório, aceita 'approved' ou 'rejected' (qualquer combinação de maiúsculas/minúsculas).
+			- reason: recomendado quando decision = 'rejected'; ignorado na aprovação.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Decisão processada com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Requisição inválida"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Sem permissão"),
+			@ApiResponse(responseCode = "404", description = "Recurso não encontrado"),
+			@ApiResponse(responseCode = "422", description = "Status inválido"),
+			@ApiResponse(responseCode = "500", description = "Erro interno") })
+	@PostMapping("/submissions/{userActivityId}/decision")
+	public ResponseEntity<Map<String, Object>> makeDecision(
+			@Parameter(description = "ID da UserActivity", example = "1") @PathVariable Integer userActivityId,
+			@Valid @RequestBody ActivityDecisionRequestDTO decisionRequest, Principal principal) {
+
+		try {
+			// 1. Buscar usuário autenticado
+			User backofficeUser = userRepository.findByEmail1(principal.getName())
+					.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+			// 2. Processar decisão
+			ActivityDecisionResponseDTO result = activityApprovalService.makeDecision(userActivityId,
+					backofficeUser.getId(), decisionRequest);
+
+			// 3. Montar resposta
+			Map<String, Object> response = new HashMap<>();
+			response.put("success", true);
+			response.put("result", result);
+			response.put("message", "approved".equals(result.getDecision()) ? "Atividade aprovada com sucesso!"
+					: "Atividade rejeitada com sucesso!");
+
+			return ResponseEntity.ok(response);
+
+		} catch (ResourceNotFoundException e) {
+			return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage());
+		} catch (AccessDeniedException e) {
+			return buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage());
+		} catch (BusinessException e) {
+			return buildErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+		} catch (Exception e) {
+			return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+		}
+	}
+
+	private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String message) {
+		Map<String, Object> errorResponse = new HashMap<>();
+		errorResponse.put("success", false);
+		errorResponse.put("message", message);
+		return ResponseEntity.status(status).body(errorResponse);
+	}
+
+}
