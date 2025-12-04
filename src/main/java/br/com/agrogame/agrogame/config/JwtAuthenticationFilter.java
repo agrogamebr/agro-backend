@@ -1,12 +1,9 @@
 package br.com.agrogame.agrogame.config;
 
-import br.com.agrogame.agrogame.model.User;
-import br.com.agrogame.agrogame.repository.UserRepository;
-import br.com.agrogame.agrogame.util.JwtUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,10 +12,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
+import br.com.agrogame.agrogame.model.User;
+import br.com.agrogame.agrogame.repository.UserRepository;
+import br.com.agrogame.agrogame.util.JwtUtil;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -32,45 +34,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-    	
-        String requestPath = request.getRequestURI();
+
+        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+
+        String requestPath = wrappedRequest.getRequestURI();
+
         if (PublicEndpoints.isPublic(requestPath)) {
-            System.out.println("DEBUG: Endpoint público acessado - " + requestPath);
-            filterChain.doFilter(request, response);
-            return; 
+            filterChain.doFilter(wrappedRequest, response);
+            return;
         }
+
         try {
-            String jwt = extractJwtFromRequest(request);
-            
+            String jwt = extractJwtFromRequest(wrappedRequest);
+
             if (jwt != null && jwtUtil.isTokenValid(jwt)) {
                 String email = jwtUtil.extractEmail(jwt);
-                Integer userId = jwtUtil.extractUserId(jwt);
-                
-                // Buscar usuário com UserType carregado
+
                 User user = userRepository.findByEmail1WithUserType(email)
-                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-                
-                // Criar as authorities a partir do user_type.code
+                        .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
                 Collection<GrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority(user.getUserType().getCode()));
-                
-                // Criar autenticação COM as authorities
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(email, null, authorities);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                // Setar no contexto de segurança
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(email, null, authorities);
+
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(wrappedRequest));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                
-                System.out.println("DEBUG: Usuário autenticado - Email: " + email + ", UserType: " + user.getUserType().getCode());
             }
+
         } catch (Exception e) {
-            System.out.println("DEBUG: Erro ao processar JWT - " + e.getMessage());
             e.printStackTrace();
         }
-        
-        filterChain.doFilter(request, response);
+
+        filterChain.doFilter(wrappedRequest, response);
     }
+
 
     private String extractJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
