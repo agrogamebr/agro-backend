@@ -8,9 +8,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_reward_history")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserRewardHistory {
 
     @Id
@@ -46,7 +43,11 @@ public class UserRewardHistory {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
-    @PrePersist
+    public UserRewardHistory(UserReward savedReward, UserRewardStatus grantedStatus, Integer id2, String string) {
+		// TODO Auto-generated constructor stub
+	}
+
+	@PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         if (changedAt == null) {

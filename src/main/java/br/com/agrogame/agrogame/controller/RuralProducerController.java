@@ -27,6 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 import br.com.agrogame.agrogame.dto.CompanyListDTO;
 import br.com.agrogame.agrogame.dto.FileUploadResponseDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
+import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
+import br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
 import br.com.agrogame.agrogame.dto.SubmitActivityResponseDTO;
 import br.com.agrogame.agrogame.dto.UserDocumentTypeDTO;
@@ -36,6 +38,7 @@ import br.com.agrogame.agrogame.model.UserDocumentType;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.service.ActivitySubmissionService;
 import br.com.agrogame.agrogame.service.CompanyService;
+import br.com.agrogame.agrogame.service.ProducerPointsService;
 import br.com.agrogame.agrogame.service.RuralProducerService;
 import br.com.agrogame.agrogame.service.UserDocumentTypeService;
 import br.com.agrogame.agrogame.service.ValidationService;
@@ -65,6 +68,9 @@ public class RuralProducerController {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private ProducerPointsService producerPointsService;
 
 	@Autowired
 	private ActivitySubmissionService activitySubmissionService;
@@ -340,6 +346,55 @@ public class RuralProducerController {
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
 		return activitySubmissionService.downloadSubmissionFile(producerId, activityId, farmId, submissionId);
+	}
+
+	@Operation(summary = "Obter saldo de pontos do produtor", description = """
+			Retorna o saldo atual de pontos do produtor logado, considerando todas as transações de pontos.
+
+			Exemplo de resposta:
+			{
+			  "userId": 15,
+			  "userName": "João da Silva",
+			  "currentBalance": 1250
+			}
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Saldo retornado com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado") })
+	@GetMapping("/points/balance")
+	public ResponseEntity<ProducerPointsBalanceDTO> getBalance(Principal principal) {
+		User user = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		ProducerPointsBalanceDTO dto = producerPointsService.getCurrentBalance(user.getId());
+		return ResponseEntity.ok(dto);
+	}
+
+	@Operation(summary = "Listar histórico de pontos do produtor", description = """
+			Retorna a lista de transações de pontos do produtor logado, ordenadas da mais recente para a mais antiga.
+
+			Cada item contém:
+			- tipo de transação (earn, spend, adjust)
+			- fonte (ex: activity_approval)
+			- descrição da atividade (se houver)
+			- nome da recompensa (se houver)
+			- pontos da transação
+			- saldo após a transação
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Histórico retornado com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado") })
+	@GetMapping("/points/transactions")
+	public ResponseEntity<Map<String, Object>> getTransactions(Principal principal) {
+		User user = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		List<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(user.getId());
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("items", transactions);
+		response.put("total", transactions.size());
+
+		return ResponseEntity.ok(response);
 	}
 
 }
