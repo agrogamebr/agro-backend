@@ -84,8 +84,8 @@ public class PointsAndRewardsService {
 					.orElseThrow(() -> new ResourceNotFoundException("Tipo de transação 'earn' não configurado"));
 
 			UserPointTransactionSourceType activityApprovalSource = userPointTransactionSourceTypeRepository
-					.findByCode("activity_approval").orElseThrow(() -> new ResourceNotFoundException(
-							"Fonte de transação 'activity_approval' não configurada"));
+					.findByCode("activity")
+					.orElseThrow(() -> new ResourceNotFoundException("Fonte de transação 'activity' não configurada"));
 
 			// 4. Calcular novo saldo
 			Integer currentBalance = userPointsTransactionRepository.findLatestBalance(producer.getId());
@@ -94,17 +94,32 @@ public class PointsAndRewardsService {
 			}
 			Integer newBalance = currentBalance + points;
 
+			// 6. Buscar recompensas vinculadas à atividade (antes da transação, para
+			// decidir reward_id)
+			List<ActivityReward> activityRewards = activityRewardRepository.findByActivityId(activity.getId());
+
 			// 5. Criar transação de pontos
-			UserPointsTransaction transaction = new UserPointsTransaction(producer, earnType, activityApprovalSource,
-					activity, points, newBalance, backofficeUser.getId());
+			UserPointsTransaction transaction = new UserPointsTransaction();
+			transaction.setUser(producer);
+			transaction.setTransactionType(earnType);
+			transaction.setSourceType(activityApprovalSource);
+			transaction.setActivity(activity);
+			transaction.setPoints(points);
+			transaction.setBalanceAfter(newBalance);
+			transaction.setCreatedBy(backofficeUser);
+
+			// Se tiver exatamente 1 reward vinculada à atividade, usar como reward da
+			// transação
+			if (activityRewards != null && activityRewards.size() == 1) {
+				transaction.setReward(activityRewards.get(0).getReward());
+			}
+
 			userPointsTransactionRepository.save(transaction);
 
 			logger.info("Transação de pontos criada: {} pontos para usuário {}, novo saldo: {}", points,
 					producer.getId(), newBalance);
 
-			// 6. Processar recompensas vinculadas à atividade
-			List<ActivityReward> activityRewards = activityRewardRepository.findByActivityId(activity.getId());
-
+			// 7. Processar recompensas (UserReward + histórico)
 			if (activityRewards != null && !activityRewards.isEmpty()) {
 				logger.info("Processando {} recompensas para atividade ID: {}", activityRewards.size(),
 						activity.getId());
@@ -114,14 +129,20 @@ public class PointsAndRewardsService {
 
 				for (ActivityReward activityReward : activityRewards) {
 					// Criar user_reward
-					UserReward userReward = new UserReward(producer, activityReward.getReward(), grantedStatus,
-							backofficeUser.getId());
+					UserReward userReward = new UserReward();
+					userReward.setUser(producer);
+					userReward.setReward(activityReward.getReward());
+					userReward.setUserRewardStatus(grantedStatus);
+					userReward.setCreatedBy(backofficeUser);
 					UserReward savedReward = userRewardRepository.save(userReward);
 
 					// Registrar histórico
-					UserRewardHistory history = new UserRewardHistory(savedReward, grantedStatus,
-							backofficeUser.getId(),
-							"Recompensa atribuída pela aprovação da atividade ID: " + activity.getId());
+					UserRewardHistory history = new UserRewardHistory();
+					history.setUserReward(savedReward);
+					history.setNewStatus(grantedStatus);
+					history.setCreatedBy(backofficeUser);
+					history.setChangedBy(backofficeUser);
+					history.setNotes("Recompensa atribuída pela aprovação da atividade ID: " + activity.getId());
 					userRewardHistoryRepository.save(history);
 
 					logger.info("Recompensa ID: {} atribuída ao usuário {}", activityReward.getReward().getId(),
@@ -142,4 +163,5 @@ public class PointsAndRewardsService {
 			throw new BusinessException("Erro ao processar crédito de pontos: " + e.getMessage());
 		}
 	}
+
 }

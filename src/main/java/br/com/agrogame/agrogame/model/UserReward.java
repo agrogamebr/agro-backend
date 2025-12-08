@@ -51,14 +51,26 @@ public class UserReward {
 	@JoinColumn(name = "updated_by")
 	private User updatedBy;
 
-	public UserReward(User producer, Reward reward2, UserRewardStatus grantedStatus, Integer id2) {
-		// TODO Auto-generated constructor stub
+	public UserReward() {
+	}
+
+	public UserReward(User user, Reward reward, UserRewardStatus userRewardStatus, User createdBy) {
+		this.user = user;
+		this.reward = reward;
+		this.userRewardStatus = userRewardStatus;
+		this.createdBy = createdBy;
+		this.assignedAt = LocalDateTime.now();
+		this.createdAt = LocalDateTime.now();
 	}
 
 	@PrePersist
 	protected void onCreate() {
-		createdAt = LocalDateTime.now();
-		assignedAt = LocalDateTime.now();
+		if (createdAt == null) {
+			createdAt = LocalDateTime.now();
+		}
+		if (assignedAt == null) {
+			assignedAt = LocalDateTime.now();
+		}
 	}
 
 	@PreUpdate

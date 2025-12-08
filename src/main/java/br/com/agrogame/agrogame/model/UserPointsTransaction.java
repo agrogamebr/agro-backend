@@ -54,10 +54,18 @@ public class UserPointsTransaction {
 	@JoinColumn(name = "created_by")
 	private User createdBy;
 
-	public UserPointsTransaction(User producer, UserPointTransactionType earnType,
-			UserPointTransactionSourceType activityApprovalSource, Activity activity2, Integer points2,
-			Integer newBalance, Integer id2) {
-		// TODO Auto-generated constructor stub
+	public UserPointsTransaction() {
+	}
+
+	public UserPointsTransaction(User user, UserPointTransactionType transactionType,
+			UserPointTransactionSourceType sourceType, Activity activity, Integer points, Integer balanceAfter,
+			Integer createdById) {
+		this.user = user;
+		this.transactionType = transactionType;
+		this.sourceType = sourceType;
+		this.activity = activity;
+		this.points = points;
+		this.balanceAfter = balanceAfter;
 	}
 
 	@PrePersist
