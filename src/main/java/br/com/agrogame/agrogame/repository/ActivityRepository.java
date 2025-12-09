@@ -1,5 +1,6 @@
 package br.com.agrogame.agrogame.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,5 +23,20 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 
 	@Query("SELECT ar FROM ActivityReward ar WHERE ar.activity.id = :activityId")
 	List<ActivityReward> findByActivityId(@Param("activityId") Integer activityId);
+
+	@Query("""
+			SELECT DISTINCT a
+			FROM Activity a
+			LEFT JOIN a.activityCropTypes actCrop
+			WHERE a.company.id = :companyId
+			  AND (:statusCode IS NULL OR a.activityStatus.code = :statusCode)
+			  AND (:cropTypeId IS NULL OR actCrop.cropType.id = :cropTypeId)
+			  AND (:startDate IS NULL OR a.validFrom >= :startDate)
+			  AND (:endDate IS NULL OR a.validTo <= :endDate)
+			ORDER BY a.validFrom DESC
+			""")
+	List<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
+			@Param("cropTypeId") Integer cropTypeId, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate);
 
 }

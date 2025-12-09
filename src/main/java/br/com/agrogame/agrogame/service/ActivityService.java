@@ -1,5 +1,6 @@
 package br.com.agrogame.agrogame.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +73,7 @@ public class ActivityService {
 		Activity activity = new Activity();
 		activity.setCompany(company);
 		activity.setDescription(dto.getDescription());
-		activity.setName(dto.getName()); 
+		activity.setName(dto.getName());
 		activity.setPoints(dto.getPoints());
 		activity.setActivityStatus(draftStatus);
 		activity.setValidFrom(dto.getValidFrom());
@@ -263,12 +264,19 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public List<ActivityListDTO> listActivities(Integer companyId, String statusCode) {
+	public List<ActivityListDTO> listActivities(Integer companyId, String statusCode, Integer cropTypeId,
+			LocalDate startDate, LocalDate endDate) {
 
 		List<Activity> activities;
 
-		if (statusCode != null && !statusCode.isBlank()) {
-			activities = activityRepository.findByCompanyIdAndActivityStatus_Code(companyId, statusCode);
+		boolean hasStatus = statusCode != null && !statusCode.isBlank();
+		boolean hasCropType = cropTypeId != null;
+		boolean hasStart = startDate != null;
+		boolean hasEnd = endDate != null;
+
+		if (hasStatus || hasCropType || hasStart || hasEnd) {
+			activities = activityRepository.findWithFilters(companyId, hasStatus ? statusCode : null,
+					hasCropType ? cropTypeId : null, hasStart ? startDate : null, hasEnd ? endDate : null);
 		} else {
 			activities = activityRepository.findByCompanyId(companyId);
 		}
@@ -293,5 +301,21 @@ public class ActivityService {
 		dto.setCropTypeIds(cropTypeIds);
 
 		return dto;
+	}
+
+	@Transactional
+	public void cancelDraftActivity(Integer activityId) {
+		Activity activity = activityRepository.findById(activityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+
+		if (!"draft".equals(activity.getActivityStatus().getCode())) {
+			throw new BusinessException("Apenas atividades em draft podem ser canceladas");
+		}
+
+		ActivityStatus canceledStatus = activityStatusRepository.findByCode("canceled")
+				.orElseThrow(() -> new IllegalArgumentException("Status 'canceled' não configurado"));
+
+		activity.setActivityStatus(canceledStatus);
+		activityRepository.save(activity);
 	}
 }

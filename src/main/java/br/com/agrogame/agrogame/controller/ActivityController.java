@@ -1,10 +1,12 @@
 package br.com.agrogame.agrogame.controller;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
 import br.com.agrogame.agrogame.model.Activity;
-import br.com.agrogame.agrogame.model.ActivityReward;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
@@ -57,18 +58,21 @@ public class ActivityController {
 	}
 
 	@Operation(summary = "Listar atividades da empresa", description = "Retorna a lista de atividades da empresa do usuário logado. "
-			+ "Opcionalmente filtra por status (ex: draft, active, send, expired, inactive, completed, canceled). ")
+			+ "Opcionalmente filtra por status, cultura (cropType) e período (data inicial/final).")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
 			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
 			@ApiResponse(responseCode = "500", description = "Erro interno ao listar atividades") })
 	@GetMapping("/list")
 	public ResponseEntity<Map<String, Object>> listActivities(@RequestParam(required = false) String status,
+			@RequestParam(required = false, name = "cropType") Integer cropType,
+			@RequestParam(required = false, name = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(required = false, name = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
 			Principal principal) {
 
 		Integer companyId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
 
-		List<ActivityListDTO> activities = service.listActivities(companyId, status);
+		List<ActivityListDTO> activities = service.listActivities(companyId, status, cropType, startDate, endDate);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activities);
@@ -133,18 +137,13 @@ public class ActivityController {
 	}
 
 	@PatchMapping("/{activityId}/send")
-	@Operation(
-		    summary = "Enviar atividade",
-		    description = "Altera o status de uma atividade de 'draft' para 'send', "
-		                + "bloqueando novas edições e disparando o fluxo de envio para os producers elegíveis."
-		)
-		@ApiResponses({
-		    @ApiResponse(responseCode = "200", description = "Atividade enviada com sucesso"),
-		    @ApiResponse(responseCode = "400", description = "Apenas atividades em status 'draft' podem ser enviadas"),
-		    @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
-		    @ApiResponse(responseCode = "404", description = "Atividade não encontrada"),
-		    @ApiResponse(responseCode = "500", description = "Erro interno ao enviar atividade")
-		})
+	@Operation(summary = "Enviar atividade", description = "Altera o status de uma atividade de 'draft' para 'send', "
+			+ "bloqueando novas edições e disparando o fluxo de envio para os producers elegíveis.")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade enviada com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Apenas atividades em status 'draft' podem ser enviadas"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "404", description = "Atividade não encontrada"),
+			@ApiResponse(responseCode = "500", description = "Erro interno ao enviar atividade") })
 	public ResponseEntity<Map<String, Object>> sendActivity(@PathVariable Integer activityId, Principal principal) {
 
 		Integer sentBy = userRepository.findByEmail1(principal.getName())
@@ -155,38 +154,17 @@ public class ActivityController {
 	}
 
 	@DeleteMapping("/{activityId}")
-	@Operation(summary = "Deletar atividade", description = "Deleta uma atividade que está em status 'draft'")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade deletada"),
+	@Operation(summary = "Cancelar atividade", description = "Marca como 'canceled' uma atividade em 'draft'")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade cancelada"),
 			@ApiResponse(responseCode = "400", description = "Atividade não está em draft"),
 			@ApiResponse(responseCode = "404", description = "Atividade não encontrada"),
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
 	public ResponseEntity<Map<String, Object>> deleteActivity(@PathVariable Integer activityId) {
 
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new IllegalArgumentException("Atividade não encontrada"));
-
-		if (!"draft".equals(activity.getActivityStatus().getCode())) {
-			throw new IllegalArgumentException("Apenas atividades em draft podem ser deletadas");
-		}
-
-		// Deletar crop types vinculados
-		activityCropTypeRepository.deleteByActivityId(activityId);
-
-		// Deletar activity rewards
-		activityRewardRepository.deleteByActivityId(activityId);
-
-		// Deletar reward se foi criado automaticamente
-		List<ActivityReward> rewards = activityRewardRepository.findByActivityId(activityId);
-		for (ActivityReward ar : rewards) {
-			rewardRepository.deleteById(ar.getReward().getId());
-		}
-
-		// Deletar activity
-		activityRepository.deleteById(activityId);
+		service.cancelDraftActivity(activityId);
 
 		Map<String, Object> response = new HashMap<>();
-		response.put("message", "Atividade deletada com sucesso!");
-
+		response.put("message", "Atividade cancelada com sucesso!");
 		return ResponseEntity.ok(response);
 	}
 
