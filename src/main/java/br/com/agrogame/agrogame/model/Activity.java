@@ -2,6 +2,7 @@ package br.com.agrogame.agrogame.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -45,6 +47,17 @@ public class Activity {
 	private Integer createdBy;
 	private LocalDateTime updatedAt;
 	private Integer updatedBy;
+
+	@OneToMany(mappedBy = "activity", fetch = FetchType.LAZY)
+	private List<ActivityCropType> activityCropTypes;
+
+	public List<ActivityCropType> getActivityCropTypes() {
+		return activityCropTypes;
+	}
+
+	public void setActivityCropTypes(List<ActivityCropType> activityCropTypes) {
+		this.activityCropTypes = activityCropTypes;
+	}
 
 	public String getName() {
 		return name;
