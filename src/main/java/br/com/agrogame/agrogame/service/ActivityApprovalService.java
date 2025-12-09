@@ -44,12 +44,13 @@ public class ActivityApprovalService {
 	private final UserActivitySubmissionRepository userActivitySubmissionRepository;
 	private final ReviewStatusRepository reviewStatusRepository;
 	private final UserActivityReviewRepository userActivityReviewRepository;
+	private final PointsAndRewardsService pointsAndRewardsService;
 
 	public ActivityApprovalService(UserRepository userRepository, UserActivityRepository userActivityRepository,
 			UserActivitySubmissionFileRepository submissionFileRepository,
 			UserActivityStatusRepository userActivityStatusRepository, UserDocumentRepository userDocumentRepository,
 			UserActivitySubmissionRepository userActivitySubmissionRepository,
-			ReviewStatusRepository reviewStatusRepository, UserActivityReviewRepository userActivityReviewRepository) {
+			ReviewStatusRepository reviewStatusRepository, UserActivityReviewRepository userActivityReviewRepository, PointsAndRewardsService pointsAndRewardsService) {
 		this.userRepository = userRepository;
 		this.userActivityRepository = userActivityRepository;
 		this.submissionFileRepository = submissionFileRepository;
@@ -58,6 +59,7 @@ public class ActivityApprovalService {
 		this.userActivitySubmissionRepository = userActivitySubmissionRepository;
 		this.reviewStatusRepository = reviewStatusRepository;
 		this.userActivityReviewRepository = userActivityReviewRepository;
+		this.pointsAndRewardsService = pointsAndRewardsService;
 	}
 
 	/**
@@ -238,6 +240,10 @@ public class ActivityApprovalService {
 		review.setUpdatedAt(LocalDateTime.now());
 
 		userActivityReviewRepository.save(review);
+		
+		if ("approved".equals(decision)) {
+		    pointsAndRewardsService.creditOnActivityApproval(savedActivity, backofficeUser);
+		}
 
 		return new ActivityDecisionResponseDTO(savedActivity.getId(), savedActivity.getActivity().getId(),
 				savedActivity.getActivity().getName(), decision, newStatus.getCode(), LocalDateTime.now(),
