@@ -31,6 +31,7 @@ import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
 import br.com.agrogame.agrogame.dto.SubmitActivityResponseDTO;
+import br.com.agrogame.agrogame.dto.UserActivityDetailDTO;
 import br.com.agrogame.agrogame.dto.UserDocumentTypeDTO;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
@@ -40,6 +41,7 @@ import br.com.agrogame.agrogame.service.ActivitySubmissionService;
 import br.com.agrogame.agrogame.service.CompanyService;
 import br.com.agrogame.agrogame.service.ProducerPointsService;
 import br.com.agrogame.agrogame.service.RuralProducerService;
+import br.com.agrogame.agrogame.service.UserActivityService;
 import br.com.agrogame.agrogame.service.UserDocumentTypeService;
 import br.com.agrogame.agrogame.service.ValidationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -74,6 +76,9 @@ public class RuralProducerController {
 
 	@Autowired
 	private ActivitySubmissionService activitySubmissionService;
+
+	@Autowired
+	private UserActivityService userActivityService;
 
 	@Operation(summary = "Cadastrar produtor rural", description = """
 			  Cria novo produtor vinculado a uma empresa parceira.
@@ -395,6 +400,29 @@ public class RuralProducerController {
 		response.put("total", transactions.size());
 
 		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Detalhar atividade do produtor", description = """
+			Retorna os dados da atividade vinculada ao produtor,
+			com base no ID de UserActivity.
+
+			Regras:
+			- Apenas o próprio produtor pode consultar suas atividades.
+			- A atividade deve pertencer à mesma empresa/regra de negócio configurada.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Detalhamento da atividade retornado com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Parâmetros inválidos ou atividade não pertence ao produtor"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Usuário não é produtor rural"),
+			@ApiResponse(responseCode = "404", description = "Atividade não encontrada"),
+			@ApiResponse(responseCode = "500", description = "Erro interno") })
+	@GetMapping("/user-activities/{userActivityId}")
+	public ResponseEntity<UserActivityDetailDTO> getUserActivityDetail(
+			@Parameter(description = "ID da UserActivity para detalhar", example = "1") @PathVariable Integer userActivityId,
+			Principal principal) {
+		UserActivityDetailDTO detail = userActivityService.getUserActivityDetail(principal.getName(), userActivityId);
+
+		return ResponseEntity.ok(detail);
 	}
 
 }
