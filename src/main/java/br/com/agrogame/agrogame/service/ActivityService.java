@@ -265,23 +265,36 @@ public class ActivityService {
 
 	@Transactional
 	public List<ActivityListDTO> listActivities(Integer companyId, String statusCode, Integer cropTypeId,
-			LocalDate startDate, LocalDate endDate) {
-
-		List<Activity> activities;
+			Integer farmId, LocalDate startDate, LocalDate endDate) {
 
 		boolean hasStatus = statusCode != null && !statusCode.isBlank();
 		boolean hasCropType = cropTypeId != null;
+		boolean hasFarm = farmId != null;
 		boolean hasStart = startDate != null;
 		boolean hasEnd = endDate != null;
 
-		if (hasStatus || hasCropType || hasStart || hasEnd) {
-			activities = activityRepository.findWithFilters(companyId, hasStatus ? statusCode : null,
-					hasCropType ? cropTypeId : null, hasStart ? startDate : null, hasEnd ? endDate : null);
+		String normalizedStatus = hasStatus ? statusCode.toLowerCase() : null;
+
+		List<Activity> activities;
+
+		if (hasStatus || hasCropType || hasFarm || hasStart || hasEnd) {
+			activities = activityRepository.findWithFilters(companyId, normalizedStatus,
+					hasCropType ? cropTypeId : null, hasFarm ? farmId : null, hasStart ? startDate : null,
+					hasEnd ? endDate : null);
 		} else {
 			activities = activityRepository.findByCompanyId(companyId);
 		}
 
 		return activities.stream().map(this::toActivityListDTO).toList();
+	}
+
+	@Transactional
+	public ActivityListDTO listActivity(Integer idActivity) {
+
+		Activity activity = activityRepository.findById(idActivity)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+
+		return toActivityListDTO(activity);
 	}
 
 	private ActivityListDTO toActivityListDTO(Activity activity) {
@@ -293,6 +306,7 @@ public class ActivityService {
 		dto.setStatus(activity.getActivityStatus().getCode());
 		dto.setValidFrom(activity.getValidFrom());
 		dto.setValidTo(activity.getValidTo());
+		dto.setName(activity.getName());
 
 		// buscar cropTypes dessa activity
 		List<Integer> cropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()

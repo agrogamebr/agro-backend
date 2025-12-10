@@ -107,11 +107,8 @@ public class PointsAndRewardsService {
 			transaction.setPoints(points);
 			transaction.setBalanceAfter(newBalance);
 			transaction.setCreatedBy(backofficeUser);
-
-			// Se tiver exatamente 1 reward vinculada à atividade, usar como reward da
-			// transação
 			if (activityRewards != null && activityRewards.size() == 1) {
-				transaction.setReward(activityRewards.get(0).getReward());
+			    transaction.setReward(activityRewards.get(0).getReward());
 			}
 
 			userPointsTransactionRepository.save(transaction);
