@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
-import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
@@ -57,14 +56,10 @@ public class ActivityController {
 		this.rewardRepository = rewardRepository;
 	}
 
-	@Operation(summary = "Listar atividades da empresa", description = "Retorna a lista de atividades da empresa do usuário logado. "
-			+ "Opcionalmente filtra por status, cultura (cropType) e período (data inicial/final).")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
-			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
-			@ApiResponse(responseCode = "500", description = "Erro interno ao listar atividades") })
 	@GetMapping("/list")
 	public ResponseEntity<Map<String, Object>> listActivities(@RequestParam(required = false) String status,
 			@RequestParam(required = false, name = "cropType") Integer cropType,
+			@RequestParam(required = false, name = "farmId") Integer farmId,
 			@RequestParam(required = false, name = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 			@RequestParam(required = false, name = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
 			Principal principal) {
@@ -72,7 +67,8 @@ public class ActivityController {
 		Integer companyId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
 
-		List<ActivityListDTO> activities = service.listActivities(companyId, status, cropType, startDate, endDate);
+		List<ActivityListDTO> activities = service.listActivities(companyId, status, cropType, farmId, startDate,
+				endDate);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activities);
@@ -99,18 +95,18 @@ public class ActivityController {
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
 	public ResponseEntity<Map<String, Object>> getActivity(@PathVariable Integer activityId) {
 
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new IllegalArgumentException("Atividade não encontrada"));
+		ActivityListDTO activity = service.listActivity(activityId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", activity.getId());
-		response.put("companyId", activity.getCompany().getId());
+		response.put("companyId", activity.getCompanyId());
 		response.put("description", activity.getDescription());
 		response.put("points", activity.getPoints());
-		response.put("status", activity.getActivityStatus().getCode());
+		response.put("status", activity.getStatus());
 		response.put("validFrom", activity.getValidFrom());
 		response.put("validTo", activity.getValidTo());
 		response.put("cropTypeIds", getCropTypeIds(activity.getId()));
+		response.put("name", activity.getName());
 
 		return ResponseEntity.ok(response);
 	}

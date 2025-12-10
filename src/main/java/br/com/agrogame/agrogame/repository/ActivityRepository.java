@@ -28,15 +28,17 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			SELECT DISTINCT a
 			FROM Activity a
 			LEFT JOIN a.activityCropTypes actCrop
+			LEFT JOIN FarmCrop fc ON fc.cropType.id = actCrop.cropType.id
 			WHERE a.company.id = :companyId
-			  AND (:statusCode IS NULL OR a.activityStatus.code = :statusCode)
+			  AND (:statusCode IS NULL OR LOWER(a.activityStatus.code) = :statusCode)
 			  AND (:cropTypeId IS NULL OR actCrop.cropType.id = :cropTypeId)
+			  AND (:farmId IS NULL OR fc.farm.id = :farmId)
 			  AND (:startDate IS NULL OR a.validFrom >= :startDate)
 			  AND (:endDate IS NULL OR a.validTo <= :endDate)
 			ORDER BY a.validFrom DESC
 			""")
 	List<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
-			@Param("cropTypeId") Integer cropTypeId, @Param("startDate") LocalDate startDate,
-			@Param("endDate") LocalDate endDate);
+			@Param("cropTypeId") Integer cropTypeId, @Param("farmId") Integer farmId,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
 }
