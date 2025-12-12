@@ -10,7 +10,7 @@ public class FarmCrop {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "farm_id", nullable = false)
@@ -24,11 +24,12 @@ public class FarmCrop {
     private Integer year;
 
     private LocalDateTime createdAt;
-    private Long createdBy;
-	public Long getId() {
+    private Integer createdBy;
+    
+	public Integer getId() {
 		return id;
 	}
-	public void setId(Long id) {
+	public void setId(Integer id) {
 		this.id = id;
 	}
 	public Farm getFarm() {
@@ -61,10 +62,10 @@ public class FarmCrop {
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
 	}
-	public Long getCreatedBy() {
+	public Integer getCreatedBy() {
 		return createdBy;
 	}
-	public void setCreatedBy(Long createdBy) {
+	public void setCreatedBy(Integer createdBy) {
 		this.createdBy = createdBy;
 	}
 
