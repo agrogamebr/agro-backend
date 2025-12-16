@@ -20,4 +20,26 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 	@Query("SELECT t FROM UserPointsTransaction t " + "WHERE t.user.id = :userId " + "ORDER BY t.createdAt DESC")
 	List<UserPointsTransaction> findTopByUserIdOrderByCreatedAtDesc(@Param("userId") Integer userId);
 
+	// Novos: com filtro de farm via user_activities
+	@Query(value = """
+			    SELECT COALESCE(MAX(upt.balance_after), 0)
+			    FROM user_points_transactions upt
+			    JOIN activities a ON a.id = upt.activity_id
+			    JOIN user_activities ua ON ua.activity_id = a.id
+			    WHERE upt.user_id = :userId
+			      AND ua.farm_id = :farmId
+			""", nativeQuery = true)
+	Integer findLatestBalanceByUserAndFarm(@Param("userId") Integer userId, @Param("farmId") Integer farmId);
+
+	@Query(value = """
+			    SELECT upt.*
+			    FROM user_points_transactions upt
+			    JOIN activities a ON a.id = upt.activity_id
+			    JOIN user_activities ua ON ua.activity_id = a.id
+			    WHERE upt.user_id = :userId
+			      AND ua.farm_id = :farmId
+			    ORDER BY upt.created_at DESC
+			""", nativeQuery = true)
+	List<UserPointsTransaction> findByUserIdAndFarmIdOrderByCreatedAtDesc(@Param("userId") Integer userId,
+			@Param("farmId") Integer farmId);
 }

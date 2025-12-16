@@ -1,22 +1,41 @@
 package br.com.agrogame.agrogame.dto;
 
 import java.time.LocalDate;
-import java.util.List;
 
-public class ProducerActivityDTO {
-
+public class ActivityWithUserActivityDTO {
 	private Integer activityId;
+	private String name;
 	private String description;
 	private Integer points;
 	private LocalDate validFrom;
 	private LocalDate validTo;
-	private List<String> cropTypes; // culturas vinculadas
 	private String status;
 	private String companyName;
-	private String name;
 	private Integer userActivityId;
 	private String userActivityStatus;
 	private Integer userActivityFarmId;
+
+	public ActivityWithUserActivityDTO(ActivityWithUserActivityProjection proj) {
+		this.activityId = proj.getId();
+
+		this.name = proj.getName();
+		this.description = proj.getDescription();
+		this.points = proj.getPoints();
+		this.validFrom = proj.getValidFrom();
+		this.validTo = proj.getValidTo();
+		this.status = proj.getStatus();
+		this.userActivityId = proj.getUserActivityId();
+		this.userActivityStatus = proj.getUserActivityStatus();
+		this.userActivityFarmId = proj.getUserActivityFarmId();
+	}
+
+	public Integer getUserActivityFarmId() {
+		return userActivityFarmId;
+	}
+
+	public void setUserActivityFarmId(Integer userActivityFarmId) {
+		this.userActivityFarmId = userActivityFarmId;
+	}
 
 	public Integer getActivityId() {
 		return activityId;
@@ -24,6 +43,14 @@ public class ProducerActivityDTO {
 
 	public void setActivityId(Integer activityId) {
 		this.activityId = activityId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 	public String getDescription() {
@@ -58,14 +85,6 @@ public class ProducerActivityDTO {
 		this.validTo = validTo;
 	}
 
-	public List<String> getCropTypes() {
-		return cropTypes;
-	}
-
-	public void setCropTypes(List<String> cropTypes) {
-		this.cropTypes = cropTypes;
-	}
-
 	public String getStatus() {
 		return status;
 	}
@@ -80,14 +99,6 @@ public class ProducerActivityDTO {
 
 	public void setCompanyName(String companyName) {
 		this.companyName = companyName;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
 	}
 
 	public Integer getUserActivityId() {
@@ -106,11 +117,4 @@ public class ProducerActivityDTO {
 		this.userActivityStatus = userActivityStatus;
 	}
 
-	public Integer getUserActivityFarmId() {
-		return userActivityFarmId;
-	}
-
-	public void setUserActivityFarmId(Integer userActivityFarmId) {
-		this.userActivityFarmId = userActivityFarmId;
-	}
 }

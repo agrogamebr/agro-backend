@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -18,16 +20,26 @@ import br.com.agrogame.agrogame.model.ActivityReward;
 import br.com.agrogame.agrogame.model.ActivityStatus;
 import br.com.agrogame.agrogame.model.Company;
 import br.com.agrogame.agrogame.model.CropType;
+import br.com.agrogame.agrogame.model.Farm;
+import br.com.agrogame.agrogame.model.FarmCrop;
 import br.com.agrogame.agrogame.model.Reward;
 import br.com.agrogame.agrogame.model.RewardStatus;
+import br.com.agrogame.agrogame.model.User;
+import br.com.agrogame.agrogame.model.UserActivity;
+import br.com.agrogame.agrogame.model.UserActivityStatus;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
 import br.com.agrogame.agrogame.repository.ActivityStatusRepository;
 import br.com.agrogame.agrogame.repository.CompanyRepository;
 import br.com.agrogame.agrogame.repository.CropTypeRepository;
+import br.com.agrogame.agrogame.repository.FarmCropRepository;
+import br.com.agrogame.agrogame.repository.FarmRepository;
 import br.com.agrogame.agrogame.repository.RewardRepository;
 import br.com.agrogame.agrogame.repository.RewardStatusRepository;
+import br.com.agrogame.agrogame.repository.UserActivityRepository;
+import br.com.agrogame.agrogame.repository.UserActivityStatusRepository;
+import br.com.agrogame.agrogame.repository.UserRepository;
 import jakarta.transaction.Transactional;
 
 @Service
@@ -41,11 +53,18 @@ public class ActivityService {
 	private final RewardStatusRepository rewardStatusRepository;
 	private final CropTypeRepository cropTypeRepository;
 	private final ActivityCropTypeRepository activityCropTypeRepository;
+	private final UserActivityRepository userActivityRepository;
+	private final UserActivityStatusRepository userActivityStatusRepository;
+	private final FarmRepository farmRepository;
+	private final FarmCropRepository farmCropRepository;
+	private final UserRepository userRepository;
 
 	public ActivityService(ActivityRepository activityRepository, CompanyRepository companyRepository,
 			ActivityStatusRepository activityStatusRepository, ActivityRewardRepository activityRewardRepository,
 			RewardRepository rewardRepository, RewardStatusRepository rewardStatusRepository,
-			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository) {
+			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository,
+			UserActivityRepository userActivityRepository, UserActivityStatusRepository userActivityStatusRepository,
+			FarmRepository farmRepository, FarmCropRepository farmCropRepository, UserRepository userRepository) {
 		this.activityRepository = activityRepository;
 		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
@@ -54,123 +73,179 @@ public class ActivityService {
 		this.rewardStatusRepository = rewardStatusRepository;
 		this.cropTypeRepository = cropTypeRepository;
 		this.activityCropTypeRepository = activityCropTypeRepository;
+		this.userActivityRepository = userActivityRepository;
+		this.userActivityStatusRepository = userActivityStatusRepository;
+		this.farmRepository = farmRepository;
+		this.farmCropRepository = farmCropRepository;
+		this.userRepository = userRepository;
 	}
 
 	@Transactional
 	public Map<String, Object> registerActivity(CreateActivityDTO dto, Integer createdBy) {
 
-		Company company = companyRepository.findById(dto.getCompanyId())
-				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
+	    Company company = companyRepository.findById(dto.getCompanyId())
+	            .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
 
-		ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
-				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
+	    ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
+	            .orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
 
-		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
-			throw new BusinessException("Data inicial não pode ser maior que a data final");
-		}
+	    if (dto.getValidFrom().isAfter(dto.getValidTo())) {
+	        throw new BusinessException("Data inicial não pode ser maior que a data final");
+	    }
 
-		// ========== CRIAR ACTIVITY ==========
-		Activity activity = new Activity();
-		activity.setCompany(company);
-		activity.setDescription(dto.getDescription());
-		activity.setName(dto.getName());
-		activity.setPoints(dto.getPoints());
-		activity.setActivityStatus(draftStatus);
-		activity.setValidFrom(dto.getValidFrom());
-		activity.setValidTo(dto.getValidTo());
-		activity.setCreatedAt(LocalDateTime.now());
-		activity.setCreatedBy(createdBy);
+	    // ========== VALIDAR SE EMPRESA TEM PRODUTORES COM ESSES CROPS ==========
+	    validateCompanyHasCropTypes(company, dto.getCropTypeIds());
 
-		Activity savedActivity = activityRepository.save(activity);
+	    // ========== CRIAR ACTIVITY ==========
+	    Activity activity = new Activity();
+	    activity.setCompany(company);
+	    activity.setDescription(dto.getDescription());
+	    activity.setName(dto.getName());
+	    activity.setPoints(dto.getPoints());
+	    activity.setActivityStatus(draftStatus);
+	    activity.setValidFrom(dto.getValidFrom());
+	    activity.setValidTo(dto.getValidTo());
+	    activity.setCreatedAt(LocalDateTime.now());
+	    activity.setCreatedBy(createdBy);
 
-		// ========== VINCULAR CROP TYPES ==========
-		for (Integer cropTypeId : dto.getCropTypeIds()) {
-			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
+	    Activity savedActivity = activityRepository.save(activity);
 
-			ActivityCropType activityCropType = new ActivityCropType();
-			activityCropType.setActivity(savedActivity);
-			activityCropType.setCropType(cropType);
-			activityCropType.setCreatedAt(LocalDateTime.now());
-			activityCropType.setCreatedBy(createdBy);
+	    // ========== VINCULAR CROP TYPES ==========
+	    for (Integer cropTypeId : dto.getCropTypeIds()) {
+	        CropType cropType = cropTypeRepository.findById(cropTypeId)
+	                .orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
 
-			activityCropTypeRepository.save(activityCropType);
-		}
+	        ActivityCropType activityCropType = new ActivityCropType();
+	        activityCropType.setActivity(savedActivity);
+	        activityCropType.setCropType(cropType);
+	        activityCropType.setCreatedAt(LocalDateTime.now());
+	        activityCropType.setCreatedBy(createdBy);
 
-		// ========== CRIAR REWARD ==========
-		RewardStatus rewardStatus = rewardStatusRepository.findByCode("active")
-				.orElseThrow(() -> new BusinessException("Status de recompensa 'active' não configurado"));
+	        activityCropTypeRepository.save(activityCropType);
+	    }
 
-		Reward reward = new Reward();
-		reward.setName("Recompensa - " + savedActivity.getDescription());
-		reward.setPointsGain(dto.getPoints());
-		reward.setDescription("Recompensa gerada automaticamente para a atividade: " + savedActivity.getDescription());
-		reward.setValidFrom(dto.getValidFrom());
-		reward.setValidTo(dto.getValidTo());
-		reward.setPointsCost(dto.getPoints());
-		reward.setRewardStatus(rewardStatus);
-		reward.setCreatedAt(LocalDateTime.now());
-		reward.setCreatedBy(createdBy);
+	    // ========== CRIAR REWARD ==========
+	    RewardStatus rewardStatus = rewardStatusRepository.findByCode("active")
+	            .orElseThrow(() -> new BusinessException("Status de recompensa 'active' não configurado"));
 
-		Reward savedReward = rewardRepository.save(reward);
+	    Reward reward = new Reward();
+	    reward.setName("Recompensa - " + savedActivity.getDescription());
+	    reward.setPointsGain(dto.getPoints());
+	    reward.setDescription("Recompensa gerada automaticamente para a atividade: " + savedActivity.getDescription());
+	    reward.setValidFrom(dto.getValidFrom());
+	    reward.setValidTo(dto.getValidTo());
+	    reward.setPointsCost(dto.getPoints());
+	    reward.setRewardStatus(rewardStatus);
+	    reward.setCreatedAt(LocalDateTime.now());
+	    reward.setCreatedBy(createdBy);
 
-		// ========== VINCULAR EM ACTIVITY_REWARDS ==========
-		ActivityReward activityReward = new ActivityReward();
-		activityReward.setActivity(savedActivity);
-		activityReward.setReward(savedReward);
-		activityReward.setPointsGain(dto.getPoints());
-		activityReward.setCreatedAt(LocalDateTime.now());
-		activityReward.setCreatedBy(createdBy);
+	    Reward savedReward = rewardRepository.save(reward);
 
-		activityRewardRepository.save(activityReward);
+	    // ========== VINCULAR EM ACTIVITY_REWARDS ==========
+	    ActivityReward activityReward = new ActivityReward();
+	    activityReward.setActivity(savedActivity);
+	    activityReward.setReward(savedReward);
+	    activityReward.setPointsGain(dto.getPoints());
+	    activityReward.setCreatedAt(LocalDateTime.now());
+	    activityReward.setCreatedBy(createdBy);
 
-		// ========== RESPONSE ==========
-		Map<String, Object> response = new HashMap<>();
-		response.put("id", savedActivity.getId());
-		response.put("name", activity.getName());
-		response.put("companyId", company.getId());
-		response.put("description", savedActivity.getDescription());
-		response.put("points", savedActivity.getPoints());
-		response.put("status", draftStatus.getCode());
-		response.put("validFrom", savedActivity.getValidFrom());
-		response.put("validTo", savedActivity.getValidTo());
-		response.put("cropTypesCount", dto.getCropTypeIds().size());
-		response.put("rewardId", savedReward.getId());
-		response.put("message", "Atividade, tipos de cultura e recompensa cadastrados em status 'draft'.");
+	    activityRewardRepository.save(activityReward);
 
-		return response;
+	    // ========== RESPONSE ==========
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("id", savedActivity.getId());
+	    response.put("name", savedActivity.getName());
+	    response.put("companyId", company.getId());
+	    response.put("description", savedActivity.getDescription());
+	    response.put("points", savedActivity.getPoints());
+	    response.put("status", draftStatus.getCode());
+	    response.put("validFrom", savedActivity.getValidFrom());
+	    response.put("validTo", savedActivity.getValidTo());
+	    response.put("cropTypesCount", dto.getCropTypeIds().size());
+	    response.put("rewardId", savedReward.getId());
+	    response.put("message", "Atividade em status 'draft'. Valide e envie com a API de send.");
+
+	    return response;
 	}
 
 	@Transactional
 	public Map<String, Object> sendActivity(Integer activityId, Integer sentBy) {
 
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+	    Activity activity = activityRepository.findById(activityId)
+	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-		if (!"draft".equals(activity.getActivityStatus().getCode())) {
-			throw new BusinessException("Apenas atividades em draft podem ser enviadas");
-		}
+	    if (!"draft".equals(activity.getActivityStatus().getCode())) {
+	        throw new BusinessException("Apenas atividades em draft podem ser enviadas");
+	    }
 
-		// Mudar status para "send"
-		ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
-				.orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
+	    // Mudar status para "send"
+	    ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
+	            .orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
 
-		activity.setActivityStatus(sendStatus);
-		activity.setUpdatedAt(LocalDateTime.now());
-		activity.setUpdatedBy(sentBy);
+	    activity.setActivityStatus(sendStatus);
+	    activity.setUpdatedAt(LocalDateTime.now());
+	    activity.setUpdatedBy(sentBy);
 
-		Activity savedActivity = activityRepository.save(activity);
+	    Activity savedActivity = activityRepository.save(activity);
 
-		// AQUI: Notificar producers com a cultura selecionada
-		notifyProducers(savedActivity);
+	    // ========== CRIAR USER_ACTIVITIES PARA FARMS COM ESSES CROPS ==========
+	    createUserActivitiesForMatchingFarms(savedActivity, sentBy);
 
-		Map<String, Object> response = new HashMap<>();
-		response.put("id", savedActivity.getId());
-		response.put("status", sendStatus.getCode());
-		response.put("message", "Atividade enviada para os producers!");
+	    // Notificar producers (se quiser)
+	    // notifyProducers(savedActivity);
 
-		return response;
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("id", savedActivity.getId());
+	    response.put("status", sendStatus.getCode());
+	    response.put("message", "Atividade enviada para os producers!");
+
+	    return response;
 	}
+
+	/**
+	 * Cria UserActivity para todas as farms da empresa que possuem um dos cropTypes da atividade.
+	 */
+	private void createUserActivitiesForMatchingFarms(Activity activity, Integer createdBy) {
+	    
+	    UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
+	            .orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
+	    
+		User userCreatedBy = userRepository.findById(createdBy)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+	    Company company = activity.getCompany();
+
+	    // 1. Buscar todos os cropTypeIds da atividade
+	    List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId())
+	            .stream()
+	            .map(act -> act.getCropType().getId())
+	            .toList();
+
+	    // 2. Buscar todas as farms da empresa
+	    List<Farm> companyFarms = farmRepository.findByCompanyId(company.getId());
+
+	    // 3. Para cada farm, verificar se tem algum dos crops da atividade
+	    for (Farm farm : companyFarms) {
+	        List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
+
+	        boolean hasCrop = farmCrops.stream()
+	                .anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
+
+	        if (hasCrop) {
+	            // 4. Criar UserActivity para o produtor dessa farm
+	            UserActivity userActivity = new UserActivity();
+	            userActivity.setActivity(activity);
+	            userActivity.setUser(farm.getOwner());
+	            userActivity.setFarm(farm);
+	            userActivity.setStatus(pendingStatus);
+	            userActivity.setCreatedAt(LocalDateTime.now());
+	            userActivity.setCreatedBy(userCreatedBy);
+
+	            userActivityRepository.save(userActivity);
+	        }
+	    }
+	}
+
 
 	private void notifyProducers(Activity activity) {
 		// TODO: Implementar lógica de notificação
@@ -331,5 +406,39 @@ public class ActivityService {
 
 		activity.setActivityStatus(canceledStatus);
 		activityRepository.save(activity);
+	}
+	
+	/**
+	 * Valida se a empresa possui pelo menos um produtor com farm que tenha cada um dos cropTypes.
+	 */
+	private void validateCompanyHasCropTypes(Company company, List<Integer> cropTypeIds) {
+	    
+	    // 1. Buscar todas as farms da empresa
+	    List<Farm> companyFarms = farmRepository.findByCompanyId(company.getId());
+
+	    if (companyFarms.isEmpty()) {
+	        throw new BusinessException("Empresa não possui nenhuma fazenda registrada");
+	    }
+
+	    // 2. Buscar todos os crops dessas farms
+	    List<FarmCrop> farmCrops = companyFarms.stream()
+	            .flatMap(farm -> farmCropRepository.findByFarmId(farm.getId()).stream())
+	            .toList();
+
+	    // 3. Extrair IDs dos crops que existem
+	    Set<Integer> existingCropTypeIds = farmCrops.stream()
+	            .map(fc -> fc.getCropType().getId())
+	            .collect(Collectors.toSet());
+
+	    // 4. Verificar se todos os crops da atividade existem nas farms
+	    for (Integer cropTypeId : cropTypeIds) {
+	        if (!existingCropTypeIds.contains(cropTypeId)) {
+	            CropType cropType = cropTypeRepository.findById(cropTypeId)
+	                    .orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado"));
+	            throw new BusinessException(
+	                "Nenhum produtor da empresa possui farm com a cultura: " + cropType.getName()
+	            );
+	        }
+	    }
 	}
 }

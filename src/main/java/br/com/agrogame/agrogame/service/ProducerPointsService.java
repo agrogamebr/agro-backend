@@ -29,12 +29,22 @@ public class ProducerPointsService {
 
 	/**
 	 * Retorna o saldo atual de pontos do produtor (somente do usuário autenticado).
+	 * Se farmId for informado, retorna saldo filtrado apenas daquela fazenda.
 	 */
-	public ProducerPointsBalanceDTO getCurrentBalance(Integer userId) {
+	public ProducerPointsBalanceDTO getCurrentBalance(Integer userId, Integer farmId) {
 		User user = userRepository.findById(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Integer balance = userPointsTransactionRepository.findLatestBalance(user.getId());
+		Integer balance;
+
+		if (farmId != null) {
+			// Buscar saldo apenas da farm específica
+			balance = userPointsTransactionRepository.findLatestBalanceByUserAndFarm(userId, farmId);
+		} else {
+			// Buscar saldo total do produtor
+			balance = userPointsTransactionRepository.findLatestBalance(userId);
+		}
+
 		if (balance == null) {
 			balance = 0;
 		}
@@ -44,10 +54,18 @@ public class ProducerPointsService {
 
 	/**
 	 * Lista o histórico de transações de pontos do produtor (usuário autenticado).
+	 * Se farmId for informado, filtra apenas transações daquela fazenda.
 	 */
-	public List<ProducerPointsTransactionDTO> getTransactions(Integer userId) {
-		List<UserPointsTransaction> transactions = userPointsTransactionRepository
-				.findByUserIdOrderByCreatedAtDesc(userId);
+	public List<ProducerPointsTransactionDTO> getTransactions(Integer userId, Integer farmId) {
+		List<UserPointsTransaction> transactions;
+
+		if (farmId != null) {
+			// Buscar transações apenas da farm específica
+			transactions = userPointsTransactionRepository.findByUserIdAndFarmIdOrderByCreatedAtDesc(userId, farmId);
+		} else {
+			// Buscar todas as transações do produtor
+			transactions = userPointsTransactionRepository.findByUserIdOrderByCreatedAtDesc(userId);
+		}
 
 		return transactions.stream()
 				.map(t -> new ProducerPointsTransactionDTO(t.getId(),
@@ -58,4 +76,5 @@ public class ProducerPointsService {
 						t.getCreatedAt()))
 				.collect(Collectors.toList());
 	}
+
 }
