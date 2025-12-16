@@ -5,12 +5,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.agrogame.agrogame.dto.ActivityCropTypeProjection;
+import br.com.agrogame.agrogame.dto.ActivityWithUserActivityProjection;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityDTO;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
@@ -366,4 +370,99 @@ public class RuralProducerService {
 
 		return dto;
 	}
+
+	@Transactional(readOnly = true)
+	public List<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId, // pode ser null
+			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
+			LocalDate validToStart, LocalDate validToEnd, String status) {
+		// 1. Buscar produtor e validar tipo
+		User producer = userRepository.findByIdWithUserType(producerId)
+				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
+
+		if (producer.getUserType() == null || producer.getUserType().getId() != 8) {
+			throw new BusinessException("Usuário não é produtor rural");
+		}
+
+		if (producer.getCompany() == null) {
+			throw new BusinessException("Produtor não vinculado a uma empresa");
+		}
+
+		Integer companyId = producer.getCompany().getId();
+
+		// 2. Descobrir quais farms considerar
+		List<Integer> farmIds;
+		if (farmId != null) {
+			Farm farm = farmRepository.findById(farmId)
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+
+			if (!farm.getOwner().getId().equals(producerId) || !farm.getCompany().getId().equals(companyId)) {
+				throw new BusinessException("Fazenda não pertence ao produtor");
+			}
+
+			farmIds = List.of(farmId);
+		} else {
+			// todas as farms do produtor nessa empresa
+			farmIds = farmRepository.findByOwnerIdAndCompanyId(producerId, companyId).stream().map(Farm::getId)
+					.toList();
+
+			if (farmIds.isEmpty()) {
+				return List.of();
+			}
+		}
+
+		// 3. Buscar atividades + user_activity em uma query (para todas as farms do
+		// produtor)
+		List<ActivityWithUserActivityProjection> rows = activityRepository.listActivitiesWithUserActivityForFarms(
+				companyId, producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter);
+
+		if (rows.isEmpty()) {
+			return List.of();
+		}
+
+		// 4. Buscar TODOS os crops de TODAS as atividades em UMA query
+		List<Integer> activityIds = rows.stream().map(ActivityWithUserActivityProjection::getId).distinct().toList();
+
+		Map<Integer, List<String>> activityCropsMap = activityCropTypeRepository.findCropsByActivityIds(activityIds)
+				.stream().collect(Collectors.groupingBy(ActivityCropTypeProjection::getActivityId,
+						Collectors.mapping(ActivityCropTypeProjection::getCropName, Collectors.toList())));
+
+		// 5. Montar DTOs com filtros
+		return rows.stream().filter(row -> {
+			if (nameFilter == null || nameFilter.isBlank())
+				return true;
+			String n = row.getName();
+			return n != null && n.toLowerCase().contains(nameFilter.toLowerCase());
+		}).filter(row -> {
+			if (validToStart != null && row.getValidTo().isBefore(validToStart))
+				return false;
+			if (validToEnd != null && row.getValidTo().isAfter(validToEnd))
+				return false;
+			return true;
+		}).filter(row -> {
+			if (cropTypeIdFilter == null)
+				return true;
+			List<String> crops = activityCropsMap.getOrDefault(row.getId(), List.of());
+			return !crops.isEmpty();
+		}).map(row -> {
+			ProducerActivityDTO dto = new ProducerActivityDTO();
+			dto.setActivityId(row.getId());
+			dto.setName(row.getName());
+			dto.setDescription(row.getDescription());
+			dto.setPoints(row.getPoints());
+			dto.setValidFrom(row.getValidFrom());
+			dto.setValidTo(row.getValidTo());
+			dto.setStatus(row.getStatus());
+			dto.setCompanyName(producer.getCompany().getFantasyName());
+
+			List<String> cropTypeNames = activityCropsMap.getOrDefault(row.getId(), List.of());
+			dto.setCropTypes(cropTypeNames);
+
+			dto.setUserActivityId(row.getUserActivityId());
+			dto.setUserActivityStatus(row.getUserActivityStatus());
+			dto.setUserActivityFarmId(row.getUserActivityFarmId());
+
+			return dto;
+		}).sorted(Comparator.comparing(ProducerActivityDTO::getValidTo)).toList();
+	}
+
 }

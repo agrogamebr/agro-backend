@@ -15,6 +15,10 @@ public class ActivityListDTO {
 	private LocalDate validTo;
 	private List<Integer> cropTypeIds;
 
+	private Integer userActivityId;
+	private String userActivityStatus;
+	private Integer userActivityFarmId;
+
 	public Integer getId() {
 		return id;
 	}
@@ -85,6 +89,30 @@ public class ActivityListDTO {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public Integer getUserActivityId() {
+		return userActivityId;
+	}
+
+	public void setUserActivityId(Integer userActivityId) {
+		this.userActivityId = userActivityId;
+	}
+
+	public String getUserActivityStatus() {
+		return userActivityStatus;
+	}
+
+	public void setUserActivityStatus(String userActivityStatus) {
+		this.userActivityStatus = userActivityStatus;
+	}
+
+	public Integer getUserActivityFarmId() {
+		return userActivityFarmId;
+	}
+
+	public void setUserActivityFarmId(Integer userActivityFarmId) {
+		this.userActivityFarmId = userActivityFarmId;
 	}
 
 }

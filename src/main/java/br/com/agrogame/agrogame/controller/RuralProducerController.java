@@ -26,16 +26,19 @@ import org.springframework.web.multipart.MultipartFile;
 
 import br.com.agrogame.agrogame.dto.CompanyListDTO;
 import br.com.agrogame.agrogame.dto.FileUploadResponseDTO;
-import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
+import br.com.agrogame.agrogame.dto.ProducerActivityDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
 import br.com.agrogame.agrogame.dto.SubmitActivityResponseDTO;
 import br.com.agrogame.agrogame.dto.UserActivityDetailDTO;
 import br.com.agrogame.agrogame.dto.UserDocumentTypeDTO;
+import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
+import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.model.UserDocumentType;
+import br.com.agrogame.agrogame.repository.FarmRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.service.ActivitySubmissionService;
 import br.com.agrogame.agrogame.service.CompanyService;
@@ -79,6 +82,9 @@ public class RuralProducerController {
 
 	@Autowired
 	private UserActivityService userActivityService;
+	
+	@Autowired
+	private FarmRepository farmRepository;
 
 	@Operation(summary = "Cadastrar produtor rural", description = """
 			  Cria novo produtor vinculado a uma empresa parceira.
@@ -207,7 +213,7 @@ public class RuralProducerController {
 			  - cropTypeId: filtrar por cultura específica
 			  - validFromStart / validFromEnd: filtrar por data de início (formato: yyyy-MM-dd)
 			  - validToStart / validToEnd: filtrar por data de término (formato: yyyy-MM-dd)
-			  - description: filtrar por trecho da descrição da atividade (contains, case-insensitive)
+			  - nome: filtrar por trecho da descrição da atividade (contains, case-insensitive)
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista de atividades agrupadas por fazenda"),
 			@ApiResponse(responseCode = "400", description = "Produtor ou fazenda inválido"),
@@ -216,7 +222,7 @@ public class RuralProducerController {
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@GetMapping("/activities")
 	public ResponseEntity<Map<String, Object>> listProducerActivities(
-			@Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer farmId,
+			@Parameter(description = "ID da fazenda para filtrar", example = "1") @RequestParam(required = false) Integer farmId,
 
 			@Parameter(description = "ID do tipo de cultura para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer cropTypeId,
 
@@ -235,8 +241,8 @@ public class RuralProducerController {
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
-		List<ProducerActivityByFarmDTO> activities = ruralProducerService.listActivitiesForProducer(producerId, farmId,
-				cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd);
+		List<ProducerActivityDTO> activities = ruralProducerService.listActivitiesForProducerFast(producerId, farmId,
+				cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, null);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activities);
@@ -356,6 +362,9 @@ public class RuralProducerController {
 	@Operation(summary = "Obter saldo de pontos do produtor", description = """
 			Retorna o saldo atual de pontos do produtor logado, considerando todas as transações de pontos.
 
+			Filtro opcional:
+			- farmId: filtrar saldo apenas para uma fazenda específica
+
 			Exemplo de resposta:
 			{
 			  "userId": 15,
@@ -364,18 +373,33 @@ public class RuralProducerController {
 			}
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Saldo retornado com sucesso"),
-			@ApiResponse(responseCode = "401", description = "Usuário não autenticado") })
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Fazenda não pertence ao produtor") })
 	@GetMapping("/points/balance")
-	public ResponseEntity<ProducerPointsBalanceDTO> getBalance(Principal principal) {
+	public ResponseEntity<ProducerPointsBalanceDTO> getBalance(
+			@Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer farmId,
+			Principal principal) {
 		User user = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		ProducerPointsBalanceDTO dto = producerPointsService.getCurrentBalance(user.getId());
+		// Validar farmId se informado
+		if (farmId != null) {
+			Farm farm = farmRepository.findById(farmId)
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+			if (!farm.getOwner().getId().equals(user.getId())) {
+				throw new BusinessException("Fazenda não pertence ao produtor");
+			}
+		}
+
+		ProducerPointsBalanceDTO dto = producerPointsService.getCurrentBalance(user.getId(), farmId);
 		return ResponseEntity.ok(dto);
 	}
 
 	@Operation(summary = "Listar histórico de pontos do produtor", description = """
 			Retorna a lista de transações de pontos do produtor logado, ordenadas da mais recente para a mais antiga.
+
+			Filtro opcional:
+			- farmId: filtrar transações apenas para uma fazenda específica
 
 			Cada item contém:
 			- tipo de transação (earn, spend, adjust)
@@ -386,13 +410,25 @@ public class RuralProducerController {
 			- saldo após a transação
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Histórico retornado com sucesso"),
-			@ApiResponse(responseCode = "401", description = "Usuário não autenticado") })
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Fazenda não pertence ao produtor") })
 	@GetMapping("/points/transactions")
-	public ResponseEntity<Map<String, Object>> getTransactions(Principal principal) {
+	public ResponseEntity<Map<String, Object>> getTransactions(
+			@Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer farmId,
+			Principal principal) {
 		User user = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		List<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(user.getId());
+		// Validar farmId se informado
+		if (farmId != null) {
+			Farm farm = farmRepository.findById(farmId)
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+			if (!farm.getOwner().getId().equals(user.getId())) {
+				throw new BusinessException("Fazenda não pertence ao produtor");
+			}
+		}
+
+		List<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(user.getId(), farmId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("success", true);

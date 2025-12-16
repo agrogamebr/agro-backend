@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import br.com.agrogame.agrogame.dto.ActivityWithUserActivityProjection;
 import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.model.ActivityReward;
 
@@ -40,5 +41,75 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 	List<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
 			@Param("cropTypeId") Integer cropTypeId, @Param("farmId") Integer farmId,
 			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	@Query(value = """
+			    SELECT
+			        a.id as id,
+			        a.name as name,
+			        a.company_id as companyId,
+			        a.description as description,
+			        a.points as points,
+			        s.code as status,
+			        a.valid_from as validFrom,
+			        a.valid_to as validTo,
+			        ua.id as userActivityId,
+			        uas.code as userActivityStatus,
+			        ua.farm_id as userActivityFarmId
+			    FROM activities a
+			    JOIN activity_statuses s ON s.id = a.activity_status_id
+			    LEFT JOIN user_activities ua ON ua.activity_id = a.id
+			        AND ua.user_id = :producerId
+			        AND ua.farm_id = :farmId
+			    LEFT JOIN user_activity_statuses uas ON uas.id = ua.status_id
+			    WHERE a.company_id = :companyId
+			      AND (:status IS NULL OR s.code = :status)
+			      AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			      AND (:endDate IS NULL OR a.valid_to <= :endDate)
+			""", nativeQuery = true)
+	List<ActivityWithUserActivityProjection> listActivitiesWithUserActivity(@Param("companyId") Integer companyId,
+			@Param("producerId") Integer producerId, @Param("farmId") Integer farmId, @Param("status") String status,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	@Query(value = """
+			    SELECT
+			        a.id                  AS id,
+			        a.name                AS name,
+			        a.company_id          AS companyId,
+			        a.description         AS description,
+			        a.points              AS points,
+			        s.code                AS status,
+			        a.valid_from          AS validFrom,
+			        a.valid_to            AS validTo,
+			        ua.id                 AS userActivityId,
+			        uas.code              AS userActivityStatus,
+			        ua.farm_id            AS userActivityFarmId
+			    FROM activities a
+			    JOIN activity_statuses s
+			          ON s.id = a.activity_status_id
+			    LEFT JOIN user_activities ua
+			           ON ua.activity_id = a.id
+			          AND ua.user_id     = :producerId
+			          AND ua.farm_id     IN (:farmIds)
+			    LEFT JOIN user_activity_statuses uas
+			           ON uas.id = ua.status_id
+			    WHERE a.company_id = :companyId
+			      AND (:status    IS NULL OR s.code = :status)
+			      AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			      AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			      AND (
+			            :cropTypeId IS NULL
+			         OR EXISTS (
+			                SELECT 1
+			                FROM activity_crop_types act
+			                WHERE act.activity_id = a.id
+			                  AND act.crop_type_id = :cropTypeId
+			            )
+			      )
+			""", nativeQuery = true)
+	List<ActivityWithUserActivityProjection> listActivitiesWithUserActivityForFarms(
+			@Param("companyId") Integer companyId, @Param("producerId") Integer producerId,
+			@Param("farmIds") List<Integer> farmIds, @Param("status") String status,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate,
+			@Param("cropTypeId") Integer cropTypeId);
 
 }
