@@ -257,7 +257,6 @@ public class RuralProducerController {
 			  Arquivos permitidos: PDF, DOCX, PNG, JPEG, JPG.
 			  Múltiplos uploads são permitidos enquanto a atividade estiver em status 'pending'.
 
-			  A primeira vez que um arquivo é enviado, um vínculo (user_activity) é criado automaticamente.
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "201", description = "Arquivo enviado com sucesso"),
 			@ApiResponse(responseCode = "400", description = "Arquivo inválido ou vazio"),

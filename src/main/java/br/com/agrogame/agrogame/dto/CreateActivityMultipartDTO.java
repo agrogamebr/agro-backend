@@ -3,36 +3,20 @@ package br.com.agrogame.agrogame.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-
-public class CreateActivityDTO {
-
-	@NotNull
+public class CreateActivityMultipartDTO {
+	// Dados da activity (recebido como JSON via @RequestPart)
 	private Integer companyId;
-
-	@NotBlank(message = "Descrição é obrigatória")
 	private String description;
-
-	@NotBlank(message = "Nome é obrigatório")
 	private String name;
-
-	@NotNull(message = "Pontos são obrigatórios")
-	@Positive(message = "Pontos deve ser maior que zero")
 	private Integer points;
-
-	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) // Garante que o String "2025-12-17" vire LocalDate
 	private LocalDate validFrom;
-
-	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
 	private LocalDate validTo;
-
-	@NotEmpty(message = "Deve ter pelo menos um tipo de cultura")
 	private List<Integer> cropTypeIds;
+
+	// Arquivo (recebido como file)
+	private MultipartFile thumbnail;
 
 	public Integer getCompanyId() {
 		return companyId;
@@ -48,6 +32,14 @@ public class CreateActivityDTO {
 
 	public void setDescription(String description) {
 		this.description = description;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 	public Integer getPoints() {
@@ -82,13 +74,12 @@ public class CreateActivityDTO {
 		this.cropTypeIds = cropTypeIds;
 	}
 
-	public String getName() {
-		return name;
+	public MultipartFile getThumbnail() {
+		return thumbnail;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public void setThumbnail(MultipartFile thumbnail) {
+		this.thumbnail = thumbnail;
 	}
-
 
 }
