@@ -17,6 +17,24 @@ public class ProducerActivityDTO {
 	private Integer userActivityId;
 	private String userActivityStatus;
 	private Integer userActivityFarmId;
+    private String thumbnailUrl;
+    private String thumbnailGsutilUri;
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
+	}
+
+	public void setThumbnailUrl(String thumbnailUrl) {
+		this.thumbnailUrl = thumbnailUrl;
+	}
+
+	public String getThumbnailGsutilUri() {
+		return thumbnailGsutilUri;
+	}
+
+	public void setThumbnailGsutilUri(String thumbnailGsutilUri) {
+		this.thumbnailGsutilUri = thumbnailGsutilUri;
+	}
 
 	public Integer getActivityId() {
 		return activityId;

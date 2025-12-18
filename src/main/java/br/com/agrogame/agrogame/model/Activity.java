@@ -51,6 +51,28 @@ public class Activity {
 	@OneToMany(mappedBy = "activity", fetch = FetchType.LAZY)
 	private List<ActivityCropType> activityCropTypes;
 
+	@Column(name = "thumbnail_url", length = 500)
+	private String thumbnailUrl;
+
+	@Column(name = "thumbnail_gsutil_uri", length = 500)
+	private String thumbnailGsutilUri;
+
+	public String getThumbnailGsutilUri() {
+		return thumbnailGsutilUri;
+	}
+
+	public void setThumbnailGsutilUri(String thumbnailGsutilUri) {
+		this.thumbnailGsutilUri = thumbnailGsutilUri;
+	}
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
+	}
+
+	public void setThumbnailUrl(String thumbnailUrl) {
+		this.thumbnailUrl = thumbnailUrl;
+	}
+
 	public List<ActivityCropType> getActivityCropTypes() {
 		return activityCropTypes;
 	}

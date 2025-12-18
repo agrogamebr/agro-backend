@@ -10,4 +10,6 @@ public interface FileStorageService {
 	StoredFileInfo uploadFile(MultipartFile file) throws IOException;
 
 	String generateFileHash(MultipartFile file) throws IOException;
+	
+	void deleteFile(String fileUrl) throws IOException;
 }

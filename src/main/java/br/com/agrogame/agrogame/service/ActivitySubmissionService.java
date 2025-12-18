@@ -99,20 +99,8 @@ public class ActivitySubmissionService {
 
 		// 4. Obter ou criar UserActivity
 		UserActivity userActivity = userActivityRepository.findByUserAndActivityAndFarm(producerId, activityId, farmId)
-				.orElseGet(() -> {
-					UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
-							.orElseThrow(() -> new ResourceNotFoundException("Status 'pending' não configurado"));
-
-					UserActivity ua = new UserActivity();
-					ua.setUser(producer);
-					ua.setActivity(activity);
-					ua.setFarm(farm);
-					ua.setStatus(pendingStatus);
-					ua.setCreatedAt(LocalDateTime.now());
-					ua.setCreatedBy(producer);
-
-					return userActivityRepository.save(ua);
-				});
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"UserActivity não encontrada. Verifique se a atividade foi enviada para sua fazenda."));
 
 		// 5. Validar que não foi submetida ainda
 		if (!"pending".equals(userActivity.getStatus().getCode())) {
@@ -260,7 +248,7 @@ public class ActivitySubmissionService {
 		}
 
 		// 6. Usar gsutil_uri para obter bucket e objectName
-		String gsutilUri = fileEntity.getGsutilUri(); 
+		String gsutilUri = fileEntity.getGsutilUri();
 
 		if (gsutilUri == null || !gsutilUri.startsWith("gs://")) {
 			throw new BusinessException("gsutil_uri inválido");

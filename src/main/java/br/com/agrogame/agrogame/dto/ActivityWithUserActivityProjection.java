@@ -24,4 +24,8 @@ public interface ActivityWithUserActivityProjection {
 	String getUserActivityStatus();
 
 	Integer getUserActivityFarmId();
+
+	String getThumbnailUrl();
+
+	String getThumbnailGsutilUri();
 }

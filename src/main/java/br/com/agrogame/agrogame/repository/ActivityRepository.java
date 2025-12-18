@@ -82,7 +82,9 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			        a.valid_to            AS validTo,
 			        ua.id                 AS userActivityId,
 			        uas.code              AS userActivityStatus,
-			        ua.farm_id            AS userActivityFarmId
+			        ua.farm_id            AS userActivityFarmId,
+			        a.thumbnail_url        AS thumbnailUrl, 
+			        a.thumbnail_gsutil_uri  AS thumbnailGsutilUri
 			    FROM activities a
 			    JOIN activity_statuses s
 			          ON s.id = a.activity_status_id

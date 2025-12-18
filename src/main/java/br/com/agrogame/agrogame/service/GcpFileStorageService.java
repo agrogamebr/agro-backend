@@ -81,4 +81,32 @@ public class GcpFileStorageService implements FileStorageService {
 				|| contentType.equals("image/png") || contentType.equals("image/jpeg")
 				|| contentType.equals("image/jpg");
 	}
+	
+	public void deleteFile(String fileUrl) throws IOException {
+        try {
+            String blobPath = extractBlobPathFromUrl(fileUrl);
+            BlobId blobId = BlobId.of(bucketName, blobPath);
+            boolean deleted = storage.delete(blobId);
+            
+            if (!deleted) {
+                throw new IOException("Arquivo não encontrado ou já foi deletado: " + blobPath);
+            }
+            
+            System.out.println("Arquivo deletado com sucesso: " + blobPath);
+        } catch (Exception e) {
+            throw new IOException("Erro ao deletar arquivo: " + e.getMessage(), e);
+        }
+    }
+
+    private String extractBlobPathFromUrl(String publicUrl) {
+        // De: https://storage.googleapis.com/bucket-name/path/to/file
+        // Para: path/to/file
+        String prefix = "https://storage.googleapis.com/";
+        if (publicUrl.startsWith(prefix)) {
+            String withBucket = publicUrl.substring(prefix.length());
+            int slashIndex = withBucket.indexOf('/');
+            return withBucket.substring(slashIndex + 1);
+        }
+        return publicUrl;
+    }
 }

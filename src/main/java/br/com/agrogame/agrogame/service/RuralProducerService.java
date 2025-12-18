@@ -460,6 +460,8 @@ public class RuralProducerService {
 			dto.setUserActivityId(row.getUserActivityId());
 			dto.setUserActivityStatus(row.getUserActivityStatus());
 			dto.setUserActivityFarmId(row.getUserActivityFarmId());
+			dto.setThumbnailUrl(row.getThumbnailUrl());
+            dto.setThumbnailGsutilUri(row.getThumbnailGsutilUri());
 
 			return dto;
 		}).sorted(Comparator.comparing(ProducerActivityDTO::getValidTo)).toList();

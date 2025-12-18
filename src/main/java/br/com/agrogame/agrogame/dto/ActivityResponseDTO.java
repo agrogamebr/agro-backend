@@ -1,26 +1,22 @@
 package br.com.agrogame.agrogame.dto;
 
 import java.time.LocalDate;
-import java.util.List;
 
-
-public class ActivityListDTO {
+public class ActivityResponseDTO {
 	private Integer id;
 	private String name;
-	private Integer companyId;
 	private String description;
 	private Integer points;
 	private String status;
 	private LocalDate validFrom;
 	private LocalDate validTo;
-	private List<Integer> cropTypeIds;
+	private Integer cropTypesCount;
+	private Integer rewardId;
 
-	private Integer userActivityId;
-	private String userActivityStatus;
-	private Integer userActivityFarmId;
-	
 	private String thumbnailUrl;
 	private String thumbnailGsutilUri;
+
+	private String message;
 
 	public Integer getId() {
 		return id;
@@ -30,12 +26,12 @@ public class ActivityListDTO {
 		this.id = id;
 	}
 
-	public Integer getCompanyId() {
-		return companyId;
+	public String getName() {
+		return name;
 	}
 
-	public void setCompanyId(Integer companyId) {
-		this.companyId = companyId;
+	public void setName(String name) {
+		this.name = name;
 	}
 
 	public String getDescription() {
@@ -78,44 +74,20 @@ public class ActivityListDTO {
 		this.validTo = validTo;
 	}
 
-	public List<Integer> getCropTypeIds() {
-		return cropTypeIds;
+	public Integer getCropTypesCount() {
+		return cropTypesCount;
 	}
 
-	public void setCropTypeIds(List<Integer> cropTypeIds) {
-		this.cropTypeIds = cropTypeIds;
+	public void setCropTypesCount(Integer cropTypesCount) {
+		this.cropTypesCount = cropTypesCount;
 	}
 
-	public String getName() {
-		return name;
+	public Integer getRewardId() {
+		return rewardId;
 	}
 
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public Integer getUserActivityId() {
-		return userActivityId;
-	}
-
-	public void setUserActivityId(Integer userActivityId) {
-		this.userActivityId = userActivityId;
-	}
-
-	public String getUserActivityStatus() {
-		return userActivityStatus;
-	}
-
-	public void setUserActivityStatus(String userActivityStatus) {
-		this.userActivityStatus = userActivityStatus;
-	}
-
-	public Integer getUserActivityFarmId() {
-		return userActivityFarmId;
-	}
-
-	public void setUserActivityFarmId(Integer userActivityFarmId) {
-		this.userActivityFarmId = userActivityFarmId;
+	public void setRewardId(Integer rewardId) {
+		this.rewardId = rewardId;
 	}
 
 	public String getThumbnailUrl() {
@@ -134,4 +106,11 @@ public class ActivityListDTO {
 		this.thumbnailGsutilUri = thumbnailGsutilUri;
 	}
 
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
 }
