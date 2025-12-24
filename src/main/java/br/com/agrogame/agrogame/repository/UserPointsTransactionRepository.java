@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import br.com.agrogame.agrogame.dto.TransactionWithUserActivity;
 import br.com.agrogame.agrogame.model.UserPointsTransaction;
 
 @Repository
@@ -41,5 +42,33 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			    ORDER BY upt.created_at DESC
 			""", nativeQuery = true)
 	List<UserPointsTransaction> findByUserIdAndFarmIdOrderByCreatedAtDesc(@Param("userId") Integer userId,
+			@Param("farmId") Integer farmId);
+
+	// 1. Caso SEM filtro (Traz todas, fazenda vem null se não tiver atividade)
+	@Query("""
+			    SELECT t AS transaction,
+			           ua.id AS userActivityId,
+			           ua.farm.name AS farmName,
+			           ua.farm.id AS farmId
+			    FROM UserPointsTransaction t
+			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    WHERE t.user.id = :userId
+			    ORDER BY t.createdAt DESC
+			""")
+	List<TransactionWithUserActivity> findByUserIdWithUserActivity(@Param("userId") Integer userId);
+
+	// Cenário 2: Busca Filtrada por Fazenda (JOIN normal)
+	@Query("""
+			    SELECT t AS transaction,
+			           ua.id AS userActivityId,
+			           ua.farm.name AS farmName,
+			           ua.farm.id AS farmId
+			    FROM UserPointsTransaction t
+			    JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    WHERE t.user.id = :userId
+			      AND ua.farm.id = :farmId
+			    ORDER BY t.createdAt DESC
+			""")
+	List<TransactionWithUserActivity> findByUserIdAndFarmIdWithUserActivity(@Param("userId") Integer userId,
 			@Param("farmId") Integer farmId);
 }

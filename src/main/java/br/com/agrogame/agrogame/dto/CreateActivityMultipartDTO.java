@@ -6,8 +6,6 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 public class CreateActivityMultipartDTO {
-	// Dados da activity (recebido como JSON via @RequestPart)
-	private Integer companyId;
 	private String description;
 	private String name;
 	private Integer points;
@@ -17,14 +15,6 @@ public class CreateActivityMultipartDTO {
 
 	// Arquivo (recebido como file)
 	private MultipartFile thumbnail;
-
-	public Integer getCompanyId() {
-		return companyId;
-	}
-
-	public void setCompanyId(Integer companyId) {
-		this.companyId = companyId;
-	}
 
 	public String getDescription() {
 		return description;

@@ -28,7 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityMultipartDTO;
+import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
+import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
@@ -48,20 +50,14 @@ public class ActivityController {
 
 	private final ActivityService service;
 	private final UserRepository userRepository;
-	private final ActivityRepository activityRepository;
-	private final ActivityRewardRepository activityRewardRepository;
 	private final ActivityCropTypeRepository activityCropTypeRepository;
-	private final RewardRepository rewardRepository;
 
 	public ActivityController(ActivityService service, UserRepository userRepository,
 			ActivityRewardRepository activityRewardRepository, ActivityRepository activityRepository,
 			ActivityCropTypeRepository activityCropTypeRepository, RewardRepository rewardRepository) {
 		this.service = service;
 		this.userRepository = userRepository;
-		this.activityRepository = activityRepository;
-		this.activityRewardRepository = activityRewardRepository;
 		this.activityCropTypeRepository = activityCropTypeRepository;
-		this.rewardRepository = rewardRepository;
 	}
 
 	@GetMapping("/list")
@@ -111,14 +107,21 @@ public class ActivityController {
 	        @Valid @ModelAttribute CreateActivityMultipartDTO multipartDto,
 	        Principal principal) throws IOException {
 
-	    Integer createdBy = userRepository.findByEmail1(principal.getName())
-	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"))
-	            .getId();
+	    // 1. Busca o usuário logado
+	    User currentUser = userRepository.findByEmail1(principal.getName())
+	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-	    // Convertendo direto (sem precisar de ObjectMapper manual)
-	    Map<String, Object> response = service.registerActivity(multipartDto, createdBy);
+	    // 2. Validação de Segurança: O usuário pertence a uma empresa?
+	    if (currentUser.getCompany() == null) {
+	        throw new BusinessException("Usuário não vinculado a nenhuma empresa. Não pode criar atividades.");
+	    }
+	    
+	    // 3. Passa a Empresa e o ID do Usuário para o Service
+	    Map<String, Object> response = service.registerActivity(multipartDto, currentUser.getCompany(), currentUser.getId());
+	    
 	    return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
+
 	
 	@GetMapping("/{activityId}")
 	@Operation(summary = "Buscar atividade", description = "Retorna os detalhes de uma atividade para edição")

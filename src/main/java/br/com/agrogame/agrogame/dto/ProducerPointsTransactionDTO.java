@@ -31,12 +31,23 @@ public class ProducerPointsTransactionDTO {
 	@Schema(description = "Data/hora da transação", example = "2025-12-05T20:15:30")
 	private LocalDateTime createdAt;
 
+	private Integer idActivity;
+
+	@Schema(description = "ID da atividade do usuário", example = "55")
+	private Integer userActivityId;
+
+	@Schema(description = "Nome da fazenda onde a atividade foi realizada", example = "Fazenda Santa Fé")
+	private String farmName;
+
+	@Schema(description = "ID da fazenda", example = "10")
+	private Integer farmId;
+
 	public ProducerPointsTransactionDTO() {
 	}
 
 	public ProducerPointsTransactionDTO(Integer id, String transactionType, String sourceType,
 			String activityDescription, String rewardName, Integer points, Integer balanceAfter,
-			LocalDateTime createdAt) {
+			LocalDateTime createdAt, Integer idActivity, Integer userActivityId, String farmName, Integer farmId) {
 		this.id = id;
 		this.transactionType = transactionType;
 		this.sourceType = sourceType;
@@ -45,6 +56,10 @@ public class ProducerPointsTransactionDTO {
 		this.points = points;
 		this.balanceAfter = balanceAfter;
 		this.createdAt = createdAt;
+		this.idActivity = idActivity;
+		this.userActivityId = userActivityId;
+		this.farmName = farmName;
+		this.farmId = farmId;
 	}
 
 	public Integer getId() {
@@ -109,5 +124,37 @@ public class ProducerPointsTransactionDTO {
 
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public Integer getIdActivity() {
+		return idActivity;
+	}
+
+	public void setIdActivity(Integer idActivity) {
+		this.idActivity = idActivity;
+	}
+
+	public Integer getUserActivityId() {
+		return userActivityId;
+	}
+
+	public void setUserActivityId(Integer userActivityId) {
+		this.userActivityId = userActivityId;
+	}
+
+	public String getFarmName() {
+		return farmName;
+	}
+
+	public void setFarmName(String farmName) {
+		this.farmName = farmName;
+	}
+
+	public Integer getFarmId() {
+		return farmId;
+	}
+
+	public void setFarmId(Integer farmId) {
+		this.farmId = farmId;
 	}
 }
