@@ -91,9 +91,7 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Integer createdBy) throws IOException {
-		Company company = companyRepository.findById(dto.getCompanyId())
-				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
+	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Company company, Integer createdBy) throws IOException {
 
 		ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
 				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
@@ -240,7 +238,7 @@ public class ActivityService {
 				.map(act -> act.getCropType().getId()).toList();
 
 		// 2. Buscar todas as farms da empresa
-		List<Farm> companyFarms = farmRepository.findByCompanyId(company.getId());
+		List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
 
 		// 3. Para cada farm, verificar se tem algum dos crops da atividade
 		for (Farm farm : companyFarms) {

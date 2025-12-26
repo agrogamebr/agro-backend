@@ -20,5 +20,7 @@ public interface FarmRepository extends JpaRepository<Farm, Integer> {
 	Optional<Farm> findByIdAndOwnerIdAndIsActiveFalse(Integer id, Integer ownerId);
 
 	List<Farm> findByCompanyId(Integer companyId);
+	
+	List<Farm> findByCompanyIdAndIsActiveTrue(Integer companyId);
 
 }
