@@ -11,8 +11,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.support.StringMultipartFileEditor;
 
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
@@ -58,6 +61,12 @@ public class ActivityController {
 		this.service = service;
 		this.userRepository = userRepository;
 		this.activityCropTypeRepository = activityCropTypeRepository;
+	}
+	
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		// Converte string vazia "" em null para campos MultipartFile
+		binder.registerCustomEditor(MultipartFile.class, new StringMultipartFileEditor());
 	}
 
 	@GetMapping("/list")
