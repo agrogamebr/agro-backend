@@ -74,7 +74,7 @@ public class ProducerPointsService {
 					t.getTransactionType() != null ? t.getTransactionType().getCode() : null,
 					t.getSourceType() != null ? t.getSourceType().getCode() : null,
 					t.getActivity() != null ? t.getActivity().getDescription() : null,
-					t.getReward() != null ? t.getReward().getName() : null, t.getPoints(), t.getBalanceAfter(),
+					t.getReward() != null ? t.getActivity().getName() : null, t.getPoints(), t.getBalanceAfter(),
 					t.getCreatedAt(), t.getActivity() != null ? t.getActivity().getId() : null, uaId, p.getFarmName(), p.getFarmId());
 		}).collect(Collectors.toList());
 	}

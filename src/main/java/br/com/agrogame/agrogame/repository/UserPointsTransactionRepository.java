@@ -53,6 +53,7 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			    FROM UserPointsTransaction t
 			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
 			    WHERE t.user.id = :userId
+			      AND (ua.id IS NULL OR ua.status.id = 3)
 			    ORDER BY t.createdAt DESC
 			""")
 	List<TransactionWithUserActivity> findByUserIdWithUserActivity(@Param("userId") Integer userId);
@@ -67,6 +68,7 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			    JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
 			    WHERE t.user.id = :userId
 			      AND ua.farm.id = :farmId
+			      AND ua.status.id = 3
 			    ORDER BY t.createdAt DESC
 			""")
 	List<TransactionWithUserActivity> findByUserIdAndFarmIdWithUserActivity(@Param("userId") Integer userId,
