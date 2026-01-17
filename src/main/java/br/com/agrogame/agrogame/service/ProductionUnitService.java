@@ -1,25 +1,28 @@
 package br.com.agrogame.agrogame.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import br.com.agrogame.agrogame.dto.ProductionUnitCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitTypeDTO;
 import br.com.agrogame.agrogame.exceptions.AuthenticationException;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
+import br.com.agrogame.agrogame.model.CropType;
 import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.ProductionUnit;
 import br.com.agrogame.agrogame.model.ProductionUnitType;
 import br.com.agrogame.agrogame.model.User;
+import br.com.agrogame.agrogame.repository.CropTypeRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
 import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
 import br.com.agrogame.agrogame.repository.ProductionUnitTypeRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 public class ProductionUnitService {
@@ -35,6 +38,9 @@ public class ProductionUnitService {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private CropTypeRepository cropTypeRepository;
 
 	/**
 	 * Método auxiliar para buscar e validar o produtor logado.
@@ -81,9 +87,19 @@ public class ProductionUnitService {
 			throw new BusinessException("Este tipo de unidade produtiva está inativo.");
 		}
 
+		if (body.getCropTypeId() == null) {
+			throw new BusinessException("O tipo de cultura (cropType) é obrigatório.");
+		}
+
+		// 1. BUSCAR O CROP TYPE (Faltava isso)
+		CropType cropType = cropTypeRepository.findById(body.getCropTypeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado"));
+
 		// 3. Criar e Salvar
 		ProductionUnit unit = new ProductionUnit();
 		unit.setFarm(farm);
+		unit.setCropType(cropType);
+		unit.setName(body.getName());
 		unit.setProductionUnitType(type);
 		unit.setName(body.getName());
 		unit.setDescription(body.getDescription());
@@ -98,25 +114,31 @@ public class ProductionUnitService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProductionUnitDetailDTO> listProductionUnits(String email, Integer farmIdFilter) {
+	public List<ProductionUnitDetailDTO> listProductionUnits(String email, Integer farmIdFilter, String nameFilter,
+			Boolean isActiveFilter) {
+		// 1. Identificar o usuário
 		User user = getProducerOrThrow(email);
-		List<ProductionUnit> units;
 
+		// 2. Se informou filtro de fazenda, mantemos a validação de segurança (boa
+		// prática)
 		if (farmIdFilter != null) {
-			// Se informou filtro de fazenda, valida acesso
 			Farm farm = farmRepository.findById(farmIdFilter)
 					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
 
 			if (!farm.getOwner().getId().equals(user.getId())) {
 				throw new AuthenticationException("FORBIDDEN", "Você não tem permissão para acessar esta fazenda.");
 			}
-			// Busca específica
-			units = productionUnitRepository.findByFarmIdAndOwnerId(farmIdFilter, user.getId());
-		} else {
-			// Busca todas do produtor
-			units = productionUnitRepository.findByOwnerId(user.getId());
 		}
 
+		String nameLike = null;
+		if (nameFilter != null && !nameFilter.trim().isEmpty()) {
+			nameLike = "%" + nameFilter.toLowerCase() + "%";
+		}
+		// 3. Busca unificada usando a Query do Repositório (que trata os nulos)
+		List<ProductionUnit> units = productionUnitRepository.findByFilters(user.getId(), farmIdFilter, nameLike,
+				isActiveFilter);
+
+		// 4. Converte para DTO
 		return units.stream().map(this::toDetailDTO).toList();
 	}
 
@@ -179,6 +201,20 @@ public class ProductionUnitService {
 			unit.setProductionUnitType(newType);
 		}
 
+		// 3. Mudança de CropType (NOVA LÓGICA)
+		if (body.getCropTypeId() != null) {
+			// Se o ID for diferente do atual ou o atual for null
+			if (unit.getCropType() == null || !body.getCropTypeId().equals(unit.getCropType().getId())) {
+				CropType newCrop = cropTypeRepository.findById(body.getCropTypeId())
+						.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado"));
+
+				// Opcional: Validar se a nova fazenda realmente produz essa cultura (verificar
+				// na tabela farm_crops)
+				// Se não tiver essa validação rígida agora, apenas setamos:
+				unit.setCropType(newCrop);
+			}
+		}
+
 		// 3. Atualizar dados básicos
 		unit.setName(body.getName());
 		unit.setDescription(body.getDescription());
@@ -231,6 +267,7 @@ public class ProductionUnitService {
 			throw new BusinessException("Não é possível reativar uma unidade de uma fazenda desativada.");
 		}
 
+		unit.setIsActive(true);
 		unit = productionUnitRepository.save(unit);
 		return toDetailDTO(unit);
 	}
@@ -257,6 +294,10 @@ public class ProductionUnitService {
 		dto.setArea(unit.getArea());
 		dto.setIsActive(unit.getIsActive());
 		dto.setCreatedAt(unit.getCreatedAt());
+		if (unit.getCropType() != null) {
+			dto.setCropTypeId(unit.getCropType().getId());
+			dto.setCropTypeName(unit.getCropType().getName());
+		}
 		return dto;
 	}
 

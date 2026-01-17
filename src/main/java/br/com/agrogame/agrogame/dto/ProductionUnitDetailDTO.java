@@ -17,6 +17,8 @@ public class ProductionUnitDetailDTO {
 	private Boolean isActive;
 	private LocalDateTime createdAt;
 	private LocalDateTime deactivatedAt;
+	private Integer cropTypeId;
+    private String cropTypeName;
 
 	public Integer getId() {
 		return id;
@@ -112,6 +114,22 @@ public class ProductionUnitDetailDTO {
 
 	public void setDeactivatedAt(LocalDateTime deactivatedAt) {
 		this.deactivatedAt = deactivatedAt;
+	}
+
+	public Integer getCropTypeId() {
+		return cropTypeId;
+	}
+
+	public void setCropTypeId(Integer cropTypeId) {
+		this.cropTypeId = cropTypeId;
+	}
+
+	public String getCropTypeName() {
+		return cropTypeName;
+	}
+
+	public void setCropTypeName(String cropTypeName) {
+		this.cropTypeName = cropTypeName;
 	}
 
 }

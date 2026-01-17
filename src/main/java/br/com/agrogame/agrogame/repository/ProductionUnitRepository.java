@@ -31,4 +31,12 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 	@Query("SELECT pu FROM ProductionUnit pu " + "JOIN pu.farm f " + "WHERE f.id = :farmId "
 			+ "AND f.owner.id = :ownerId " + "AND pu.isActive = true")
 	List<ProductionUnit> findByFarmIdAndOwnerId(@Param("farmId") Integer farmId, @Param("ownerId") Integer ownerId);
+
+	@Query("SELECT pu FROM ProductionUnit pu " + "JOIN pu.farm f " + "WHERE f.owner.id = :ownerId "
+			+ "AND (:farmId IS NULL OR f.id = :farmId) " + "AND (:name IS NULL OR LOWER(pu.name) LIKE :name) " + 
+			"AND (:isActive IS NULL OR pu.isActive = :isActive) " + "ORDER BY pu.name")
+	List<ProductionUnit> findByFilters(@Param("ownerId") Integer ownerId, @Param("farmId") Integer farmId,
+			@Param("name") String name, // Aqui virá o valor já com % e em minúsculo
+			@Param("isActive") Boolean isActive);
+
 }

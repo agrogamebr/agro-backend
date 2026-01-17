@@ -29,6 +29,10 @@ public class ProductionUnit {
 	@JoinColumn(name = "production_unit_type_id", nullable = false)
 	private ProductionUnitType productionUnitType;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "crop_type_id")
+	private CropType cropType;
+
 	@Column(nullable = false)
 	private String name;
 
@@ -114,6 +118,14 @@ public class ProductionUnit {
 
 	public void setCreatedBy(Integer createdBy) {
 		this.createdBy = createdBy;
+	}
+
+	public CropType getCropType() {
+		return cropType;
+	}
+
+	public void setCropType(CropType cropType) {
+		this.cropType = cropType;
 	}
 
 }

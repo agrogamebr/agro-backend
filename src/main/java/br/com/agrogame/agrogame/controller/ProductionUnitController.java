@@ -1,20 +1,31 @@
 package br.com.agrogame.agrogame.controller;
 
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import br.com.agrogame.agrogame.dto.ProductionUnitCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitTypeDTO;
 import br.com.agrogame.agrogame.service.ProductionUnitService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/production-units")
@@ -44,21 +55,36 @@ public class ProductionUnitController {
     // -----------------------------------------------------------
     // LISTAR UNIDADES DO USUÁRIO (Com padrão items + count)
     // -----------------------------------------------------------
-    @Operation(summary = "Listar unidades produtivas do usuário", 
-               description = "Lista todas as unidades produtivas do produtor rural logado, com filtro opcional por fazenda.")
-    @GetMapping
-    public ResponseEntity<Map<String, Object>> listProductionUnits(
-            @RequestParam(required = false) Integer farmId,
-            Principal principal) {
-        
-        List<ProductionUnitDetailDTO> list = productionUnitService.listProductionUnits(principal.getName(), farmId);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("items", list);
-        response.put("count", list.size());
-        
-        return ResponseEntity.ok(response);
-    }
+    @Operation(summary = "Listar unidades produtivas", 
+            description = "Lista unidades com filtros opcionais: fazenda, nome (contém) e status.")
+ @GetMapping
+ public ResponseEntity<Map<String, Object>> listProductionUnits(
+         @Parameter(description = "ID da fazenda para filtrar") 
+         @RequestParam(required = false) Integer farmId,
+         
+         @Parameter(description = "Nome da unidade (filtro parcial/case insensitive)") 
+         @RequestParam(required = false) String name,
+         
+         @Parameter(description = "Status: true para ativos, false para inativos") 
+         @RequestParam(required = false) Boolean isActive,
+         
+         Principal principal) {
+     
+     // Passando todos os filtros para a Service
+     List<ProductionUnitDetailDTO> list = productionUnitService.listProductionUnits(
+             principal.getName(), 
+             farmId, 
+             name, 
+             isActive
+     );
+     
+     Map<String, Object> response = new HashMap<>();
+     response.put("items", list);
+     response.put("count", list.size());
+     
+     return ResponseEntity.ok(response);
+ }
+
 
     // -----------------------------------------------------------
     // MÉTODOS CRUD (Mantidos igual, retornam objeto direto)

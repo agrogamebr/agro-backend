@@ -18,6 +18,9 @@ public class ProductionUnitCreateUpdateDTO {
 	@NotBlank(message = "O nome é obrigatório")
 	@Size(max = 100, message = "Nome deve ter no máximo 100 caracteres")
 	private String name;
+	
+	@NotNull(message = "O tipo de cultura (cropType) é obrigatório")
+    private Integer cropTypeId;
 
 	@NotBlank(message = "A descrição é obrigatória")
 	@Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
@@ -41,6 +44,14 @@ public class ProductionUnitCreateUpdateDTO {
 
 	public void setProductionUnitTypeId(Integer productionUnitTypeId) {
 		this.productionUnitTypeId = productionUnitTypeId;
+	}
+
+	public Integer getCropTypeId() {
+		return cropTypeId;
+	}
+
+	public void setCropTypeId(Integer cropTypeId) {
+		this.cropTypeId = cropTypeId;
 	}
 
 	public String getName() {
