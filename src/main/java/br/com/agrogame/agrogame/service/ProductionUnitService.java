@@ -272,6 +272,25 @@ public class ProductionUnitService {
 		return toDetailDTO(unit);
 	}
 
+	@Transactional(readOnly = true)
+	public List<ProductionUnitTypeDTO> listCompatibleUnitTypes(String email, Integer farmId) {
+		User user = getProducerOrThrow(email);
+
+		// 1. Validar se a fazenda existe e pertence ao usuário
+		Farm farm = farmRepository.findById(farmId)
+				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+
+		if (!farm.getOwner().getId().equals(user.getId())) {
+			throw new AuthenticationException("FORBIDDEN", "Você não tem permissão para acessar dados desta fazenda.");
+		}
+
+		// 2. Buscar tipos compatíveis direto do banco
+		List<ProductionUnitType> compatibleTypes = productionUnitTypeRepository.findCompatibleTypesByFarmId(farmId);
+
+		// 3. Converter para DTO
+		return compatibleTypes.stream().map(this::toTypeDTO).toList();
+	}
+
 	// ----------------------------------------------------------------------------------
 	// LISTAGEM DE TIPOS (Auxiliar para combo box)
 	// ----------------------------------------------------------------------------------
