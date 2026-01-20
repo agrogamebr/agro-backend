@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.FarmCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.FarmDetailDTO;
+import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
@@ -241,6 +242,12 @@ public class FarmService {
 		dto.setActive(Boolean.TRUE.equals(farm.getIsActive()));
 		dto.setCropTypeIds(cropTypeIds);
 		dto.setThumbnailGsUrl(farm.getThumbnailGsUrl());
+
+		List<ProductionUnit> units = productionUnitRepository.findByFarmIdAndIsActiveTrue(farm.getId());
+
+		List<ProductionUnitDetailDTO> unitsDto = units.stream().map(this::toUnitDetailDTO).toList();
+
+		dto.setProductionUnits(unitsDto);
 		return dto;
 	}
 
@@ -263,6 +270,33 @@ public class FarmService {
 				.map(fc -> fc.getCropType().getId()).toList();
 
 		return toDetailDTO(saved, cropTypeIds);
+	}
+
+	private ProductionUnitDetailDTO toUnitDetailDTO(ProductionUnit unit) {
+		ProductionUnitDetailDTO dto = new ProductionUnitDetailDTO();
+		dto.setId(unit.getId());
+		dto.setName(unit.getName());
+		dto.setDescription(unit.getDescription());
+		dto.setArea(unit.getArea());
+		dto.setIsActive(unit.getIsActive());
+		dto.setThumbnailGsUrl(unit.getThumbnailGsUrl());
+		dto.setCreatedAt(unit.getCreatedAt());
+
+		dto.setFarmId(unit.getFarm().getId());
+		dto.setFarmName(unit.getFarm().getName());
+
+		if (unit.getProductionUnitType() != null) {
+			dto.setProductionUnitTypeId(unit.getProductionUnitType().getId());
+			dto.setProductionUnitTypeName(unit.getProductionUnitType().getName());
+			dto.setProductionUnitTypeCode(unit.getProductionUnitType().getCode());
+		}
+
+		if (unit.getCropType() != null) {
+			dto.setCropTypeId(unit.getCropType().getId());
+			dto.setCropTypeName(unit.getCropType().getName());
+		}
+
+		return dto;
 	}
 
 }
