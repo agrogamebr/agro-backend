@@ -37,6 +37,9 @@ public class Farm {
 	private Integer updatedBy;
 	private LocalDateTime deactivatedAt;
 	private Integer deactivatedBy;
+	
+	@Column(name = "thumbnail_gs_url")
+	private String thumbnailGsUrl;
 
 	public Integer getId() {
 		return id;
@@ -188,6 +191,14 @@ public class Farm {
 
 	public void setDeactivatedBy(Integer deactivatedBy) {
 		this.deactivatedBy = deactivatedBy;
+	}
+
+	public String getThumbnailGsUrl() {
+		return thumbnailGsUrl;
+	}
+
+	public void setThumbnailGsUrl(String thumbnailGsUrl) {
+		this.thumbnailGsUrl = thumbnailGsUrl;
 	}
 
 }

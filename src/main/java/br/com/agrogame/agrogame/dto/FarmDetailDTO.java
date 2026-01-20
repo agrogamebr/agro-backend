@@ -16,6 +16,7 @@ public class FarmDetailDTO {
 	private BigDecimal longitude;
 	private boolean active;
 	private List<Integer> cropTypeIds;
+	private String thumbnailGsUrl;
 
 	public Integer getId() {
 		return id;
@@ -103,6 +104,14 @@ public class FarmDetailDTO {
 
 	public void setCropTypeIds(List<Integer> cropTypeIds) {
 		this.cropTypeIds = cropTypeIds;
+	}
+
+	public String getThumbnailGsUrl() {
+		return thumbnailGsUrl;
+	}
+
+	public void setThumbnailGsUrl(String thumbnailGsUrl) {
+		this.thumbnailGsUrl = thumbnailGsUrl;
 	}
 
 }

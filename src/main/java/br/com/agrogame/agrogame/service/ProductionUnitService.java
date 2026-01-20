@@ -22,6 +22,7 @@ import br.com.agrogame.agrogame.repository.CropTypeRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
 import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
 import br.com.agrogame.agrogame.repository.ProductionUnitTypeRepository;
+import br.com.agrogame.agrogame.repository.UserActivityRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 
 @Service
@@ -41,6 +42,9 @@ public class ProductionUnitService {
 
 	@Autowired
 	private CropTypeRepository cropTypeRepository;
+
+	@Autowired
+	private UserActivityRepository userActivityRepository;
 
 	/**
 	 * Método auxiliar para buscar e validar o produtor logado.
@@ -219,6 +223,8 @@ public class ProductionUnitService {
 		unit.setName(body.getName());
 		unit.setDescription(body.getDescription());
 		unit.setArea(body.getArea());
+		unit.setUpdatedAt(LocalDateTime.now());
+		unit.setUpdatedBy(user.getId());
 		unit = productionUnitRepository.save(unit);
 
 		return toDetailDTO(unit);
@@ -242,7 +248,13 @@ public class ProductionUnitService {
 
 		// Soft Delete
 		unit.setIsActive(false);
+		unit.setUpdatedAt(LocalDateTime.now());
+		unit.setUpdatedBy(user.getId());
 		unit = productionUnitRepository.save(unit);
+
+		// Cascata: Cancelar Activities da Unit
+		userActivityRepository.cancelActivitiesByProductionUnit(unitId);
+
 		return toDetailDTO(unit);
 	}
 
@@ -268,7 +280,12 @@ public class ProductionUnitService {
 		}
 
 		unit.setIsActive(true);
+		unit.setDeactivatedAt(null);
+		unit.setDeactivatedBy(null);
+		unit.setUpdatedAt(LocalDateTime.now());
+		unit.setUpdatedBy(user.getId());
 		unit = productionUnitRepository.save(unit);
+
 		return toDetailDTO(unit);
 	}
 

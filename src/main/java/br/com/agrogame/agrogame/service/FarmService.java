@@ -15,10 +15,13 @@ import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.CropType;
 import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.FarmCrop;
+import br.com.agrogame.agrogame.model.ProductionUnit;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.CropTypeRepository;
 import br.com.agrogame.agrogame.repository.FarmCropRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
+import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
+import br.com.agrogame.agrogame.repository.UserActivityRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.auth.util.IdentifierValidator;
 
@@ -29,13 +32,18 @@ public class FarmService {
 	private final FarmCropRepository farmCropRepository;
 	private final UserRepository userRepository;
 	private final CropTypeRepository cropTypeRepository;
+	private final UserActivityRepository userActivityRepository;
+	private final ProductionUnitRepository productionUnitRepository;
 
 	public FarmService(FarmRepository farmRepository, FarmCropRepository farmCropRepository,
-			UserRepository userRepository, CropTypeRepository cropTypeRepository) {
+			UserRepository userRepository, CropTypeRepository cropTypeRepository,
+			UserActivityRepository userActivityRepository, ProductionUnitRepository productionUnitRepository) {
 		this.farmRepository = farmRepository;
 		this.farmCropRepository = farmCropRepository;
 		this.userRepository = userRepository;
 		this.cropTypeRepository = cropTypeRepository;
+		this.userActivityRepository = userActivityRepository;
+		this.productionUnitRepository = productionUnitRepository;
 	}
 
 	/**
@@ -128,7 +136,7 @@ public class FarmService {
 	}
 
 	/**
-	 * Remove (soft delete) uma fazenda do usuário autenticado.
+	 * Remove (soft delete) uma fazenda e CANCELA atividades pendentes em cascata.
 	 */
 	@Transactional
 	public FarmDetailDTO deleteFarm(String username, Integer farmId) {
@@ -136,13 +144,36 @@ public class FarmService {
 		Farm farm = farmRepository.findByIdAndOwnerIdAndIsActiveTrue(farmId, user.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
 
+		// 1. Soft Delete da Fazenda
 		farm.setIsActive(false);
 		farm.setDeactivatedAt(LocalDateTime.now());
 		farm.setDeactivatedBy(user.getId());
-
 		Farm saved = farmRepository.save(farm);
 
-		// buscar crop_types atuais
+		// 2. Cascata: Desativar Unidades Produtivas
+		List<ProductionUnit> units = productionUnitRepository.findByFarmIdAndIsActiveTrue(farmId);
+
+		for (ProductionUnit unit : units) {
+			// Soft delete da unidade
+			unit.setIsActive(false);
+
+			// AGORA PODEMOS DESCOMENTAR (As colunas existem no banco)
+			unit.setDeactivatedAt(LocalDateTime.now());
+			unit.setDeactivatedBy(user.getId());
+
+			productionUnitRepository.save(unit);
+
+			// 3. Cascata: Cancelar atividades específicas desta Unidade
+			// (Agora funciona pois temos production_unit_id em user_activities)
+			userActivityRepository.cancelActivitiesByProductionUnit(unit.getId());
+		}
+
+		// 4. Cascata: Cancelar quaisquer outras atividades da Fazenda que não tenham
+		// unidade específica
+		// (Ou garantir que tudo foi limpo)
+		userActivityRepository.cancelActivitiesByFarm(farmId);
+
+		// Retorno
 		List<Integer> cropTypeIds = farmCropRepository.findByFarmId(saved.getId()).stream()
 				.map(fc -> fc.getCropType().getId()).toList();
 
@@ -209,6 +240,7 @@ public class FarmService {
 		dto.setLongitude(farm.getLongitude());
 		dto.setActive(Boolean.TRUE.equals(farm.getIsActive()));
 		dto.setCropTypeIds(cropTypeIds);
+		dto.setThumbnailGsUrl(farm.getThumbnailGsUrl());
 		return dto;
 	}
 

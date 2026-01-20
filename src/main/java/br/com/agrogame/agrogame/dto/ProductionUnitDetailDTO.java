@@ -19,6 +19,7 @@ public class ProductionUnitDetailDTO {
 	private LocalDateTime deactivatedAt;
 	private Integer cropTypeId;
     private String cropTypeName;
+    private String thumbnailGsUrl;
 
 	public Integer getId() {
 		return id;
@@ -130,6 +131,14 @@ public class ProductionUnitDetailDTO {
 
 	public void setCropTypeName(String cropTypeName) {
 		this.cropTypeName = cropTypeName;
+	}
+
+	public String getThumbnailGsUrl() {
+		return thumbnailGsUrl;
+	}
+
+	public void setThumbnailGsUrl(String thumbnailGsUrl) {
+		this.thumbnailGsUrl = thumbnailGsUrl;
 	}
 
 }
