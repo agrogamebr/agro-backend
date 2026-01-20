@@ -250,6 +250,8 @@ public class ProductionUnitService {
 		unit.setIsActive(false);
 		unit.setUpdatedAt(LocalDateTime.now());
 		unit.setUpdatedBy(user.getId());
+		unit.setDeactivatedAt(LocalDateTime.now());
+		unit.setDeactivatedBy(user.getId());
 		unit = productionUnitRepository.save(unit);
 
 		// Cascata: Cancelar Activities da Unit
