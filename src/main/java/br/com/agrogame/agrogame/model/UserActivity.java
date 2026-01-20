@@ -53,6 +53,10 @@ public class UserActivity {
 	@JoinColumn(name = "farm_id", nullable = false)
 	private Farm farm;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "production_unit_id")
+	private ProductionUnit productionUnit;
+
 	@PrePersist
 	protected void onCreate() {
 		createdAt = LocalDateTime.now();
@@ -149,5 +153,13 @@ public class UserActivity {
 
 	public void setFarm(Farm farm) {
 		this.farm = farm;
+	}
+
+	public ProductionUnit getProductionUnit() {
+		return productionUnit;
+	}
+
+	public void setProductionUnit(ProductionUnit productionUnit) {
+		this.productionUnit = productionUnit;
 	}
 }

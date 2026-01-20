@@ -1,9 +1,13 @@
 package br.com.agrogame.agrogame.controller;
 
+import java.io.IOException;
 import java.security.Principal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,10 +17,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.com.agrogame.agrogame.dto.FarmCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.FarmDetailDTO;
+import br.com.agrogame.agrogame.service.FarmPhotoService;
 import br.com.agrogame.agrogame.service.FarmService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,6 +40,9 @@ public class FarmController {
 
 	@Autowired
 	private FarmService farmService;
+
+	@Autowired
+	private FarmPhotoService farmPhotoService;
 
 	@Operation(summary = "Cadastrar nova fazenda", description = "Cria uma propriedade rural vinculada ao usuário autenticado (producer).")
 	@PostMapping
@@ -88,6 +98,19 @@ public class FarmController {
 
 		FarmDetailDTO dto = farmService.reactivateFarm(principal.getName(), farmId);
 		return ResponseEntity.ok(dto);
+	}
+
+	@Operation(summary = "Upload de foto da fazenda", description = "Atualiza a foto de perfil da fazenda. Retorna a URL pública.")
+	@PostMapping(value = "/{farmId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<Map<String, String>> uploadPhoto(@PathVariable Integer farmId,
+			@RequestPart("file") MultipartFile file, Principal principal) throws IOException {
+
+		String photoUrl = farmPhotoService.uploadFarmPhoto(principal.getName(), farmId, file);
+
+		Map<String, String> response = new HashMap<>();
+		response.put("message", "Foto da fazenda atualizada com sucesso");
+		response.put("photoUrl", photoUrl);
+		return ResponseEntity.ok(response);
 	}
 
 }

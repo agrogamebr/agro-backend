@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,4 +29,14 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 
 	// Alternativa com Specification (mais flexível para filtros futuros)
 	List<UserActivity> findAll(Specification<UserActivity> spec);
+	
+	@Modifying
+	@Query("UPDATE UserActivity ua SET ua.status.id = 5 " + // 5 = Cancelada
+	       "WHERE ua.farm.id = :farmId " +
+	       "AND ua.status.id IN (1, 2)") // Só cancela Pendente(1) ou Enviada(2).
+	void cancelActivitiesByFarm(@Param("farmId") Integer farmId);
+
+	@Modifying
+	@Query("UPDATE UserActivity ua SET ua.status.id = 5 WHERE ua.productionUnit.id = :unitId AND ua.status.id NOT IN (3, 4, 5)")
+	void cancelActivitiesByProductionUnit(@Param("unitId") Integer unitId);
 }

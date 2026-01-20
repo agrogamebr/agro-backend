@@ -1,11 +1,13 @@
 package br.com.agrogame.agrogame.controller;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,11 +18,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.com.agrogame.agrogame.dto.ProductionUnitCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitTypeDTO;
+import br.com.agrogame.agrogame.service.FarmPhotoService;
 import br.com.agrogame.agrogame.service.ProductionUnitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +39,9 @@ public class ProductionUnitController {
 
 	@Autowired
 	private ProductionUnitService productionUnitService;
+
+	@Autowired
+	private FarmPhotoService farmPhotoService;
 
 	// -----------------------------------------------------------
 	// LISTAR TIPOS (Com padrão items + count)
@@ -137,6 +145,19 @@ public class ProductionUnitController {
 		response.put("items", list);
 		response.put("count", list.size());
 
+		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Upload de foto da unidade produtiva")
+	@PostMapping(value = "/{unitId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<Map<String, String>> uploadPhoto(@PathVariable Integer unitId,
+			@RequestPart("file") MultipartFile file, Principal principal) throws IOException {
+
+		String photoUrl = farmPhotoService.uploadUnitPhoto(principal.getName(), unitId, file);
+
+		Map<String, String> response = new HashMap<>();
+		response.put("message", "Foto atualizada com sucesso");
+		response.put("photoUrl", photoUrl);
 		return ResponseEntity.ok(response);
 	}
 }
