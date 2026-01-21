@@ -18,234 +18,256 @@ import jakarta.persistence.Table;
 @Table(name = "users")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Integer id;
 
-    @Column(name = "fullname", nullable = false)
-    private String fullName;
+	@Column(name = "fullname", nullable = false)
+	private String fullName;
 
-    @Column(name = "first_name")
-    private String firstName;
+	@Column(name = "first_name")
+	private String firstName;
 
-    @Column(name = "last_name")
-    private String lastName;
+	@Column(name = "last_name")
+	private String lastName;
 
-    @Column(name = "email1", nullable = false)
-    private String email1;
+	@Column(name = "email1", nullable = false)
+	private String email1;
 
-    @Column(name = "email2")
-    private String email2;
+	@Column(name = "email2")
+	private String email2;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "company_id")
+	private Company company;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_type_id", nullable = false)
-    private UserType userType;
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "user_type_id", nullable = false)
+	private UserType userType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_status_id", nullable = false)
-    private UserStatus userStatus;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_status_id", nullable = false)
+	private UserStatus userStatus;
 
-    @Column(name = "points_balance")
-    private Integer pointsBalance = 0;
+	@Column(name = "points_balance")
+	private Integer pointsBalance = 0;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+	@Column(name = "created_at")
+	private LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "created_by")
+	private User createdBy;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by")
-    private User updatedBy;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "updated_by")
+	private User updatedBy;
 
-    @Column(name = "address")
-    private String address; 
-    
-    @Column(name = "number")
-    private String number; 
-    
-    @Column(name = "city")
-    private String city; 
-    
-    @Column(name = "state")
-    private String state; 
-    
-    @Column(name = "zipcode")
-    private String zipcode; 
+	@Column(name = "address")
+	private String address;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        if (pointsBalance == null) {
-            pointsBalance = 0;
-        }
-    }
+	@Column(name = "number")
+	private String number;
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+	@Column(name = "city")
+	private String city;
 
-    public Integer getId() {
-        return id;
-    }
+	@Column(name = "state")
+	private String state;
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+	@Column(name = "zipcode")
+	private String zipcode;
 
-    public String getFullName() {
-        return fullName;
-    }
+	@Column(name = "phone")
+	private String phone;
 
-    public void setFullName(String fullname) {
-        this.fullName = fullname;
-    }
+	@Column(name = "thumbnail_gs_url")
+	private String profilePictureUrl;
 
-    public String getFirstName() {
-        return firstName;
-    }
+	@PrePersist
+	protected void onCreate() {
+		createdAt = LocalDateTime.now();
+		if (pointsBalance == null) {
+			pointsBalance = 0;
+		}
+	}
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+	@PreUpdate
+	protected void onUpdate() {
+		updatedAt = LocalDateTime.now();
+	}
 
-    public String getLastName() {
-        return lastName;
-    }
+	public Integer getId() {
+		return id;
+	}
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
+	public void setId(Integer id) {
+		this.id = id;
+	}
 
-    public String getEmail1() {
-        return email1;
-    }
+	public String getFullName() {
+		return fullName;
+	}
 
-    public void setEmail1(String email1) {
-        this.email1 = email1;
-    }
+	public void setFullName(String fullname) {
+		this.fullName = fullname;
+	}
 
-    public String getEmail2() {
-        return email2;
-    }
+	public String getFirstName() {
+		return firstName;
+	}
 
-    public void setEmail2(String email2) {
-        this.email2 = email2;
-    }
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
 
-    public Company getCompany() {
-        return company;
-    }
+	public String getLastName() {
+		return lastName;
+	}
 
-    public void setCompany(Company company) {
-        this.company = company;
-    }
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
 
-    public UserType getUserType() {
-        return userType;
-    }
+	public String getEmail1() {
+		return email1;
+	}
 
-    public void setUserType(UserType userType) {
-        this.userType = userType;
-    }
+	public void setEmail1(String email1) {
+		this.email1 = email1;
+	}
 
-    public UserStatus getUserStatus() {
-        return userStatus;
-    }
+	public String getEmail2() {
+		return email2;
+	}
 
-    public void setUserStatus(UserStatus userStatus) {
-        this.userStatus = userStatus;
-    }
+	public void setEmail2(String email2) {
+		this.email2 = email2;
+	}
 
-    public Integer getPointsBalance() {
-        return pointsBalance;
-    }
+	public Company getCompany() {
+		return company;
+	}
 
-    public void setPointsBalance(Integer pointsBalance) {
-        this.pointsBalance = pointsBalance;
-    }
+	public void setCompany(Company company) {
+		this.company = company;
+	}
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+	public UserType getUserType() {
+		return userType;
+	}
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+	public void setUserType(UserType userType) {
+		this.userType = userType;
+	}
 
-    public User getCreatedBy() {
-        return createdBy;
-    }
+	public UserStatus getUserStatus() {
+		return userStatus;
+	}
 
-    public void setCreatedBy(User createdBy) {
-        this.createdBy = createdBy;
-    }
+	public void setUserStatus(UserStatus userStatus) {
+		this.userStatus = userStatus;
+	}
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
+	public Integer getPointsBalance() {
+		return pointsBalance;
+	}
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+	public void setPointsBalance(Integer pointsBalance) {
+		this.pointsBalance = pointsBalance;
+	}
 
-    public User getUpdatedBy() {
-        return updatedBy;
-    }
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
 
-    public void setUpdatedBy(User updatedBy) {
-        this.updatedBy = updatedBy;
-    }
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
 
-    // ===== GETTERS E SETTERS DOS NOVOS CAMPOS =====
+	public User getCreatedBy() {
+		return createdBy;
+	}
 
-    public String getAddress() {
-        return address;
-    }
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
 
-    public String getNumber() {
-        return number;
-    }
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
 
-    public void setNumber(String number) {
-        this.number = number;
-    }
+	public User getUpdatedBy() {
+		return updatedBy;
+	}
 
-    public String getCity() {
-        return city;
-    }
+	public void setUpdatedBy(User updatedBy) {
+		this.updatedBy = updatedBy;
+	}
 
-    public void setCity(String city) {
-        this.city = city;
-    }
+	// ===== GETTERS E SETTERS DOS NOVOS CAMPOS =====
 
-    public String getState() {
-        return state;
-    }
+	public String getAddress() {
+		return address;
+	}
 
-    public void setState(String state) {
-        this.state = state;
-    }
+	public void setAddress(String address) {
+		this.address = address;
+	}
 
-    public String getZipcode() {
-        return zipcode;
-    }
+	public String getNumber() {
+		return number;
+	}
 
-    public void setZipcode(String zipcode) {
-        this.zipcode = zipcode;
-    }
+	public void setNumber(String number) {
+		this.number = number;
+	}
+
+	public String getCity() {
+		return city;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getZipcode() {
+		return zipcode;
+	}
+
+	public void setZipcode(String zipcode) {
+		this.zipcode = zipcode;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getProfilePictureUrl() {
+		return profilePictureUrl;
+	}
+
+	public void setProfilePictureUrl(String profilePictureUrl) {
+		this.profilePictureUrl = profilePictureUrl;
+	}
 
 }
