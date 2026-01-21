@@ -32,10 +32,26 @@ public class UserProfileService {
 
 		UserProfileResponseDTO dto = mapToDTO(user);
 
-		// Busca o documento (CPF/CNPJ) na tabela user_documents e adiciona ao DTO
 		userDocumentRepository.findFirstByUserIdAndIsPrimaryTrueAndIsActiveTrue(user.getId())
 				.ifPresent(doc -> dto.setDocumentNumber(doc.getDocumentNumber()));
 
+		// dto.getProfilePictureUrl() agora é o gsutilUri salvo em banco
+		return dto;
+	}
+
+	private UserProfileResponseDTO mapToDTO(User user) {
+		UserProfileResponseDTO dto = new UserProfileResponseDTO();
+		dto.setFullName(user.getFullName());
+		dto.setEmail(user.getEmail1());
+		dto.setPhone(user.getPhone());
+		dto.setAddress(user.getAddress());
+		dto.setNumber(user.getNumber());
+		dto.setCity(user.getCity());
+		dto.setState(user.getState());
+		dto.setZipcode(user.getZipcode());
+
+		// Aqui vai o valor bruto do banco (gs://bucket/obj ou null)
+		dto.setProfilePictureUrl(user.getProfilePictureUrl());
 		return dto;
 	}
 
@@ -68,20 +84,22 @@ public class UserProfileService {
 	}
 
 	// === 3. ATUALIZAR FOTO ===
+	// === 3. ATUALIZAR FOTO ===
 	@Transactional
 	public String updateProfilePicture(String userEmail, MultipartFile file) throws IOException {
 		User user = findUserByEmail(userEmail);
 
-		if (file.isEmpty())
+		if (file.isEmpty()) {
 			throw new IllegalArgumentException("Arquivo vazio");
+		}
 
-		// Upload para o GCP
 		var storedFile = fileStorageService.uploadFile(file);
 
-		// Atualiza a URL no usuário
-		user.setProfilePictureUrl(storedFile.getFileUrl());
+		// AGORA: salvar apenas o gsutilUri no usuário
+		user.setProfilePictureUrl(storedFile.getGsutilUri());
 		userRepository.save(user);
 
+		// E retornar o mesmo gsutilUri para o app
 		return user.getProfilePictureUrl();
 	}
 
@@ -97,19 +115,5 @@ public class UserProfileService {
 	private User findUserByEmail(String email) {
 		return userRepository.findByEmail1(email)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + email));
-	}
-
-	private UserProfileResponseDTO mapToDTO(User user) {
-		UserProfileResponseDTO dto = new UserProfileResponseDTO();
-		dto.setFullName(user.getFullName());
-		dto.setEmail(user.getEmail1());
-		dto.setPhone(user.getPhone());
-		dto.setAddress(user.getAddress());
-		dto.setNumber(user.getNumber());
-		dto.setCity(user.getCity());
-		dto.setState(user.getState());
-		dto.setZipcode(user.getZipcode());
-		dto.setProfilePictureUrl(user.getProfilePictureUrl());
-		return dto;
 	}
 }
