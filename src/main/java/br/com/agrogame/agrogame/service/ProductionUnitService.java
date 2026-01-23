@@ -336,6 +336,7 @@ public class ProductionUnitService {
 			dto.setCropTypeId(unit.getCropType().getId());
 			dto.setCropTypeName(unit.getCropType().getName());
 		}
+		dto.setThumbnailGsUrl(unit.getThumbnailGsUrl());
 		return dto;
 	}
 
