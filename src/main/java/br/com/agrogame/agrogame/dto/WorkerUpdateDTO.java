@@ -1,8 +1,8 @@
 package br.com.agrogame.agrogame.dto;
 
-public class UpdateUserProfileDTO {
+public class WorkerUpdateDTO {
 
-	private String fullName;
+	private String fullname;
 	private String phone;
 	private String address;
 	private String number;
@@ -10,12 +10,14 @@ public class UpdateUserProfileDTO {
 	private String state;
 	private String zipcode;
 
-	public String getFullName() {
-		return fullName;
+	private Integer productionUnitId;
+
+	public String getFullname() {
+		return fullname;
 	}
 
-	public void setFullName(String fullName) {
-		this.fullName = fullName;
+	public void setFullname(String fullname) {
+		this.fullname = fullname;
 	}
 
 	public String getPhone() {
@@ -65,5 +67,13 @@ public class UpdateUserProfileDTO {
 	public void setZipcode(String zipcode) {
 		this.zipcode = zipcode;
 	}
-	
+
+	public Integer getProductionUnitId() {
+		return productionUnitId;
+	}
+
+	public void setProductionUnitId(Integer productionUnitId) {
+		this.productionUnitId = productionUnitId;
+	}
+
 }

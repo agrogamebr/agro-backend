@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.agrogame.agrogame.dto.WorkerCreateDTO;
 import br.com.agrogame.agrogame.dto.WorkerDetailDTO;
 import br.com.agrogame.agrogame.dto.WorkerUnitsAssignDTO;
+import br.com.agrogame.agrogame.dto.WorkerUpdateDTO;
 import br.com.agrogame.agrogame.service.WorkerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -76,7 +77,7 @@ public class WorkerController {
 	}
 
 	@Operation(summary = "Editar worker", description = """
-			Atualiza dados do worker. Produtor pode editar qualquer worker que pertença a ele.
+			Atualiza apenas os campos enviados no corpo. Campos omitidos permanecem com o valor atual. E‑mail não é alterável por este endpoint.
 			O próprio worker pode editar apenas seus próprios dados.
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Worker atualizado com sucesso"),
@@ -84,7 +85,7 @@ public class WorkerController {
 			@ApiResponse(responseCode = "404", description = "Worker não encontrado") })
 	@PutMapping("/{workerId}")
 	public ResponseEntity<WorkerDetailDTO> updateWorker(@PathVariable Integer workerId,
-			@Valid @RequestBody WorkerCreateDTO dto, Principal principal) {
+			@Valid @RequestBody WorkerUpdateDTO dto, Principal principal) {
 
 		WorkerDetailDTO updated = workerService.updateWorker(principal.getName(), workerId, dto);
 		return ResponseEntity.ok(updated);
@@ -101,10 +102,7 @@ public class WorkerController {
 	public ResponseEntity<Map<String, Object>> assignUnits(@PathVariable Integer workerId,
 			@Valid @RequestBody WorkerUnitsAssignDTO dto, Principal principal) {
 
-		WorkerCreateDTO fakeDto = new WorkerCreateDTO();
-		fakeDto.setProductionUnitId(dto.getProductionUnitId());
-		// reuso do fluxo interno de atribuição no service
-		workerService.updateWorker(principal.getName(), workerId, fakeDto);
+		workerService.assignUnit(principal.getName(), workerId, dto.getProductionUnitId());
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("success", true);
