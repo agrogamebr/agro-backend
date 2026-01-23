@@ -49,10 +49,10 @@ public class FarmPhotoService {
 		// Upload
 		StoredFileInfo stored = fileStorageService.uploadFile(file);
 
-		farm.setThumbnailGsUrl(stored.getFileUrl());
+		farm.setThumbnailGsUrl(stored.getGsutilUri());
 		farmRepository.save(farm);
 
-		return stored.getFileUrl();
+		return stored.getGsutilUri();
 	}
 
 	@Transactional
@@ -70,10 +70,10 @@ public class FarmPhotoService {
 
 		StoredFileInfo stored = fileStorageService.uploadFile(file);
 
-		unit.setThumbnailGsUrl(stored.getFileUrl());
+		unit.setThumbnailGsUrl(stored.getGsutilUri());
 		productionUnitRepository.save(unit);
 
-		return stored.getFileUrl();
+		return stored.getGsutilUri();
 	}
 
 	private User getUserOrThrow(String email) {
