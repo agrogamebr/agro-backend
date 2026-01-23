@@ -44,9 +44,9 @@ public class UserProfileController {
 		return ResponseEntity.ok(userProfileService.getProfile(principal.getName()));
 	}
 
-	@Operation(summary = "Atualizar dados cadastrais", description = "Atualiza nome, email, telefone e endereço do usuário. O documento (CPF/CNPJ) não é alterável por aqui.")
+	@Operation(summary = "Atualizar dados cadastrais", description = "Atualiza nome, telefone e endereço do usuário. O documento (CPF/CNPJ) e e-mail não são alteráveis por aqui.")
 	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Dados atualizados com sucesso"),
-			@ApiResponse(responseCode = "400", description = "Erro de validação nos campos (ex: email inválido, telefone incorreto)"),
+			@ApiResponse(responseCode = "400", description = "Erro de validação nos campos (ex: telefone incorreto)"),
 			@ApiResponse(responseCode = "403", description = "Usuário não autenticado") })
 	@PutMapping
 	public ResponseEntity<UserProfileResponseDTO> updateProfile(@RequestBody @Valid UpdateUserProfileDTO dto,

@@ -10,10 +10,6 @@ public class UpdateUserProfileDTO {
 	@NotBlank(message = "Nome completo é obrigatório")
 	private String fullName;
 
-	@NotBlank(message = "E-mail é obrigatório")
-	@Email(message = "Formato de e-mail inválido")
-	private String email;
-
 	@NotBlank(message = "Telefone é obrigatório")
 	private String phone;
 
@@ -37,14 +33,6 @@ public class UpdateUserProfileDTO {
 
 	public void setFullName(String fullName) {
 		this.fullName = fullName;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
-		this.email = email;
 	}
 
 	public String getPhone() {

@@ -61,7 +61,6 @@ public class UserProfileService {
 		User user = findUserByEmail(userEmail);
 
 		user.setFullName(dto.getFullName());
-		user.setEmail1(dto.getEmail());
 
 		// Usa a função auxiliar para salvar apenas números
 		user.setPhone(sanitizeDigits(dto.getPhone()));
