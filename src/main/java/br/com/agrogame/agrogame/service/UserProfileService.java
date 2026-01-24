@@ -60,22 +60,34 @@ public class UserProfileService {
 	public UserProfileResponseDTO updateProfileData(String userEmail, UpdateUserProfileDTO dto) {
 		User user = findUserByEmail(userEmail);
 
-		user.setFullName(dto.getFullName());
+		if (dto.getFullName() != null && !dto.getFullName().isBlank()) {
+			user.setFullName(dto.getFullName());
+		}
 
-		// Usa a função auxiliar para salvar apenas números
-		user.setPhone(sanitizeDigits(dto.getPhone()));
-		user.setZipcode(sanitizeDigits(dto.getZipcode()));
+		if (dto.getPhone() != null) {
+			user.setPhone(sanitizeDigits(dto.getPhone()));
+		}
 
-		user.setAddress(dto.getAddress());
-		user.setNumber(dto.getNumber());
-		user.setCity(dto.getCity());
-		user.setState(dto.getState());
+		if (dto.getZipcode() != null) {
+			user.setZipcode(sanitizeDigits(dto.getZipcode()));
+		}
 
-		User savedUser = userRepository.save(user);
+		if (dto.getAddress() != null) {
+			user.setAddress(dto.getAddress());
+		}
+		if (dto.getNumber() != null) {
+			user.setNumber(dto.getNumber());
+		}
+		if (dto.getCity() != null) {
+			user.setCity(dto.getCity());
+		}
+		if (dto.getState() != null) {
+			user.setState(dto.getState());
+		}
 
-		// Retornamos o perfil atualizado (incluindo o documento para manter a tela
-		// consistente)
-		UserProfileResponseDTO responseDTO = mapToDTO(savedUser);
+		user = userRepository.save(user);
+
+		UserProfileResponseDTO responseDTO = mapToDTO(user);
 		userDocumentRepository.findFirstByUserIdAndIsPrimaryTrueAndIsActiveTrue(user.getId())
 				.ifPresent(doc -> responseDTO.setDocumentNumber(doc.getDocumentNumber()));
 

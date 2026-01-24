@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.WorkerCreateDTO;
 import br.com.agrogame.agrogame.dto.WorkerDetailDTO;
+import br.com.agrogame.agrogame.dto.WorkerUpdateDTO;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
 import br.com.agrogame.agrogame.exceptions.BadRequestException;
@@ -129,7 +130,7 @@ public class WorkerService {
 		worker.setState(dto.getState());
 		worker.setZipcode(dto.getZipcode());
 		worker.setCompany(producer.getCompany());
-		
+
 		String[] parts = dto.getFullname().trim().split("\\s+", 2);
 		worker.setFirstName(parts[0]);
 		worker.setLastName(parts.length > 1 ? parts[1] : "");
@@ -156,9 +157,24 @@ public class WorkerService {
 		return toDetailDTO(savedWorker);
 	}
 
+	@Transactional
+	public void assignUnit(String loggedEmail, Integer workerId, Integer productionUnitId) {
+		User loggedUser = findUserByEmailWithType(loggedEmail);
+
+		boolean isProducerOwner = isProducer(loggedUser)
+				&& workerRepository.existsWorkerBelongsToProducer(loggedEmail, workerId);
+
+		if (!isProducerOwner) {
+			throw new BusinessException("Você não tem permissão para editar este worker");
+		}
+
+		// Reaproveita sua lógica interna de vínculo
+		assignUnitInternal(loggedUser, workerId, productionUnitId);
+	}
+
 	// EDITAR worker (produtor ou o próprio worker)
 	@Transactional
-	public WorkerDetailDTO updateWorker(String loggedEmail, Integer workerId, WorkerCreateDTO dto) {
+	public WorkerDetailDTO updateWorker(String loggedEmail, Integer workerId, WorkerUpdateDTO dto) {
 		User loggedUser = findUserByEmailWithType(loggedEmail);
 		User worker = userRepository.findById(workerId)
 				.orElseThrow(() -> new ResourceNotFoundException("Worker não encontrado"));
@@ -171,44 +187,33 @@ public class WorkerService {
 			throw new BusinessException("Você não tem permissão para editar este worker");
 		}
 
-		worker.setFullName(dto.getFullname());
-		String[] parts = dto.getFullname().trim().split("\\s+", 2);
-		worker.setFirstName(parts[0]);
-		worker.setLastName(parts.length > 1 ? parts[1] : "");
-
-		if (dto.getEmail() != null && !dto.getEmail().equalsIgnoreCase(worker.getEmail1())) {
-			if (!validationService.isValidEmailFormat(dto.getEmail())) {
-				throw new BadRequestException("Formato de e-mail inválido");
-			}
-			if (validationService.emailAlreadyExists(dto.getEmail())) {
-				throw new DuplicateResourceException("E-mail já cadastrado");
-			}
-			worker.setEmail1(dto.getEmail());
-
-			authCredentialRepository.findByProviderAndIdentifier("email", worker.getEmail1()).ifPresent(cred -> {
-				cred.setIdentifier(dto.getEmail());
-				cred.setUpdatedAt(LocalDateTime.now());
-				authCredentialRepository.save(cred);
-			});
+		if (dto.getFullname() != null && !dto.getFullname().isBlank()) {
+			worker.setFullName(dto.getFullname());
+			String[] parts = dto.getFullname().trim().split("\\s+", 2);
+			worker.setFirstName(parts[0]);
+			worker.setLastName(parts.length > 1 ? parts[1] : "");
 		}
 
-		worker.setPhone(dto.getPhone());
-		worker.setAddress(dto.getAddress());
-		worker.setNumber(dto.getNumber());
-		worker.setCity(dto.getCity());
-		worker.setState(dto.getState());
-		worker.setZipcode(dto.getZipcode());
+		if (dto.getPhone() != null) {
+			worker.setPhone(dto.getPhone());
+		}
+		if (dto.getAddress() != null) {
+			worker.setAddress(dto.getAddress());
+		}
+		if (dto.getNumber() != null) {
+			worker.setNumber(dto.getNumber());
+		}
+		if (dto.getCity() != null) {
+			worker.setCity(dto.getCity());
+		}
+		if (dto.getState() != null) {
+			worker.setState(dto.getState());
+		}
+		if (dto.getZipcode() != null) {
+			worker.setZipcode(dto.getZipcode());
+		}
+
 		worker.setUpdatedAt(LocalDateTime.now());
-
-		if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
-			validatePassword(dto.getPassword());
-			AuthCredential cred = authCredentialRepository.findByProviderAndIdentifier("email", worker.getEmail1())
-					.orElseThrow(() -> new ResourceNotFoundException("Credencial do worker não encontrada"));
-			cred.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-			cred.setUpdatedAt(LocalDateTime.now());
-			authCredentialRepository.save(cred);
-		}
-
 		User saved = userRepository.save(worker);
 
 		if (isProducerOwner && dto.getProductionUnitId() != null) {

@@ -82,23 +82,35 @@ public class FarmService {
 	 */
 	@Transactional(readOnly = true)
 	public List<FarmDetailDTO> listFarms(String username) {
-		User user = loadProducerUser(username);
-		List<Farm> farms = farmRepository.findByOwnerIdAndIsActiveTrue(user.getId());
-		return farms.stream().map(farm -> {
-			List<Integer> cropTypeIds = farmCropRepository.findByFarmId(farm.getId()).stream()
-					.map(fc -> fc.getCropType().getId()).toList();
-			return toDetailDTO(farm, cropTypeIds);
-		}).toList();
+		User user = loadCurrentUser(username);
+
+		if (EnumUserType.PRODUCER.getCode().equals(user.getUserType().getCode())) {
+			List<Farm> farms = farmRepository.findByOwnerIdAndIsActiveTrue(user.getId());
+			return mapFarmsToDTO(farms);
+		}
+
+		if (EnumUserType.WORKER.getCode().equals(user.getUserType().getCode())) {
+			List<Farm> farms = farmRepository.findByWorkerAssignments(user.getId());
+			return mapFarmsToDTO(farms);
+		}
+
+		throw new BusinessException("Tipo de usuário não permitido para listar fazendas");
 	}
 
-	/**
-	 * Detalha uma fazenda do usuário autenticado.
-	 */
 	@Transactional(readOnly = true)
 	public FarmDetailDTO getFarm(String username, Integer farmId) {
-		User user = loadProducerUser(username);
-		Farm farm = farmRepository.findByIdAndOwnerIdAndIsActiveTrue(farmId, user.getId())
-				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+		User user = loadCurrentUser(username);
+		Farm farm;
+
+		if (EnumUserType.PRODUCER.getCode().equals(user.getUserType().getCode())) {
+			farm = farmRepository.findByIdAndOwnerIdAndIsActiveTrue(farmId, user.getId())
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+		} else if (EnumUserType.WORKER.getCode().equals(user.getUserType().getCode())) {
+			farm = farmRepository.findByIdAndWorkerAssignments(farmId, user.getId())
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada para esse usuário"));
+		} else {
+			throw new BusinessException("Tipo de usuário não permitido para visualizar fazendas");
+		}
 
 		List<Integer> cropTypeIds = farmCropRepository.findByFarmId(farm.getId()).stream()
 				.map(fc -> fc.getCropType().getId()).toList();
@@ -197,6 +209,19 @@ public class FarmService {
 		}
 
 		return user;
+	}
+
+	private User loadCurrentUser(String username) {
+		return userRepository.findByEmail1(username)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+	}
+
+	private List<FarmDetailDTO> mapFarmsToDTO(List<Farm> farms) {
+		return farms.stream().map(farm -> {
+			List<Integer> cropTypeIds = farmCropRepository.findByFarmId(farm.getId()).stream()
+					.map(fc -> fc.getCropType().getId()).toList();
+			return toDetailDTO(farm, cropTypeIds);
+		}).toList();
 	}
 
 	/**
