@@ -16,29 +16,30 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 
 	// 1) Listar workers do produtor (com farmId opcional)
 	@Query(value = """
-		    SELECT DISTINCT 
-		        u.id,
-		        u.fullname,
-		        u.email1 AS email,
-		        u.phone,
-		        u.thumbnail_gs_url AS profilePictureUrl,
-		        string_agg(DISTINCT pu.name, ', ' ORDER BY pu.name) AS unitNames,
-		        string_agg(DISTINCT f.name, ', ' ORDER BY f.name) AS farmNames
-		    FROM users u
-		    JOIN worker_production_unit_assignments wpu ON wpu.worker_id = u.id
-		    JOIN production_units pu ON pu.id = wpu.production_unit_id
-		    JOIN farms f ON f.id = pu.farm_id
-		    WHERE f.owner_id = :producerId
-		      AND u.user_type_id = 9
-		      AND u.user_status_id <> 5
-		      AND wpu.is_active = TRUE
-		      AND pu.is_active = TRUE
-		      AND f.is_active = TRUE
-		      AND (:farmId IS NULL OR f.id = :farmId)
-		    GROUP BY u.id, u.fullname, u.email1, u.phone, u.thumbnail_gs_url
-		    """, nativeQuery = true)
-		List<WorkerDetailDTO> findWorkersByProducer(@Param("producerId") Integer producerId,
-		                                            @Param("farmId") Integer farmId);
+			SELECT DISTINCT
+			    u.id,
+			    u.fullname,
+			    u.email1 AS email,
+			    u.phone,
+			    u.thumbnail_gs_url AS profilePictureUrl,
+			    string_agg(DISTINCT pu.name, ', ' ORDER BY pu.name) AS unitNames,
+			    string_agg(DISTINCT f.name, ', ' ORDER BY f.name) AS farmNames
+			FROM users u
+			JOIN worker_production_unit_assignments wpu ON wpu.worker_id = u.id
+			JOIN production_units pu ON pu.id = wpu.production_unit_id
+			JOIN farms f ON f.id = pu.farm_id
+			WHERE f.owner_id = :producerId
+			  AND u.user_type_id = 9
+			  AND u.user_status_id <> 5
+			  AND wpu.is_active = TRUE
+			  AND pu.is_active = TRUE
+			  AND f.is_active = TRUE
+			  AND (:farmId IS NULL OR f.id = :farmId)
+			  AND (:workerId IS NULL OR u.id = :workerId)
+			GROUP BY u.id, u.fullname, u.email1, u.phone, u.thumbnail_gs_url
+			""", nativeQuery = true)
+	List<WorkerDetailDTO> findWorkersByProducer(@Param("producerId") Integer producerId,
+			@Param("farmId") Integer farmId, @Param("workerId") Integer workerId);
 
 	// 2) Verificar se worker pertence ao produtor (via email do produtor)
 	@Query(value = """

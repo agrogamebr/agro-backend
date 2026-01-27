@@ -63,22 +63,22 @@ public class WorkerService {
 
 	// LISTAR workers do produtor
 	@Transactional(readOnly = true)
-	public List<WorkerDetailDTO> listWorkers(String producerEmail, Integer farmIdFilter) {
-		User producer = findUserByEmailWithType(producerEmail);
+	public List<WorkerDetailDTO> listWorkers(String producerEmail, Integer farmIdFilter, Integer workerIdFilter) {
+	    User producer = findUserByEmailWithType(producerEmail);
 
-		if (!isProducer(producer)) {
-			throw new BusinessException("Usuário autenticado não é produtor rural");
-		}
+	    if (!isProducer(producer)) {
+	        throw new BusinessException("Usuário autenticado não é produtor rural");
+	    }
 
-		if (farmIdFilter != null) {
-			Farm farm = farmRepository.findById(farmIdFilter)
-					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-			if (!farm.getOwner().getId().equals(producer.getId())) {
-				throw new BusinessException("Fazenda não pertence ao produtor");
-			}
-		}
+	    if (farmIdFilter != null) {
+	        Farm farm = farmRepository.findById(farmIdFilter)
+	                .orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+	        if (!farm.getOwner().getId().equals(producer.getId())) {
+	            throw new BusinessException("Fazenda não pertence ao produtor");
+	        }
+	    }
 
-		return workerRepository.findWorkersByProducer(producer.getId(), farmIdFilter);
+	    return workerRepository.findWorkersByProducer(producer.getId(), farmIdFilter, workerIdFilter);
 	}
 
 	@Transactional
