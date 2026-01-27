@@ -44,9 +44,9 @@ public class WorkerController {
 			@ApiResponse(responseCode = "403", description = "Usuário logado não é produtor rural") })
 	@GetMapping
 	public ResponseEntity<Map<String, Object>> listWorkers(@RequestParam(required = false) Integer farmId,
-			Principal principal) {
+			@RequestParam(required = false) Integer workerId, Principal principal) {
 
-		List<WorkerDetailDTO> items = workerService.listWorkers(principal.getName(), farmId);
+		List<WorkerDetailDTO> items = workerService.listWorkers(principal.getName(), farmId, workerId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("items", items);
