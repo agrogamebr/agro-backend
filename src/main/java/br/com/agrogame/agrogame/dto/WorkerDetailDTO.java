@@ -12,12 +12,15 @@ public class WorkerDetailDTO {
 	private String farmNames; // ex: "Fazenda A, Fazenda B"
 	private String unitNames; // ex: "Talhão 1, Talhão 2"
 
+	private String zipcode;
+	private String number;
+
 	public WorkerDetailDTO() {
 	}
 
 	// Construtor usado pela projeção nativa do WorkerRepository
 	public WorkerDetailDTO(Integer id, String fullname, String email, String phone, String profilePictureUrl,
-			String unitNames, String farmNames) {
+			String unitNames, String farmNames, String zipcode, String number) {
 		this.id = id;
 		this.fullname = fullname;
 		this.email = email;
@@ -25,6 +28,8 @@ public class WorkerDetailDTO {
 		this.profilePictureUrl = profilePictureUrl;
 		this.unitNames = unitNames;
 		this.farmNames = farmNames;
+		this.zipcode = zipcode;
+		this.number = number;
 	}
 
 	public Integer getId() {
@@ -81,5 +86,21 @@ public class WorkerDetailDTO {
 
 	public void setUnitNames(String unitNames) {
 		this.unitNames = unitNames;
+	}
+
+	public String getZipcode() {
+		return zipcode;
+	}
+
+	public void setZipcode(String zipcode) {
+		this.zipcode = zipcode;
+	}
+
+	public String getNumber() {
+		return number;
+	}
+
+	public void setNumber(String number) {
+		this.number = number;
 	}
 }

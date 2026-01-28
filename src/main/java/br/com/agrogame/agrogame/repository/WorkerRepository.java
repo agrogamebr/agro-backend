@@ -23,7 +23,9 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 			    u.phone,
 			    u.thumbnail_gs_url AS profilePictureUrl,
 			    string_agg(DISTINCT pu.name, ', ' ORDER BY pu.name) AS unitNames,
-			    string_agg(DISTINCT f.name, ', ' ORDER BY f.name) AS farmNames
+			    string_agg(DISTINCT f.name, ', ' ORDER BY f.name) AS farmNames,
+			    u.zipcode,
+			    u.number
 			FROM users u
 			JOIN worker_production_unit_assignments wpu ON wpu.worker_id = u.id
 			JOIN production_units pu ON pu.id = wpu.production_unit_id
@@ -36,7 +38,7 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 			  AND f.is_active = TRUE
 			  AND (:farmId IS NULL OR f.id = :farmId)
 			  AND (:workerId IS NULL OR u.id = :workerId)
-			GROUP BY u.id, u.fullname, u.email1, u.phone, u.thumbnail_gs_url
+			GROUP BY u.id, u.fullname, u.email1, u.phone, u.thumbnail_gs_url, u.zipcode, u.number
 			""", nativeQuery = true)
 	List<WorkerDetailDTO> findWorkersByProducer(@Param("producerId") Integer producerId,
 			@Param("farmId") Integer farmId, @Param("workerId") Integer workerId);
