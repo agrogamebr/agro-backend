@@ -64,21 +64,21 @@ public class WorkerService {
 	// LISTAR workers do produtor
 	@Transactional(readOnly = true)
 	public List<WorkerDetailDTO> listWorkers(String producerEmail, Integer farmIdFilter, Integer workerIdFilter) {
-	    User producer = findUserByEmailWithType(producerEmail);
+		User producer = findUserByEmailWithType(producerEmail);
 
-	    if (!isProducer(producer)) {
-	        throw new BusinessException("Usuário autenticado não é produtor rural");
-	    }
+		if (!isProducer(producer)) {
+			throw new BusinessException("Usuário autenticado não é produtor rural");
+		}
 
-	    if (farmIdFilter != null) {
-	        Farm farm = farmRepository.findById(farmIdFilter)
-	                .orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-	        if (!farm.getOwner().getId().equals(producer.getId())) {
-	            throw new BusinessException("Fazenda não pertence ao produtor");
-	        }
-	    }
+		if (farmIdFilter != null) {
+			Farm farm = farmRepository.findById(farmIdFilter)
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+			if (!farm.getOwner().getId().equals(producer.getId())) {
+				throw new BusinessException("Fazenda não pertence ao produtor");
+			}
+		}
 
-	    return workerRepository.findWorkersByProducer(producer.getId(), farmIdFilter, workerIdFilter);
+		return workerRepository.findWorkersByProducer(producer.getId(), farmIdFilter, workerIdFilter);
 	}
 
 	@Transactional
@@ -309,6 +309,8 @@ public class WorkerService {
 		dto.setEmail(worker.getEmail1());
 		dto.setPhone(worker.getPhone());
 		dto.setProfilePictureUrl(worker.getProfilePictureUrl());
+		dto.setZipcode(worker.getZipcode());
+		dto.setNumber(worker.getNumber());
 		return dto;
 	}
 
