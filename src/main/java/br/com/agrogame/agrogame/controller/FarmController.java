@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -111,6 +112,19 @@ public class FarmController {
 		response.put("message", "Foto da fazenda atualizada com sucesso");
 		response.put("photoUrl", photoUrl);
 		return ResponseEntity.ok(response);
+	}
+	
+	@GetMapping("/by-crop-types")
+	@Operation(
+	    summary = "Listar fazendas por tipo(s) de cultura",
+	    description = "Retorna as fazendas da empresa do usuário logado que possuem pelo menos um dos cropTypes informados."
+	)
+	public ResponseEntity<Map<String, Object>> listFarmsByCropTypes(
+	        @RequestParam List<Integer> cropTypeIds,
+	        Principal principal) {
+
+	    Map<String, Object> response = farmService.listFarmsByCropTypesForCompany(principal.getName(), cropTypeIds);
+	    return ResponseEntity.ok(response);
 	}
 
 }

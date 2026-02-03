@@ -50,4 +50,18 @@ public interface FarmRepository extends JpaRepository<Farm, Integer> {
 			""")
 	Optional<Farm> findByIdAndWorkerAssignments(@Param("farmId") Integer farmId, @Param("workerId") Integer workerId);
 
+	@Query("""
+			SELECT DISTINCT f
+			FROM Farm f
+			JOIN FarmCrop fc ON fc.farm = f
+			WHERE f.company.id = :companyId
+			  AND f.isActive = true
+			  AND fc.cropType.id IN :cropTypeIds
+			ORDER BY f.name
+			""")
+	List<Farm> findByCompanyIdAndCropTypes(@Param("companyId") Integer companyId,
+			@Param("cropTypeIds") List<Integer> cropTypeIds);
+	
+	List<Farm> findByIdInAndCompanyIdAndIsActiveTrue(List<Integer> ids, Integer companyId);
+
 }

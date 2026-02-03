@@ -160,4 +160,17 @@ public class ProductionUnitController {
 		response.put("photoUrl", photoUrl);
 		return ResponseEntity.ok(response);
 	}
+	
+	@GetMapping("/by-farms-and-crops")
+	public ResponseEntity<Map<String, Object>> listUnitsByFarmsAndCrops(
+	        @RequestParam List<Integer> farmIds,
+	        @RequestParam List<Integer> cropTypeIds,
+	        Principal principal) {
+
+	    Map<String, Object> response = productionUnitService
+	            .listUnitsByFarmsAndCropTypes(principal.getName(), farmIds, cropTypeIds);
+
+	    return ResponseEntity.ok(response);
+	}
+
 }

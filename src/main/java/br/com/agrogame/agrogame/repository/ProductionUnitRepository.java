@@ -33,10 +33,23 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 	List<ProductionUnit> findByFarmIdAndOwnerId(@Param("farmId") Integer farmId, @Param("ownerId") Integer ownerId);
 
 	@Query("SELECT pu FROM ProductionUnit pu " + "JOIN pu.farm f " + "WHERE f.owner.id = :ownerId "
-			+ "AND (:farmId IS NULL OR f.id = :farmId) " + "AND (:name IS NULL OR LOWER(pu.name) LIKE :name) " + 
-			"AND (:isActive IS NULL OR pu.isActive = :isActive) " + "ORDER BY pu.name")
+			+ "AND (:farmId IS NULL OR f.id = :farmId) " + "AND (:name IS NULL OR LOWER(pu.name) LIKE :name) "
+			+ "AND (:isActive IS NULL OR pu.isActive = :isActive) " + "ORDER BY pu.name")
 	List<ProductionUnit> findByFilters(@Param("ownerId") Integer ownerId, @Param("farmId") Integer farmId,
 			@Param("name") String name, // Aqui virá o valor já com % e em minúsculo
 			@Param("isActive") Boolean isActive);
+
+	@Query(value = """
+			SELECT pu.*
+			FROM production_units pu
+			JOIN farms f ON f.id = pu.farm_id
+			JOIN crop_type_unit_compatibility c ON c.production_unit_type_id = pu.production_unit_type_id
+			WHERE f.id IN (:farmIds)
+			  AND pu.is_active = true
+			  AND c.crop_type_id IN (:cropTypeIds)
+			ORDER BY f.name, pu.name
+			""", nativeQuery = true)
+	List<ProductionUnit> findByFarmsAndCropTypes(@Param("farmIds") List<Integer> farmIds,
+			@Param("cropTypeIds") List<Integer> cropTypeIds);
 
 }

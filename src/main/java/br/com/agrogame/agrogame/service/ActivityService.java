@@ -64,6 +64,7 @@ public class ActivityService {
 	private final FarmCropRepository farmCropRepository;
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
+	private final AccessControlService accessControlService;
 
 	private static final long MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -73,7 +74,7 @@ public class ActivityService {
 			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository,
 			UserActivityRepository userActivityRepository, UserActivityStatusRepository userActivityStatusRepository,
 			FarmRepository farmRepository, FarmCropRepository farmCropRepository, UserRepository userRepository,
-			FileStorageService fileStorageService) {
+			FileStorageService fileStorageService, AccessControlService accessControlService) {
 		this.activityRepository = activityRepository;
 		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
@@ -88,6 +89,7 @@ public class ActivityService {
 		this.farmCropRepository = farmCropRepository;
 		this.userRepository = userRepository;
 		this.fileStorageService = fileStorageService;
+		this.accessControlService = accessControlService;
 	}
 
 	@Transactional

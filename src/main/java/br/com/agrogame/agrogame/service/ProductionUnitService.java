@@ -1,7 +1,9 @@
 package br.com.agrogame.agrogame.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ProductionUnitCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
+import br.com.agrogame.agrogame.dto.ProductionUnitSelectDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitTypeDTO;
 import br.com.agrogame.agrogame.exceptions.AuthenticationException;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
@@ -45,6 +48,9 @@ public class ProductionUnitService {
 
 	@Autowired
 	private UserActivityRepository userActivityRepository;
+	
+	@Autowired
+	private AccessControlService accessControlService;
 
 	/**
 	 * Método auxiliar para buscar e validar o produtor logado.
@@ -349,4 +355,47 @@ public class ProductionUnitService {
 		dto.setIsActive(type.getIsActive());
 		return dto;
 	}
+
+	@Transactional
+	public Map<String, Object> listUnitsByFarmsAndCropTypes(String userEmail, List<Integer> farmIds,
+			List<Integer> cropTypeIds) {
+		User user = userRepository.findByEmail1(userEmail)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		if (user.getCompany() == null) {
+			throw new BusinessException("Usuário não vinculado a nenhuma empresa.");
+		}
+		
+		this.accessControlService.validateBackofficeUser(user);
+
+		Integer companyId = user.getCompany().getId();
+
+		// Segurança: todas farms pertencem à empresa
+		List<Farm> farms = farmRepository.findByIdInAndCompanyIdAndIsActiveTrue(farmIds, companyId);
+		if (farms.size() != farmIds.size()) {
+			throw new BusinessException("Uma ou mais fazendas não pertencem à sua empresa ou estão inativas.");
+		}
+
+		List<ProductionUnit> units = productionUnitRepository.findByFarmsAndCropTypes(farmIds, cropTypeIds);
+
+		List<ProductionUnitSelectDTO> dtos = units.stream().map(pu -> {
+			ProductionUnitSelectDTO dto = new ProductionUnitSelectDTO();
+			dto.setId(pu.getId());
+			dto.setFarmId(pu.getFarm().getId());
+			dto.setFarmName(pu.getFarm().getName());
+			dto.setName(pu.getName());
+			dto.setDescription(pu.getDescription());
+			dto.setArea(pu.getArea());
+			dto.setProductionUnitTypeCode(pu.getProductionUnitType().getCode());
+			dto.setProductionUnitTypeName(pu.getProductionUnitType().getName());
+			dto.setThumbnailGsUrl(pu.getThumbnailGsUrl());
+			return dto;
+		}).toList();
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("production_units", dtos);
+		response.put("total", dtos.size());
+		return response;
+	}
+
 }
