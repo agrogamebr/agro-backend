@@ -2,13 +2,16 @@ package br.com.agrogame.agrogame.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.FarmCreateUpdateDTO;
 import br.com.agrogame.agrogame.dto.FarmDetailDTO;
+import br.com.agrogame.agrogame.dto.FarmSelectDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
@@ -35,16 +38,18 @@ public class FarmService {
 	private final CropTypeRepository cropTypeRepository;
 	private final UserActivityRepository userActivityRepository;
 	private final ProductionUnitRepository productionUnitRepository;
+	private final AccessControlService accessControlService;
 
 	public FarmService(FarmRepository farmRepository, FarmCropRepository farmCropRepository,
 			UserRepository userRepository, CropTypeRepository cropTypeRepository,
-			UserActivityRepository userActivityRepository, ProductionUnitRepository productionUnitRepository) {
+			UserActivityRepository userActivityRepository, ProductionUnitRepository productionUnitRepository, AccessControlService accessControlService) {
 		this.farmRepository = farmRepository;
 		this.farmCropRepository = farmCropRepository;
 		this.userRepository = userRepository;
 		this.cropTypeRepository = cropTypeRepository;
 		this.userActivityRepository = userActivityRepository;
 		this.productionUnitRepository = productionUnitRepository;
+		this.accessControlService = accessControlService;
 	}
 
 	/**
@@ -322,6 +327,39 @@ public class FarmService {
 		}
 
 		return dto;
+	}
+
+	@Transactional
+	public Map<String, Object> listFarmsByCropTypesForCompany(String userEmail, List<Integer> cropTypeIds) {
+
+		User user = userRepository.findByEmail1(userEmail)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		if (user.getCompany() == null) {
+			throw new BusinessException("Usuário não vinculado a nenhuma empresa.");
+		}
+		
+		this.accessControlService.validateBackofficeUser(user);
+
+		Integer companyId = user.getCompany().getId();
+
+		List<Farm> farms = farmRepository.findByCompanyIdAndCropTypes(companyId, cropTypeIds);
+
+		List<FarmSelectDTO> dtos = farms.stream().map(f -> {
+			FarmSelectDTO dto = new FarmSelectDTO();
+			dto.setId(f.getId());
+			dto.setName(f.getName());
+			dto.setCity(f.getCity());
+			dto.setState(f.getState());
+			dto.setActive(Boolean.TRUE.equals(f.getIsActive()));
+			dto.setThumbnailGsUrl(f.getThumbnailGsUrl());
+			return dto;
+		}).toList();
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("farms", dtos);
+		response.put("total", dtos.size());
+		return response;
 	}
 
 }
