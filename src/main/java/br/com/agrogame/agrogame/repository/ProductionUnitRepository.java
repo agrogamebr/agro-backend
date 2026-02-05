@@ -52,4 +52,30 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 	List<ProductionUnit> findByFarmsAndCropTypes(@Param("farmIds") List<Integer> farmIds,
 			@Param("cropTypeIds") List<Integer> cropTypeIds);
 
+	List<ProductionUnit> findByIdInAndIsActiveTrue(List<Integer> ids);
+
+	@Query(value = """
+			SELECT DISTINCT pu.id
+			FROM production_units pu
+			JOIN crop_type_unit_compatibility c
+			  ON c.production_unit_type_id = pu.production_unit_type_id
+			WHERE pu.id IN (:unitIds)
+			  AND c.crop_type_id IN (:cropTypeIds)
+			  AND pu.is_active = true
+			""", nativeQuery = true)
+	List<Integer> findCompatibleUnitIdsByCropTypes(@Param("unitIds") List<Integer> unitIds,
+			@Param("cropTypeIds") List<Integer> cropTypeIds);
+
+	@Query(value = """
+			SELECT pu.*
+			FROM production_units pu
+			JOIN crop_type_unit_compatibility c
+			     ON c.production_unit_type_id = pu.production_unit_type_id
+			WHERE pu.farm_id = :farmId
+			  AND pu.is_active = true
+			  AND c.crop_type_id IN (:cropTypeIds)
+			""", nativeQuery = true)
+	List<ProductionUnit> findByFarmAndCropTypesCompatible(@Param("farmId") Integer farmId,
+			@Param("cropTypeIds") List<Integer> cropTypeIds);
+
 }

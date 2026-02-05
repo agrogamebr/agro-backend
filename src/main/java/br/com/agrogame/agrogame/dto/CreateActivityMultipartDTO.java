@@ -5,16 +5,20 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.constraints.NotEmpty;
+
 public class CreateActivityMultipartDTO {
 	private String description;
 	private String name;
 	private Integer points;
 	private LocalDate validFrom;
 	private LocalDate validTo;
+	@NotEmpty
 	private List<Integer> cropTypeIds;
-
-	// Arquivo (recebido como file)
 	private MultipartFile thumbnail;
+	
+	private List<Integer> farmIds;
+    private List<Integer> productionUnitIds;
 
 	public String getDescription() {
 		return description;
@@ -70,6 +74,22 @@ public class CreateActivityMultipartDTO {
 
 	public void setThumbnail(MultipartFile thumbnail) {
 		this.thumbnail = thumbnail;
+	}
+
+	public List<Integer> getFarmIds() {
+		return farmIds;
+	}
+
+	public void setFarmIds(List<Integer> farmIds) {
+		this.farmIds = farmIds;
+	}
+
+	public List<Integer> getProductionUnitIds() {
+		return productionUnitIds;
+	}
+
+	public void setProductionUnitIds(List<Integer> productionUnitIds) {
+		this.productionUnitIds = productionUnitIds;
 	}
 
 }

@@ -3,6 +3,8 @@ package br.com.agrogame.agrogame.repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,7 +14,7 @@ import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.model.ActivityReward;
 
 public interface ActivityRepository extends JpaRepository<Activity, Integer> {
-	List<Activity> findByCompanyId(Integer companyId);
+	Page<Activity> findByCompanyId(Integer companyId, Pageable pageable);
 
 	List<Activity> findByCompanyIdAndActivityStatus_Code(Integer companyId, String statusCode);
 
@@ -34,13 +36,12 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			  AND (:statusCode IS NULL OR LOWER(a.activityStatus.code) = :statusCode)
 			  AND (:cropTypeId IS NULL OR actCrop.cropType.id = :cropTypeId)
 			  AND (:farmId IS NULL OR fc.farm.id = :farmId)
-			  AND (:startDate IS NULL OR a.validFrom >= :startDate)
-			  AND (:endDate IS NULL OR a.validTo <= :endDate)
-			ORDER BY a.validFrom DESC
+			  AND (cast(:startDate as date) IS NULL OR a.validTo   >= :startDate)
+			  AND (cast(:endDate   as date) IS NULL OR a.validFrom <= :endDate)
 			""")
-	List<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
+	Page<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
 			@Param("cropTypeId") Integer cropTypeId, @Param("farmId") Integer farmId,
-			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
 
 	@Query(value = """
 			    SELECT
@@ -83,7 +84,7 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			        ua.id                 AS userActivityId,
 			        uas.code              AS userActivityStatus,
 			        ua.farm_id            AS userActivityFarmId,
-			        a.thumbnail_url        AS thumbnailUrl, 
+			        a.thumbnail_url        AS thumbnailUrl,
 			        a.thumbnail_gsutil_uri  AS thumbnailGsutilUri
 			    FROM activities a
 			    JOIN activity_statuses s
