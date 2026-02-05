@@ -9,6 +9,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +30,7 @@ import br.com.agrogame.agrogame.model.Company;
 import br.com.agrogame.agrogame.model.CropType;
 import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.FarmCrop;
+import br.com.agrogame.agrogame.model.ProductionUnit;
 import br.com.agrogame.agrogame.model.Reward;
 import br.com.agrogame.agrogame.model.RewardStatus;
 import br.com.agrogame.agrogame.model.User;
@@ -39,6 +44,7 @@ import br.com.agrogame.agrogame.repository.CompanyRepository;
 import br.com.agrogame.agrogame.repository.CropTypeRepository;
 import br.com.agrogame.agrogame.repository.FarmCropRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
+import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
 import br.com.agrogame.agrogame.repository.RewardRepository;
 import br.com.agrogame.agrogame.repository.RewardStatusRepository;
 import br.com.agrogame.agrogame.repository.UserActivityRepository;
@@ -64,7 +70,7 @@ public class ActivityService {
 	private final FarmCropRepository farmCropRepository;
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
-	private final AccessControlService accessControlService;
+	private final ProductionUnitRepository productionUnitRepository;
 
 	private static final long MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -74,7 +80,7 @@ public class ActivityService {
 			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository,
 			UserActivityRepository userActivityRepository, UserActivityStatusRepository userActivityStatusRepository,
 			FarmRepository farmRepository, FarmCropRepository farmCropRepository, UserRepository userRepository,
-			FileStorageService fileStorageService, AccessControlService accessControlService) {
+			FileStorageService fileStorageService, ProductionUnitRepository productionUnitRepository) {
 		this.activityRepository = activityRepository;
 		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
@@ -89,11 +95,12 @@ public class ActivityService {
 		this.farmCropRepository = farmCropRepository;
 		this.userRepository = userRepository;
 		this.fileStorageService = fileStorageService;
-		this.accessControlService = accessControlService;
+		this.productionUnitRepository = productionUnitRepository;
 	}
 
 	@Transactional
-	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Company company, Integer createdBy) throws IOException {
+	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Company company, Integer createdBy)
+			throws IOException {
 
 		ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
 				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
@@ -104,6 +111,29 @@ public class ActivityService {
 
 		// ========== VALIDAR SE EMPRESA TEM PRODUTORES COM ESSES CROPS ==========
 		validateCompanyHasCropTypes(company, dto.getCropTypeIds());
+
+		List<Farm> farms;
+
+		if (dto.getFarmIds() == null || dto.getFarmIds().isEmpty()) {
+			// Caso 1 – só cultura: todas as farms da empresa que tenham esses crops
+			farms = farmRepository.findByCompanyIdAndCropTypes(company.getId(), dto.getCropTypeIds());
+			if (farms.isEmpty()) {
+				throw new BusinessException("Nenhuma fazenda da empresa possui as culturas selecionadas.");
+			}
+		} else {
+			// Cultura + fazendas selecionadas
+			farms = farmRepository.findByIdInAndCompanyIdAndIsActiveTrue(dto.getFarmIds(), company.getId());
+			if (farms.size() != dto.getFarmIds().size()) {
+				throw new BusinessException("Uma ou mais fazendas não pertencem à empresa ou estão inativas.");
+			}
+		}
+
+		List<Integer> productionUnitIds = dto.getProductionUnitIds();
+
+		if (productionUnitIds != null && !productionUnitIds.isEmpty()) {
+			validateProductionUnitsBelongToFarmsAndCrops(productionUnitIds, farms.stream().map(Farm::getId).toList(),
+					dto.getCropTypeIds(), company.getId());
+		}
 
 		// ========== CRIAR ACTIVITY ==========
 		Activity activity = new Activity();
@@ -117,13 +147,13 @@ public class ActivityService {
 		activity.setCreatedAt(LocalDateTime.now());
 		activity.setCreatedBy(createdBy);
 
-	    if (dto.getThumbnail() != null && !dto.getThumbnail().isEmpty()) {
-	        validateThumbnailFile(dto.getThumbnail());
-	        StoredFileInfo stored = fileStorageService.uploadFile(dto.getThumbnail());
-	        activity.setThumbnailUrl(stored.getFileUrl());
-	        activity.setThumbnailGsutilUri(stored.getGsutilUri());
+		if (dto.getThumbnail() != null && !dto.getThumbnail().isEmpty()) {
+			validateThumbnailFile(dto.getThumbnail());
+			StoredFileInfo stored = fileStorageService.uploadFile(dto.getThumbnail());
+			activity.setThumbnailUrl(stored.getFileUrl());
+			activity.setThumbnailGsutilUri(stored.getGsutilUri());
 
-	    }
+		}
 
 		Activity savedActivity = activityRepository.save(activity);
 
@@ -180,8 +210,8 @@ public class ActivityService {
 		response.put("validTo", savedActivity.getValidTo());
 		response.put("cropTypesCount", dto.getCropTypeIds().size());
 		response.put("rewardId", savedReward.getId());
-	    response.put("thumbnailUrl", savedActivity.getThumbnailUrl());
-	    response.put("thumbnailGsutilUri", savedActivity.getThumbnailGsutilUri());
+		response.put("thumbnailUrl", savedActivity.getThumbnailUrl());
+		response.put("thumbnailGsutilUri", savedActivity.getThumbnailGsutilUri());
 		response.put("message", "Atividade em status 'draft'. Valide e envie com a API de send.");
 
 		return response;
@@ -190,35 +220,31 @@ public class ActivityService {
 	@Transactional
 	public Map<String, Object> sendActivity(Integer activityId, Integer sentBy) {
 
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+	    Activity activity = activityRepository.findById(activityId)
+	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-		if (!"draft".equals(activity.getActivityStatus().getCode())) {
-			throw new BusinessException("Apenas atividades em draft podem ser enviadas");
-		}
+	    if (!"draft".equals(activity.getActivityStatus().getCode())) {
+	        throw new BusinessException("Apenas atividades em draft podem ser enviadas");
+	    }
 
-		// Mudar status para "send"
-		ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
-				.orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
+	    ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
+	            .orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
 
-		activity.setActivityStatus(sendStatus);
-		activity.setUpdatedAt(LocalDateTime.now());
-		activity.setUpdatedBy(sentBy);
+	    activity.setActivityStatus(sendStatus);
+	    activity.setUpdatedAt(LocalDateTime.now());
+	    activity.setUpdatedBy(sentBy);
 
-		Activity savedActivity = activityRepository.save(activity);
+	    Activity savedActivity = activityRepository.save(activity);
 
-		// ========== CRIAR USER_ACTIVITIES PARA FARMS COM ESSES CROPS ==========
-		createUserActivitiesForMatchingFarms(savedActivity, sentBy);
+	    // ===== NOVO FAN-OUT =====
+	    createUserActivitiesForMatchingFarms(savedActivity, sentBy);
 
-		// Notificar producers (se quiser)
-		// notifyProducers(savedActivity);
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("id", savedActivity.getId());
+	    response.put("status", sendStatus.getCode());
+	    response.put("message", "Atividade enviada para os producers!");
 
-		Map<String, Object> response = new HashMap<>();
-		response.put("id", savedActivity.getId());
-		response.put("status", sendStatus.getCode());
-		response.put("message", "Atividade enviada para os producers!");
-
-		return response;
+	    return response;
 	}
 
 	/**
@@ -227,41 +253,66 @@ public class ActivityService {
 	 */
 	private void createUserActivitiesForMatchingFarms(Activity activity, Integer createdBy) {
 
-		UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
-				.orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
+	    UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
+	            .orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
 
-		User userCreatedBy = userRepository.findById(createdBy)
-				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+	    User userCreatedBy = userRepository.findById(createdBy)
+	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Company company = activity.getCompany();
+	    Company company = activity.getCompany();
 
-		// 1. Buscar todos os cropTypeIds da atividade
-		List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
-				.map(act -> act.getCropType().getId()).toList();
+	    // 1. Buscar todos os cropTypeIds da atividade
+	    List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
+	            .map(act -> act.getCropType().getId())
+	            .toList();
 
-		// 2. Buscar todas as farms da empresa
-		List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
+	    // 2. Buscar todas as farms da empresa (como era antes)
+	    List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
 
-		// 3. Para cada farm, verificar se tem algum dos crops da atividade
-		for (Farm farm : companyFarms) {
-			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
+	    for (Farm farm : companyFarms) {
+	        // 3. Crops da farm
+	        List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
 
-			boolean hasCrop = farmCrops.stream().anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
+	        boolean hasCrop = farmCrops.stream()
+	                .anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
 
-			if (hasCrop) {
-				// 4. Criar UserActivity para o produtor dessa farm
-				UserActivity userActivity = new UserActivity();
-				userActivity.setActivity(activity);
-				userActivity.setUser(farm.getOwner());
-				userActivity.setFarm(farm);
-				userActivity.setStatus(pendingStatus);
-				userActivity.setCreatedAt(LocalDateTime.now());
-				userActivity.setCreatedBy(userCreatedBy);
+	        if (!hasCrop) {
+	            continue;
+	        }
 
-				userActivityRepository.save(userActivity);
-			}
-		}
+	        // 4. Buscar UFs compatíveis com os crops da activity
+	        List<ProductionUnit> units =
+	                productionUnitRepository.findByFarmAndCropTypesCompatible(
+	                        farm.getId(), activityCropTypeIds);
+
+	        if (units.isEmpty()) {
+	            // Se não tiver UFs compatíveis, mantém o comportamento antigo:
+	            // cria uma UserActivity "por farm" sem UP
+	            UserActivity userActivity = new UserActivity();
+	            userActivity.setActivity(activity);
+	            userActivity.setUser(farm.getOwner());
+	            userActivity.setFarm(farm);
+	            userActivity.setStatus(pendingStatus);
+	            userActivity.setCreatedAt(LocalDateTime.now());
+	            userActivity.setCreatedBy(userCreatedBy);
+	            userActivityRepository.save(userActivity);
+	        } else {
+	            // Para cada UP compatível, cria UserActivity com productionUnit
+	            for (ProductionUnit pu : units) {
+	                UserActivity userActivity = new UserActivity();
+	                userActivity.setActivity(activity);
+	                userActivity.setUser(farm.getOwner());
+	                userActivity.setFarm(farm);
+	                userActivity.setProductionUnit(pu);
+	                userActivity.setStatus(pendingStatus);
+	                userActivity.setCreatedAt(LocalDateTime.now());
+	                userActivity.setCreatedBy(userCreatedBy);
+	                userActivityRepository.save(userActivity);
+	            }
+	        }
+	    }
 	}
+
 
 	@Transactional
 	public Map<String, Object> updateActivity(Integer activityId, CreateActivityDTO dto, Integer updatedBy) {
@@ -351,50 +402,51 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Map<String, Object> updateActivityThumbnail(Integer activityId, MultipartFile thumbnail, Integer userId) throws IOException {
+	public Map<String, Object> updateActivityThumbnail(Integer activityId, MultipartFile thumbnail, Integer userId)
+			throws IOException {
 
-	    Activity activity = activityRepository.findById(activityId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		Activity activity = activityRepository.findById(activityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-	    // Validar permissão
-	    if (!activity.getCreatedBy().equals(userId)) {
-	        throw new AccessDeniedException("Sem permissão para atualizar esta atividade");
-	    }
+		// Validar permissão
+		if (!activity.getCreatedBy().equals(userId)) {
+			throw new AccessDeniedException("Sem permissão para atualizar esta atividade");
+		}
 
-	    // Validar arquivo
-	    validateThumbnailFile(thumbnail);
+		// Validar arquivo
+		validateThumbnailFile(thumbnail);
 
-	    // Deletar thumbnail anterior se existir
-	    if (activity.getThumbnailUrl() != null && !activity.getThumbnailUrl().isEmpty()) {
-	        try {
-	            fileStorageService.deleteFile(activity.getThumbnailUrl());
-	        } catch (Exception e) {
-	            System.err.println("Erro ao deletar thumbnail anterior: " + e.getMessage());
-	        }
-	    }
+		// Deletar thumbnail anterior se existir
+		if (activity.getThumbnailUrl() != null && !activity.getThumbnailUrl().isEmpty()) {
+			try {
+				fileStorageService.deleteFile(activity.getThumbnailUrl());
+			} catch (Exception e) {
+				System.err.println("Erro ao deletar thumbnail anterior: " + e.getMessage());
+			}
+		}
 
-	    // Upload da nova
-	    StoredFileInfo stored = fileStorageService.uploadFile(thumbnail);
-	    activity.setThumbnailUrl(stored.getFileUrl());
-	    activity.setThumbnailGsutilUri(stored.getGsutilUri());
-	    activity.setUpdatedAt(LocalDateTime.now());
-	    activity.setUpdatedBy(userId);
+		// Upload da nova
+		StoredFileInfo stored = fileStorageService.uploadFile(thumbnail);
+		activity.setThumbnailUrl(stored.getFileUrl());
+		activity.setThumbnailGsutilUri(stored.getGsutilUri());
+		activity.setUpdatedAt(LocalDateTime.now());
+		activity.setUpdatedBy(userId);
 
-	    activityRepository.save(activity);
+		activityRepository.save(activity);
 
-	    Map<String, Object> response = new HashMap<>();
-	    response.put("success", true);
-	    response.put("id", activity.getId());
-	    response.put("thumbnailUrl", activity.getThumbnailUrl());
-	    response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
-	    response.put("message", "Thumbnail atualizada com sucesso!");
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("id", activity.getId());
+		response.put("thumbnailUrl", activity.getThumbnailUrl());
+		response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
+		response.put("message", "Thumbnail atualizada com sucesso!");
 
-	    return response;
+		return response;
 	}
-	
+
 	@Transactional
-	public List<ActivityListDTO> listActivities(Integer companyId, String statusCode, Integer cropTypeId,
-			Integer farmId, LocalDate startDate, LocalDate endDate) {
+	public Page<ActivityListDTO> listActivities(Integer companyId, String statusCode, Integer cropTypeId,
+			Integer farmId, LocalDate startDate, LocalDate endDate, int page, int size) {
 
 		boolean hasStatus = statusCode != null && !statusCode.isBlank();
 		boolean hasCropType = cropTypeId != null;
@@ -404,17 +456,19 @@ public class ActivityService {
 
 		String normalizedStatus = hasStatus ? statusCode.toLowerCase() : null;
 
-		List<Activity> activities;
+		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "validFrom"));
+
+		Page<Activity> activitiesPage;
 
 		if (hasStatus || hasCropType || hasFarm || hasStart || hasEnd) {
-			activities = activityRepository.findWithFilters(companyId, normalizedStatus,
+			activitiesPage = activityRepository.findWithFilters(companyId, normalizedStatus,
 					hasCropType ? cropTypeId : null, hasFarm ? farmId : null, hasStart ? startDate : null,
-					hasEnd ? endDate : null);
+					hasEnd ? endDate : null, pageable);
 		} else {
-			activities = activityRepository.findByCompanyId(companyId);
+			activitiesPage = activityRepository.findByCompanyId(companyId, pageable);
 		}
 
-		return activities.stream().map(this::toActivityListDTO).toList();
+		return activitiesPage.map(this::toActivityListDTO);
 	}
 
 	@Transactional
@@ -498,39 +552,39 @@ public class ActivityService {
 
 	// ========== UPLOAD DE THUMBNAIL ==========
 	public Map<String, Object> uploadActivityThumbnail(Integer activityId, MultipartFile thumbnail, Integer userId)
-	        throws IOException {
+			throws IOException {
 
-	    Activity activity = activityRepository.findById(activityId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		Activity activity = activityRepository.findById(activityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-	    // Validar permissão (apenas criador da atividade)
-	    if (!activity.getCreatedBy().equals(userId)) {
-	        throw new AccessDeniedException("Sem permissão para atualizar esta atividade");
-	    }
+		// Validar permissão (apenas criador da atividade)
+		if (!activity.getCreatedBy().equals(userId)) {
+			throw new AccessDeniedException("Sem permissão para atualizar esta atividade");
+		}
 
-	    // Validar arquivo
-	    validateThumbnailFile(thumbnail);
+		// Validar arquivo
+		validateThumbnailFile(thumbnail);
 
-	    // Se já existe thumbnail, deleta
-	    if (activity.getThumbnailUrl() != null && !activity.getThumbnailUrl().isEmpty()) {
-	        deleteFileFromGcs(activity.getThumbnailUrl());
-	    }
+		// Se já existe thumbnail, deleta
+		if (activity.getThumbnailUrl() != null && !activity.getThumbnailUrl().isEmpty()) {
+			deleteFileFromGcs(activity.getThumbnailUrl());
+		}
 
-	    // Upload da nova thumbnail
-	    StoredFileInfo stored = fileStorageService.uploadFile(thumbnail);
-	    activity.setThumbnailUrl(stored.getFileUrl());
-	    activity.setThumbnailGsutilUri(stored.getGsutilUri());
+		// Upload da nova thumbnail
+		StoredFileInfo stored = fileStorageService.uploadFile(thumbnail);
+		activity.setThumbnailUrl(stored.getFileUrl());
+		activity.setThumbnailGsutilUri(stored.getGsutilUri());
 
-	    activityRepository.save(activity);
+		activityRepository.save(activity);
 
-	    Map<String, Object> response = new HashMap<>();
-	    response.put("success", true);
-	    response.put("id", activity.getId());
-	    response.put("thumbnailUrl", activity.getThumbnailUrl());
-	    response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
-	    response.put("message", "Thumbnail atualizada com sucesso!");
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("id", activity.getId());
+		response.put("thumbnailUrl", activity.getThumbnailUrl());
+		response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
+		response.put("message", "Thumbnail atualizada com sucesso!");
 
-	    return response;
+		return response;
 	}
 
 	// ========== HELPERS ==========
@@ -555,12 +609,35 @@ public class ActivityService {
 	}
 
 	private void deleteFileFromGcs(String fileUrl) {
-	    try {
-	        fileStorageService.deleteFile(fileUrl);
-	        System.out.println("Thumbnail anterior deletada com sucesso");
-	    } catch (Exception e) {
-	        System.err.println("Erro ao deletar thumbnail anterior: " + e.getMessage());
-	    }
+		try {
+			fileStorageService.deleteFile(fileUrl);
+			System.out.println("Thumbnail anterior deletada com sucesso");
+		} catch (Exception e) {
+			System.err.println("Erro ao deletar thumbnail anterior: " + e.getMessage());
+		}
+	}
+
+	private void validateProductionUnitsBelongToFarmsAndCrops(List<Integer> unitIds, List<Integer> farmIds,
+			List<Integer> cropTypeIds, Integer companyId) {
+
+		List<ProductionUnit> units = productionUnitRepository.findByIdInAndIsActiveTrue(unitIds);
+		if (units.size() != unitIds.size()) {
+			throw new BusinessException("Uma ou mais unidades produtivas são inválidas ou inativas.");
+		}
+
+		for (ProductionUnit pu : units) {
+			if (!farmIds.contains(pu.getFarm().getId())) {
+				throw new BusinessException(
+						"Unidade produtiva " + pu.getId() + " não pertence às fazendas selecionadas.");
+			}
+		}
+
+		List<Integer> compatibleIds = productionUnitRepository.findCompatibleUnitIdsByCropTypes(unitIds, cropTypeIds);
+
+		if (compatibleIds.size() != unitIds.size()) {
+			throw new BusinessException(
+					"Uma ou mais unidades produtivas não são compatíveis com as culturas selecionadas.");
+		}
 	}
 
 }

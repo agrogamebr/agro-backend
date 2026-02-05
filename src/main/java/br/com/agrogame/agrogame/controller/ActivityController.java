@@ -7,14 +7,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.support.StringMultipartFileEditor;
 
 import br.com.agrogame.agrogame.dto.ActivityListDTO;
 import br.com.agrogame.agrogame.dto.CreateActivityDTO;
@@ -62,12 +60,6 @@ public class ActivityController {
 		this.userRepository = userRepository;
 		this.activityCropTypeRepository = activityCropTypeRepository;
 	}
-	
-	@InitBinder
-	public void initBinder(WebDataBinder binder) {
-		// Converte string vazia "" em null para campos MultipartFile
-		binder.registerCustomEditor(MultipartFile.class, new StringMultipartFileEditor());
-	}
 
 	@GetMapping("/list")
 	public ResponseEntity<Map<String, Object>> listActivities(@RequestParam(required = false) String status,
@@ -75,63 +67,45 @@ public class ActivityController {
 			@RequestParam(required = false, name = "farmId") Integer farmId,
 			@RequestParam(required = false, name = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 			@RequestParam(required = false, name = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 			Principal principal) {
 
 		Integer companyId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
 
-		List<ActivityListDTO> activities = service.listActivities(companyId, status, cropType, farmId, startDate,
-				endDate);
+		Page<ActivityListDTO> activitiesPage = service.listActivities(companyId, status, cropType, farmId, startDate,
+				endDate, page, size);
 
 		Map<String, Object> response = new HashMap<>();
-		response.put("activities", activities);
-		response.put("total", activities.size());
+		response.put("activities", activitiesPage.getContent());
+		response.put("page", activitiesPage.getNumber());
+		response.put("size", activitiesPage.getSize());
+		response.put("totalElements", activitiesPage.getTotalElements());
+		response.put("totalPages", activitiesPage.getTotalPages());
 
 		return ResponseEntity.ok(response);
 	}
 
-//	@PostMapping(value = "/create-activity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//	public ResponseEntity<Map<String, Object>> createActivity(
-//	        @RequestPart("dto") String dtoAsText, // Recebemos como String para não dar erro de Media Type
-//	        @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
-//	        Principal principal) throws IOException {
-//
-//	    // 1. Converter a String JSON para o DTO manualmente
-//	    ObjectMapper objectMapper = new ObjectMapper();
-//	    objectMapper.registerModule(new JavaTimeModule()); // Necessário para lidar com LocalDate
-//	    CreateActivityDTO dto = objectMapper.readValue(dtoAsText, CreateActivityDTO.class);
-//
-//	    // 2. Buscar o ID do usuário
-//	    Integer createdBy = userRepository.findByEmail1(principal.getName())
-//	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"))
-//	            .getId();
-//
-//	    // 3. Chamar a service normalmente
-//	    Map<String, Object> response = service.registerActivity(dto, thumbnail, createdBy);
-//	    return ResponseEntity.status(HttpStatus.CREATED).body(response);
-//	}
-	
 	@PostMapping(value = "/create-activity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, Object>> createActivity(
-	        @Valid @ModelAttribute CreateActivityMultipartDTO multipartDto,
-	        Principal principal) throws IOException {
+			@Valid @ModelAttribute CreateActivityMultipartDTO multipartDto, Principal principal) throws IOException {
 
-	    // 1. Busca o usuário logado
-	    User currentUser = userRepository.findByEmail1(principal.getName())
-	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+		// 1. Busca o usuário logado
+		User currentUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-	    // 2. Validação de Segurança: O usuário pertence a uma empresa?
-	    if (currentUser.getCompany() == null) {
-	        throw new BusinessException("Usuário não vinculado a nenhuma empresa. Não pode criar atividades.");
-	    }
-	    
-	    // 3. Passa a Empresa e o ID do Usuário para o Service
-	    Map<String, Object> response = service.registerActivity(multipartDto, currentUser.getCompany(), currentUser.getId());
-	    
-	    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+		// 2. Validação de Segurança: O usuário pertence a uma empresa?
+		if (currentUser.getCompany() == null) {
+			throw new BusinessException("Usuário não vinculado a nenhuma empresa. Não pode criar atividades.");
+		}
+
+		// 3. Passa a Empresa e o ID do Usuário para o Service
+		Map<String, Object> response = service.registerActivity(multipartDto, currentUser.getCompany(),
+				currentUser.getId());
+
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
-	
 	@GetMapping("/{activityId}")
 	@Operation(summary = "Buscar atividade", description = "Retorna os detalhes de uma atividade para edição")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade encontrada"),
@@ -152,7 +126,7 @@ public class ActivityController {
 		response.put("cropTypeIds", getCropTypeIds(activity.getId()));
 		response.put("name", activity.getName());
 		response.put("thumbnailUrl", activity.getThumbnailUrl());
-		response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());		
+		response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
 
 		return ResponseEntity.ok(response);
 	}
@@ -177,19 +151,16 @@ public class ActivityController {
 		Map<String, Object> response = service.updateActivity(activityId, dto, updatedBy);
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping(value = "/activities/{activityId}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<Map<String, Object>> updateActivityThumbnail(
-	        @PathVariable Integer activityId,
-	        @RequestPart("thumbnail") MultipartFile thumbnail,
-	        Principal principal) throws IOException {
+	public ResponseEntity<Map<String, Object>> updateActivityThumbnail(@PathVariable Integer activityId,
+			@RequestPart("thumbnail") MultipartFile thumbnail, Principal principal) throws IOException {
 
-	    Integer userId = userRepository.findByEmail1(principal.getName())
-	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"))
-	            .getId();
+		Integer userId = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
 
-	    Map<String, Object> response = service.updateActivityThumbnail(activityId, thumbnail, userId);
-	    return ResponseEntity.ok(response);
+		Map<String, Object> response = service.updateActivityThumbnail(activityId, thumbnail, userId);
+		return ResponseEntity.ok(response);
 	}
 
 	@PatchMapping("/{activityId}/send")

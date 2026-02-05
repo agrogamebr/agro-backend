@@ -8,9 +8,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_activities")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserActivity {
 
 	@Id
