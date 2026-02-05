@@ -102,7 +102,10 @@ public class ActivityService {
 	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Company company, Integer createdBy)
 			throws IOException {
 
-		ActivityStatus draftStatus = activityStatusRepository.findByCode("draft")
+		boolean isSendNow = dto.getSendNow();
+		String statusCode = isSendNow ? "send" : "draft";
+
+		ActivityStatus status = activityStatusRepository.findByCode(statusCode)
 				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
 
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
@@ -141,11 +144,16 @@ public class ActivityService {
 		activity.setDescription(dto.getDescription());
 		activity.setName(dto.getName());
 		activity.setPoints(dto.getPoints());
-		activity.setActivityStatus(draftStatus);
+		activity.setActivityStatus(status);
 		activity.setValidFrom(dto.getValidFrom());
 		activity.setValidTo(dto.getValidTo());
 		activity.setCreatedAt(LocalDateTime.now());
 		activity.setCreatedBy(createdBy);
+
+		if (isSendNow) {
+			activity.setUpdatedAt(LocalDateTime.now());
+			activity.setUpdatedBy(createdBy);
+		}
 
 		if (dto.getThumbnail() != null && !dto.getThumbnail().isEmpty()) {
 			validateThumbnailFile(dto.getThumbnail());
@@ -198,6 +206,10 @@ public class ActivityService {
 
 		activityRewardRepository.save(activityReward);
 
+		if (isSendNow) {
+			createUserActivitiesForMatchingFarms(savedActivity, createdBy);
+		}
+
 		// ========== RESPONSE ==========
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", savedActivity.getId());
@@ -205,14 +217,18 @@ public class ActivityService {
 		response.put("companyId", company.getId());
 		response.put("description", savedActivity.getDescription());
 		response.put("points", savedActivity.getPoints());
-		response.put("status", draftStatus.getCode());
+		response.put("status", status.getCode());
 		response.put("validFrom", savedActivity.getValidFrom());
 		response.put("validTo", savedActivity.getValidTo());
 		response.put("cropTypesCount", dto.getCropTypeIds().size());
 		response.put("rewardId", savedReward.getId());
 		response.put("thumbnailUrl", savedActivity.getThumbnailUrl());
 		response.put("thumbnailGsutilUri", savedActivity.getThumbnailGsutilUri());
-		response.put("message", "Atividade em status 'draft'. Valide e envie com a API de send.");
+		if (isSendNow) {
+			response.put("message", "Atividade criada e enviada com sucesso!");
+		} else {
+			response.put("message", "Atividade criada como 'draft'. Valide e envie posteriormente.");
+		}
 
 		return response;
 	}
@@ -220,31 +236,31 @@ public class ActivityService {
 	@Transactional
 	public Map<String, Object> sendActivity(Integer activityId, Integer sentBy) {
 
-	    Activity activity = activityRepository.findById(activityId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		Activity activity = activityRepository.findById(activityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-	    if (!"draft".equals(activity.getActivityStatus().getCode())) {
-	        throw new BusinessException("Apenas atividades em draft podem ser enviadas");
-	    }
+		if (!"draft".equals(activity.getActivityStatus().getCode())) {
+			throw new BusinessException("Apenas atividades em draft podem ser enviadas");
+		}
 
-	    ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
-	            .orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
+		ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
+				.orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
 
-	    activity.setActivityStatus(sendStatus);
-	    activity.setUpdatedAt(LocalDateTime.now());
-	    activity.setUpdatedBy(sentBy);
+		activity.setActivityStatus(sendStatus);
+		activity.setUpdatedAt(LocalDateTime.now());
+		activity.setUpdatedBy(sentBy);
 
-	    Activity savedActivity = activityRepository.save(activity);
+		Activity savedActivity = activityRepository.save(activity);
 
-	    // ===== NOVO FAN-OUT =====
-	    createUserActivitiesForMatchingFarms(savedActivity, sentBy);
+		// ===== NOVO FAN-OUT =====
+		createUserActivitiesForMatchingFarms(savedActivity, sentBy);
 
-	    Map<String, Object> response = new HashMap<>();
-	    response.put("id", savedActivity.getId());
-	    response.put("status", sendStatus.getCode());
-	    response.put("message", "Atividade enviada para os producers!");
+		Map<String, Object> response = new HashMap<>();
+		response.put("id", savedActivity.getId());
+		response.put("status", sendStatus.getCode());
+		response.put("message", "Atividade enviada para os producers!");
 
-	    return response;
+		return response;
 	}
 
 	/**
@@ -253,66 +269,62 @@ public class ActivityService {
 	 */
 	private void createUserActivitiesForMatchingFarms(Activity activity, Integer createdBy) {
 
-	    UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
-	            .orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
+		UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
+				.orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
 
-	    User userCreatedBy = userRepository.findById(createdBy)
-	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+		User userCreatedBy = userRepository.findById(createdBy)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-	    Company company = activity.getCompany();
+		Company company = activity.getCompany();
 
-	    // 1. Buscar todos os cropTypeIds da atividade
-	    List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
-	            .map(act -> act.getCropType().getId())
-	            .toList();
+		// 1. Buscar todos os cropTypeIds da atividade
+		List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
+				.map(act -> act.getCropType().getId()).toList();
 
-	    // 2. Buscar todas as farms da empresa (como era antes)
-	    List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
+		// 2. Buscar todas as farms da empresa (como era antes)
+		List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
 
-	    for (Farm farm : companyFarms) {
-	        // 3. Crops da farm
-	        List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
+		for (Farm farm : companyFarms) {
+			// 3. Crops da farm
+			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
 
-	        boolean hasCrop = farmCrops.stream()
-	                .anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
+			boolean hasCrop = farmCrops.stream().anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
 
-	        if (!hasCrop) {
-	            continue;
-	        }
+			if (!hasCrop) {
+				continue;
+			}
 
-	        // 4. Buscar UFs compatíveis com os crops da activity
-	        List<ProductionUnit> units =
-	                productionUnitRepository.findByFarmAndCropTypesCompatible(
-	                        farm.getId(), activityCropTypeIds);
+			// 4. Buscar UFs compatíveis com os crops da activity
+			List<ProductionUnit> units = productionUnitRepository.findByFarmAndCropTypesCompatible(farm.getId(),
+					activityCropTypeIds);
 
-	        if (units.isEmpty()) {
-	            // Se não tiver UFs compatíveis, mantém o comportamento antigo:
-	            // cria uma UserActivity "por farm" sem UP
-	            UserActivity userActivity = new UserActivity();
-	            userActivity.setActivity(activity);
-	            userActivity.setUser(farm.getOwner());
-	            userActivity.setFarm(farm);
-	            userActivity.setStatus(pendingStatus);
-	            userActivity.setCreatedAt(LocalDateTime.now());
-	            userActivity.setCreatedBy(userCreatedBy);
-	            userActivityRepository.save(userActivity);
-	        } else {
-	            // Para cada UP compatível, cria UserActivity com productionUnit
-	            for (ProductionUnit pu : units) {
-	                UserActivity userActivity = new UserActivity();
-	                userActivity.setActivity(activity);
-	                userActivity.setUser(farm.getOwner());
-	                userActivity.setFarm(farm);
-	                userActivity.setProductionUnit(pu);
-	                userActivity.setStatus(pendingStatus);
-	                userActivity.setCreatedAt(LocalDateTime.now());
-	                userActivity.setCreatedBy(userCreatedBy);
-	                userActivityRepository.save(userActivity);
-	            }
-	        }
-	    }
+			if (units.isEmpty()) {
+				// Se não tiver UFs compatíveis, mantém o comportamento antigo:
+				// cria uma UserActivity "por farm" sem UP
+				UserActivity userActivity = new UserActivity();
+				userActivity.setActivity(activity);
+				userActivity.setUser(farm.getOwner());
+				userActivity.setFarm(farm);
+				userActivity.setStatus(pendingStatus);
+				userActivity.setCreatedAt(LocalDateTime.now());
+				userActivity.setCreatedBy(userCreatedBy);
+				userActivityRepository.save(userActivity);
+			} else {
+				// Para cada UP compatível, cria UserActivity com productionUnit
+				for (ProductionUnit pu : units) {
+					UserActivity userActivity = new UserActivity();
+					userActivity.setActivity(activity);
+					userActivity.setUser(farm.getOwner());
+					userActivity.setFarm(farm);
+					userActivity.setProductionUnit(pu);
+					userActivity.setStatus(pendingStatus);
+					userActivity.setCreatedAt(LocalDateTime.now());
+					userActivity.setCreatedBy(userCreatedBy);
+					userActivityRepository.save(userActivity);
+				}
+			}
+		}
 	}
-
 
 	@Transactional
 	public Map<String, Object> updateActivity(Integer activityId, CreateActivityDTO dto, Integer updatedBy) {

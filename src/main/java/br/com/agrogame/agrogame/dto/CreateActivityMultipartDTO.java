@@ -19,6 +19,8 @@ public class CreateActivityMultipartDTO {
 	
 	private List<Integer> farmIds;
     private List<Integer> productionUnitIds;
+    
+    private Boolean sendNow = false; 
 
 	public String getDescription() {
 		return description;
@@ -90,6 +92,14 @@ public class CreateActivityMultipartDTO {
 
 	public void setProductionUnitIds(List<Integer> productionUnitIds) {
 		this.productionUnitIds = productionUnitIds;
+	}
+
+	public Boolean getSendNow() {
+		return sendNow;
+	}
+
+	public void setSendNow(Boolean sendNow) {
+		this.sendNow = sendNow;
 	}
 
 }
