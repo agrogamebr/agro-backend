@@ -32,16 +32,27 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			FROM Activity a
 			LEFT JOIN a.activityCropTypes actCrop
 			LEFT JOIN FarmCrop fc ON fc.cropType.id = actCrop.cropType.id
+			LEFT JOIN ActivityDraft ad ON ad.activity.id = a.id
+			LEFT JOIN UserActivity ua ON ua.activity.id = a.id
 			WHERE a.company.id = :companyId
 			  AND (:statusCode IS NULL OR LOWER(a.activityStatus.code) = :statusCode)
-			  AND (:cropTypeId IS NULL OR actCrop.cropType.id = :cropTypeId)
-			  AND (:farmId IS NULL OR fc.farm.id = :farmId)
+			  AND (COALESCE(:cropTypeIds, NULL) IS NULL OR actCrop.cropType.id IN (:cropTypeIds))
+			  AND (COALESCE(:farmIds, NULL) IS NULL OR (
+			       fc.farm.id IN (:farmIds) OR
+			       ad.farm.id IN (:farmIds) OR
+			       ua.farm.id IN (:farmIds)
+			  ))
+			  AND (COALESCE(:productionUnitIds, NULL) IS NULL OR (
+			       ad.productionUnit.id IN (:productionUnitIds) OR
+			       ua.productionUnit.id IN (:productionUnitIds)
+			  ))
 			  AND (cast(:startDate as date) IS NULL OR a.validTo   >= :startDate)
 			  AND (cast(:endDate   as date) IS NULL OR a.validFrom <= :endDate)
 			""")
 	Page<Activity> findWithFilters(@Param("companyId") Integer companyId, @Param("statusCode") String statusCode,
-			@Param("cropTypeId") Integer cropTypeId, @Param("farmId") Integer farmId,
-			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
+			@Param("cropTypeIds") List<Integer> cropTypeIds, @Param("farmIds") List<Integer> farmIds,
+			@Param("productionUnitIds") List<Integer> productionUnitIds, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate, Pageable pageable);
 
 	@Query(value = """
 			    SELECT
@@ -72,44 +83,44 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
 	@Query(value = """
-		    SELECT
-		        a.id                  AS id,
-		        a.name                AS name,
-		        a.company_id          AS companyId,
-		        a.description         AS description,
-		        a.points              AS points,
-		        s.code                AS status,
-		        a.valid_from          AS validFrom,
-		        a.valid_to            AS validTo,
-		        ua.id                 AS userActivityId,
-		        uas.code              AS userActivityStatus,
-		        ua.farm_id            AS userActivityFarmId,
-		        a.thumbnail_url        AS thumbnailUrl,
-		        a.thumbnail_gsutil_uri  AS thumbnailGsutilUri
-		    FROM activities a
-		    JOIN activity_statuses s
-		          ON s.id = a.activity_status_id
-		    LEFT JOIN user_activities ua
-		           ON ua.activity_id = a.id
-		          AND ua.user_id     = :producerId
-		          AND ua.farm_id     IN (:farmIds)
-		    LEFT JOIN user_activity_statuses uas
-		           ON uas.id = ua.status_id
-		    WHERE a.company_id = :companyId
-		      AND a.activity_status_id = 3 
-		      AND (:status IS NULL OR uas.code = :status) 
-		      AND (:startDate IS NULL OR a.valid_from >= :startDate)
-		      AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
-		      AND (
-		            :cropTypeId IS NULL
-		         OR EXISTS (
-		                SELECT 1
-		                FROM activity_crop_types act
-		                WHERE act.activity_id = a.id
-		                  AND act.crop_type_id = :cropTypeId
-		            )
-		      )
-		""", nativeQuery = true)
+			    SELECT
+			        a.id                  AS id,
+			        a.name                AS name,
+			        a.company_id          AS companyId,
+			        a.description         AS description,
+			        a.points              AS points,
+			        s.code                AS status,
+			        a.valid_from          AS validFrom,
+			        a.valid_to            AS validTo,
+			        ua.id                 AS userActivityId,
+			        uas.code              AS userActivityStatus,
+			        ua.farm_id            AS userActivityFarmId,
+			        a.thumbnail_url        AS thumbnailUrl,
+			        a.thumbnail_gsutil_uri  AS thumbnailGsutilUri
+			    FROM activities a
+			    JOIN activity_statuses s
+			          ON s.id = a.activity_status_id
+			    LEFT JOIN user_activities ua
+			           ON ua.activity_id = a.id
+			          AND ua.user_id     = :producerId
+			          AND ua.farm_id     IN (:farmIds)
+			    LEFT JOIN user_activity_statuses uas
+			           ON uas.id = ua.status_id
+			    WHERE a.company_id = :companyId
+			      AND a.activity_status_id = 3
+			      AND (:status IS NULL OR uas.code = :status)
+			      AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			      AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			      AND (
+			            :cropTypeId IS NULL
+			         OR EXISTS (
+			                SELECT 1
+			                FROM activity_crop_types act
+			                WHERE act.activity_id = a.id
+			                  AND act.crop_type_id = :cropTypeId
+			            )
+			      )
+			""", nativeQuery = true)
 	List<ActivityWithUserActivityProjection> listActivitiesWithUserActivityForFarms(
 			@Param("companyId") Integer companyId, @Param("producerId") Integer producerId,
 			@Param("farmIds") List<Integer> farmIds, @Param("status") String status,

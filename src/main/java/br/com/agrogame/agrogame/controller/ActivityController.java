@@ -62,29 +62,33 @@ public class ActivityController {
 	}
 
 	@GetMapping("/list")
-	public ResponseEntity<Map<String, Object>> listActivities(@RequestParam(required = false) String status,
-			@RequestParam(required = false, name = "cropType") Integer cropType,
-			@RequestParam(required = false, name = "farmId") Integer farmId,
-			@RequestParam(required = false, name = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(required = false, name = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
-			Principal principal) {
+	public ResponseEntity<Map<String, Object>> listActivities(
+	        @RequestParam(required = false) String status,
+	        @RequestParam(required = false) List<Integer> cropTypeIds, // Mudou para List
+	        @RequestParam(required = false) List<Integer> farmIds,     // Mudou para List
+	        @RequestParam(required = false) List<Integer> productionUnitIds, // Novo filtro
+	        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+	        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+	        @RequestParam(defaultValue = "0") int page,
+	        @RequestParam(defaultValue = "20") int size,
+	        Principal principal) {
 
-		Integer companyId = userRepository.findByEmail1(principal.getName())
-				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
+	    Integer companyId = userRepository.findByEmail1(principal.getName())
+	            .orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
 
-		Page<ActivityListDTO> activitiesPage = service.listActivities(companyId, status, cropType, farmId, startDate,
-				endDate, page, size);
+	    Page<ActivityListDTO> activitiesPage = service.listActivities(
+	            companyId, status, cropTypeIds, farmIds, productionUnitIds, startDate, endDate, page, size);
 
-		Map<String, Object> response = new HashMap<>();
-		response.put("activities", activitiesPage.getContent());
-		response.put("page", activitiesPage.getNumber());
-		response.put("size", activitiesPage.getSize());
-		response.put("totalElements", activitiesPage.getTotalElements());
-		response.put("totalPages", activitiesPage.getTotalPages());
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("activities", activitiesPage.getContent());
+	    response.put("page", activitiesPage.getNumber());
+	    response.put("size", activitiesPage.getSize());
+	    response.put("totalElements", activitiesPage.getTotalElements());
+	    response.put("totalPages", activitiesPage.getTotalPages());
 
-		return ResponseEntity.ok(response);
+	    return ResponseEntity.ok(response);
 	}
+
 
 	@PostMapping(value = "/create-activity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, Object>> createActivity(
