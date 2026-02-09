@@ -24,6 +24,7 @@ import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.model.ActivityCropType;
+import br.com.agrogame.agrogame.model.ActivityDraft;
 import br.com.agrogame.agrogame.model.ActivityReward;
 import br.com.agrogame.agrogame.model.ActivityStatus;
 import br.com.agrogame.agrogame.model.Company;
@@ -37,6 +38,7 @@ import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.model.UserActivity;
 import br.com.agrogame.agrogame.model.UserActivityStatus;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
+import br.com.agrogame.agrogame.repository.ActivityDraftRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
 import br.com.agrogame.agrogame.repository.ActivityStatusRepository;
@@ -71,6 +73,7 @@ public class ActivityService {
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
 	private final ProductionUnitRepository productionUnitRepository;
+	private final ActivityDraftRepository activityDraftRepository;
 
 	private static final long MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -80,7 +83,8 @@ public class ActivityService {
 			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository,
 			UserActivityRepository userActivityRepository, UserActivityStatusRepository userActivityStatusRepository,
 			FarmRepository farmRepository, FarmCropRepository farmCropRepository, UserRepository userRepository,
-			FileStorageService fileStorageService, ProductionUnitRepository productionUnitRepository) {
+			FileStorageService fileStorageService, ProductionUnitRepository productionUnitRepository,
+			ActivityDraftRepository activityDraftRepository) {
 		this.activityRepository = activityRepository;
 		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
@@ -96,6 +100,7 @@ public class ActivityService {
 		this.userRepository = userRepository;
 		this.fileStorageService = fileStorageService;
 		this.productionUnitRepository = productionUnitRepository;
+		this.activityDraftRepository = activityDraftRepository;
 	}
 
 	@Transactional
@@ -106,39 +111,41 @@ public class ActivityService {
 		String statusCode = isSendNow ? "send" : "draft";
 
 		ActivityStatus status = activityStatusRepository.findByCode(statusCode)
-				.orElseThrow(() -> new BusinessException("Status 'draft' não configurado"));
+				.orElseThrow(() -> new BusinessException("Status '" + statusCode + "' não configurado"));
 
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
 			throw new BusinessException("Data inicial não pode ser maior que a data final");
 		}
 
-		// ========== VALIDAR SE EMPRESA TEM PRODUTORES COM ESSES CROPS ==========
+		// ========== VALIDAÇÕES GERAIS (Empresa, Crops) ==========
 		validateCompanyHasCropTypes(company, dto.getCropTypeIds());
 
-		List<Farm> farms;
+		// ========== RESOLVER QUAIS FARMS SERÃO O ALVO ==========
+		List<Farm> targetFarms;
+		boolean farmsExplicitlySelected = (dto.getFarmIds() != null && !dto.getFarmIds().isEmpty());
 
-		if (dto.getFarmIds() == null || dto.getFarmIds().isEmpty()) {
-			// Caso 1 – só cultura: todas as farms da empresa que tenham esses crops
-			farms = farmRepository.findByCompanyIdAndCropTypes(company.getId(), dto.getCropTypeIds());
-			if (farms.isEmpty()) {
+		if (!farmsExplicitlySelected) {
+			// Caso Genérico: Todas as farms da empresa que tenham esses crops
+			targetFarms = farmRepository.findByCompanyIdAndCropTypes(company.getId(), dto.getCropTypeIds());
+			if (targetFarms.isEmpty()) {
 				throw new BusinessException("Nenhuma fazenda da empresa possui as culturas selecionadas.");
 			}
 		} else {
-			// Cultura + fazendas selecionadas
-			farms = farmRepository.findByIdInAndCompanyIdAndIsActiveTrue(dto.getFarmIds(), company.getId());
-			if (farms.size() != dto.getFarmIds().size()) {
+			// Caso Específico: Apenas as farms selecionadas
+			targetFarms = farmRepository.findByIdInAndCompanyIdAndIsActiveTrue(dto.getFarmIds(), company.getId());
+			if (targetFarms.size() != dto.getFarmIds().size()) {
 				throw new BusinessException("Uma ou mais fazendas não pertencem à empresa ou estão inativas.");
 			}
 		}
 
+		// ========== VALIDAÇÃO DE PRODUCTION UNITS (SE HOUVER) ==========
 		List<Integer> productionUnitIds = dto.getProductionUnitIds();
-
 		if (productionUnitIds != null && !productionUnitIds.isEmpty()) {
-			validateProductionUnitsBelongToFarmsAndCrops(productionUnitIds, farms.stream().map(Farm::getId).toList(),
-					dto.getCropTypeIds(), company.getId());
+			validateProductionUnitsBelongToFarmsAndCrops(productionUnitIds,
+					targetFarms.stream().map(Farm::getId).toList(), dto.getCropTypeIds(), company.getId());
 		}
 
-		// ========== CRIAR ACTIVITY ==========
+		// ========== CRIAR/SALVAR ACTIVITY ==========
 		Activity activity = new Activity();
 		activity.setCompany(company);
 		activity.setDescription(dto.getDescription());
@@ -160,7 +167,6 @@ public class ActivityService {
 			StoredFileInfo stored = fileStorageService.uploadFile(dto.getThumbnail());
 			activity.setThumbnailUrl(stored.getFileUrl());
 			activity.setThumbnailGsutilUri(stored.getGsutilUri());
-
 		}
 
 		Activity savedActivity = activityRepository.save(activity);
@@ -168,15 +174,14 @@ public class ActivityService {
 		// ========== VINCULAR CROP TYPES ==========
 		for (Integer cropTypeId : dto.getCropTypeIds()) {
 			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
+					.orElseThrow(() -> new ResourceNotFoundException("CropType " + cropTypeId + " não encontrado"));
 
-			ActivityCropType activityCropType = new ActivityCropType();
-			activityCropType.setActivity(savedActivity);
-			activityCropType.setCropType(cropType);
-			activityCropType.setCreatedAt(LocalDateTime.now());
-			activityCropType.setCreatedBy(createdBy);
-
-			activityCropTypeRepository.save(activityCropType);
+			ActivityCropType act = new ActivityCropType();
+			act.setActivity(savedActivity);
+			act.setCropType(cropType);
+			act.setCreatedAt(LocalDateTime.now());
+			act.setCreatedBy(createdBy);
+			activityCropTypeRepository.save(act);
 		}
 
 		// ========== CRIAR REWARD ==========
@@ -206,30 +211,26 @@ public class ActivityService {
 
 		activityRewardRepository.save(activityReward);
 
-		if (isSendNow) {
-			createUserActivitiesForMatchingFarms(savedActivity, createdBy);
+		// ========== LÓGICA DE DRAFT vs SEND ==========
+
+		if (!isSendNow) {
+			saveDraftSelections(savedActivity, targetFarms, productionUnitIds, dto.getCropTypeIds(), createdBy);
+		} else {
+			// SE É ENVIO IMEDIATO: Fan-out direto
+			createUserActivitiesForMatchingFarms(savedActivity, createdBy, targetFarms, productionUnitIds);
+
+			// (Opcional) Limpa drafts antigos se existirem
+			activityDraftRepository.deleteByActivityId(savedActivity.getId());
 		}
 
-		// ========== RESPONSE ==========
+		// ========== RESPOSTA ==========
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", savedActivity.getId());
-		response.put("name", savedActivity.getName());
-		response.put("companyId", company.getId());
-		response.put("description", savedActivity.getDescription());
-		response.put("points", savedActivity.getPoints());
 		response.put("status", status.getCode());
-		response.put("validFrom", savedActivity.getValidFrom());
-		response.put("validTo", savedActivity.getValidTo());
-		response.put("cropTypesCount", dto.getCropTypeIds().size());
-		response.put("rewardId", savedReward.getId());
+		response.put("message", isSendNow ? "Atividade criada e enviada com sucesso!"
+				: "Atividade criada como 'draft'. Valide e envie posteriormente.");
 		response.put("thumbnailUrl", savedActivity.getThumbnailUrl());
 		response.put("thumbnailGsutilUri", savedActivity.getThumbnailGsutilUri());
-		if (isSendNow) {
-			response.put("message", "Atividade criada e enviada com sucesso!");
-		} else {
-			response.put("message", "Atividade criada como 'draft'. Valide e envie posteriormente.");
-		}
-
 		return response;
 	}
 
@@ -243,31 +244,119 @@ public class ActivityService {
 			throw new BusinessException("Apenas atividades em draft podem ser enviadas");
 		}
 
+		// 1. Atualizar status
 		ActivityStatus sendStatus = activityStatusRepository.findByCode("send")
 				.orElseThrow(() -> new BusinessException("Status 'send' não configurado"));
 
 		activity.setActivityStatus(sendStatus);
 		activity.setUpdatedAt(LocalDateTime.now());
 		activity.setUpdatedBy(sentBy);
-
 		Activity savedActivity = activityRepository.save(activity);
 
-		// ===== NOVO FAN-OUT =====
-		createUserActivitiesForMatchingFarms(savedActivity, sentBy);
+		// 2. Recuperar as escolhas do Draft
+		List<ActivityDraft> drafts = activityDraftRepository.findByActivityId(activityId);
+
+		List<Farm> targetFarms;
+		List<Integer> targetUnitIds;
+
+		if (drafts.isEmpty()) {
+			// Fallback: Se não tem draft salvo, recalculamos o padrão "genérico"
+			List<Integer> cropTypeIds = activityCropTypeRepository.findByActivityId(activityId).stream()
+					.map(act -> act.getCropType().getId()).toList();
+			targetFarms = farmRepository.findByCompanyIdAndCropTypes(activity.getCompany().getId(), cropTypeIds);
+			targetUnitIds = null;
+		} else {
+			// Reconstrói as listas a partir do draft
+			targetFarms = drafts.stream().map(ActivityDraft::getFarm).distinct().toList();
+
+			targetUnitIds = drafts.stream().map(ActivityDraft::getProductionUnit).filter(java.util.Objects::nonNull)
+					.map(ProductionUnit::getId).distinct().toList();
+
+			if (targetUnitIds.isEmpty()) {
+				targetUnitIds = null;
+			}
+		}
+
+		// 3. Executar Fan-Out
+		createUserActivitiesForMatchingFarms(savedActivity, sentBy, targetFarms, targetUnitIds);
+
+		// 4. Limpar tabela de Draft
+		activityDraftRepository.deleteByActivityId(activityId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", savedActivity.getId());
-		response.put("status", sendStatus.getCode());
-		response.put("message", "Atividade enviada para os producers!");
-
+		response.put("status", "send");
+		response.put("message", "Atividade enviada e rascunho limpo!");
 		return response;
 	}
 
 	/**
-	 * Cria UserActivity para todas as farms da empresa que possuem um dos cropTypes
-	 * da atividade.
+	 * Salva as escolhas de Farm/UP/Crop na tabela de rascunho. Cria uma linha para
+	 * cada combinação (Cartesiano: Farm x UP x Crop).
 	 */
-	private void createUserActivitiesForMatchingFarms(Activity activity, Integer createdBy) {
+	private void saveDraftSelections(Activity activity, List<Farm> farms, List<Integer> productionUnitIds,
+			List<Integer> cropTypeIds, // <--- NOVO PARÂMETRO
+			Integer userId) {
+
+		// Limpa rascunho anterior
+		activityDraftRepository.deleteByActivityId(activity.getId());
+
+		boolean hasSpecificUnits = (productionUnitIds != null && !productionUnitIds.isEmpty());
+
+		// Carregar os objetos CropType para poder salvar (evita query dentro do loop se
+		// possível)
+		List<CropType> selectedCrops = cropTypeRepository.findAllById(cropTypeIds);
+
+		for (Farm farm : farms) {
+
+			// Descobre quais UPs salvar para essa fazenda
+			List<ProductionUnit> targetUnitsForFarm;
+
+			if (hasSpecificUnits) {
+				// Se tem UPs selecionadas, filtra as que são desta fazenda
+				List<ProductionUnit> specificUnits = productionUnitRepository.findByIdInAndFarmId(productionUnitIds,
+						farm.getId());
+
+				if (specificUnits.isEmpty()) {
+					// Selecionou UPs, mas nenhuma é desta fazenda.
+					// Regra: Salva a fazenda "genérica" (sem UP específica) ou pula?
+					// Vamos assumir "genérica" (null) para garantir que a fazenda receba.
+					targetUnitsForFarm = java.util.Collections.singletonList(null);
+				} else {
+					targetUnitsForFarm = specificUnits;
+				}
+			} else {
+				// Nenhuma UP selecionada -> Salva "null" (representando toda a fazenda)
+				targetUnitsForFarm = java.util.Collections.singletonList(null);
+			}
+
+			// AGORA O LOOP DE CROPS (Multiplica as linhas)
+			for (CropType crop : selectedCrops) {
+				for (ProductionUnit pu : targetUnitsForFarm) {
+					createAndSaveDraft(activity, farm, pu, crop, userId);
+				}
+			}
+		}
+	}
+
+	private void createAndSaveDraft(Activity activity, Farm farm, ProductionUnit pu, CropType crop, Integer userId) {
+		ActivityDraft draft = new ActivityDraft();
+		draft.setActivity(activity);
+		draft.setFarm(farm);
+		draft.setProductionUnit(pu);
+		draft.setCropType(crop);
+		draft.setUserId(userId);
+		draft.setCreatedAt(LocalDateTime.now());
+		draft.setCreatedBy(userId);
+
+		activityDraftRepository.save(draft);
+	}
+
+	/**
+	 * Cria UserActivity para farms/units compatíveis.
+	 */
+	private void createUserActivitiesForMatchingFarms(Activity activity, Integer createdBy, List<Farm> targetFarms,
+			List<Integer> productionUnitIds) {
 
 		UserActivityStatus pendingStatus = userActivityStatusRepository.findByCode("pending")
 				.orElseThrow(() -> new BusinessException("Status 'pending' não configurado"));
@@ -277,50 +366,74 @@ public class ActivityService {
 
 		Company company = activity.getCompany();
 
-		// 1. Buscar todos os cropTypeIds da atividade
 		List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
 				.map(act -> act.getCropType().getId()).toList();
 
-		// 2. Buscar todas as farms da empresa (como era antes)
-		List<Farm> companyFarms = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
+		boolean hasSpecificUnits = productionUnitIds != null && !productionUnitIds.isEmpty();
 
-		for (Farm farm : companyFarms) {
-			// 3. Crops da farm
+		List<Farm> farmsToProcess;
+		if (targetFarms != null && !targetFarms.isEmpty()) {
+			farmsToProcess = targetFarms;
+		} else {
+			farmsToProcess = farmRepository.findByCompanyIdAndIsActiveTrue(company.getId());
+		}
+
+		for (Farm farm : farmsToProcess) {
 			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
-
 			boolean hasCrop = farmCrops.stream().anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
 
 			if (!hasCrop) {
 				continue;
 			}
 
-			// 4. Buscar UFs compatíveis com os crops da activity
-			List<ProductionUnit> units = productionUnitRepository.findByFarmAndCropTypesCompatible(farm.getId(),
-					activityCropTypeIds);
+			if (hasSpecificUnits) {
+				// Units desta farm que estão na lista e são compatíveis
+				List<ProductionUnit> unitsForThisFarm = productionUnitRepository
+						.findByIdInAndFarmIdAndCropTypesCompatible(productionUnitIds, farm.getId(),
+								activityCropTypeIds);
 
-			if (units.isEmpty()) {
-				// Se não tiver UFs compatíveis, mantém o comportamento antigo:
-				// cria uma UserActivity "por farm" sem UP
-				UserActivity userActivity = new UserActivity();
-				userActivity.setActivity(activity);
-				userActivity.setUser(farm.getOwner());
-				userActivity.setFarm(farm);
-				userActivity.setStatus(pendingStatus);
-				userActivity.setCreatedAt(LocalDateTime.now());
-				userActivity.setCreatedBy(userCreatedBy);
-				userActivityRepository.save(userActivity);
+				if (unitsForThisFarm.isEmpty()) {
+					continue; // Se não tem UP compatível selecionada nesta farm, pula
+				}
+
+				for (ProductionUnit pu : unitsForThisFarm) {
+					UserActivity ua = new UserActivity();
+					ua.setActivity(activity);
+					ua.setUser(farm.getOwner());
+					ua.setFarm(farm);
+					ua.setProductionUnit(pu);
+					ua.setStatus(pendingStatus);
+					ua.setCreatedAt(LocalDateTime.now());
+					ua.setCreatedBy(userCreatedBy);
+					userActivityRepository.save(ua);
+				}
+
 			} else {
-				// Para cada UP compatível, cria UserActivity com productionUnit
-				for (ProductionUnit pu : units) {
-					UserActivity userActivity = new UserActivity();
-					userActivity.setActivity(activity);
-					userActivity.setUser(farm.getOwner());
-					userActivity.setFarm(farm);
-					userActivity.setProductionUnit(pu);
-					userActivity.setStatus(pendingStatus);
-					userActivity.setCreatedAt(LocalDateTime.now());
-					userActivity.setCreatedBy(userCreatedBy);
-					userActivityRepository.save(userActivity);
+				// Sem UP específica (comportamento padrão)
+				List<ProductionUnit> units = productionUnitRepository.findByFarmAndCropTypesCompatible(farm.getId(),
+						activityCropTypeIds);
+
+				if (units.isEmpty()) {
+					UserActivity ua = new UserActivity();
+					ua.setActivity(activity);
+					ua.setUser(farm.getOwner());
+					ua.setFarm(farm);
+					ua.setStatus(pendingStatus);
+					ua.setCreatedAt(LocalDateTime.now());
+					ua.setCreatedBy(userCreatedBy);
+					userActivityRepository.save(ua);
+				} else {
+					for (ProductionUnit pu : units) {
+						UserActivity ua = new UserActivity();
+						ua.setActivity(activity);
+						ua.setUser(farm.getOwner());
+						ua.setFarm(farm);
+						ua.setProductionUnit(pu);
+						ua.setStatus(pendingStatus);
+						ua.setCreatedAt(LocalDateTime.now());
+						ua.setCreatedBy(userCreatedBy);
+						userActivityRepository.save(ua);
+					}
 				}
 			}
 		}
@@ -375,13 +488,9 @@ public class ActivityService {
 			activityCropTypeRepository.save(activityCropType);
 		}
 
-		// 7. Atualizar reward e activity_rewards para manter pontos/validade
-		// sincronizados
-
+		// 7. Atualizar rewards
 		List<ActivityReward> rewards = activityRewardRepository.findByActivityId(activityId);
 		for (ActivityReward ar : rewards) {
-
-			// Atualizar Reward (tabela rewards)
 			Reward reward = ar.getReward();
 			reward.setPointsGain(dto.getPoints());
 			reward.setValidFrom(dto.getValidFrom());
@@ -390,26 +499,26 @@ public class ActivityService {
 			reward.setUpdatedBy(updatedBy);
 			rewardRepository.save(reward);
 
-			// Atualizar ActivityReward (tabela activity_rewards)
 			ar.setPointsGain(dto.getPoints());
 			ar.setCreatedAt(ar.getCreatedAt() != null ? ar.getCreatedAt() : LocalDateTime.now());
 			activityRewardRepository.save(ar);
 		}
 
-		// 8. Montar resposta
+		// 8. Se for draft, atualizar também a tabela activity_draft (caso o update mude
+		// farms/UPs)
+		// Se o seu CreateActivityDTO tiver farmIds e productionUnitIds, adicione a
+		// lógica aqui.
+		// Se o DTO não tiver, você perde essa atualização no draft.
+		// Vou deixar comentado como sugestão:
+		/*
+		 * if (dto.getFarmIds() != null) { // se vier no DTO de update // Recalcular
+		 * farms e UPs igual no register // saveDraftSelections(savedActivity, newFarms,
+		 * newProductionUnits, updatedBy); }
+		 */
+
 		Map<String, Object> response = new HashMap<>();
 		response.put("id", savedActivity.getId());
-		response.put("companyId", company.getId());
-		response.put("description", savedActivity.getDescription());
-		response.put("points", savedActivity.getPoints());
-		response.put("status", savedActivity.getActivityStatus().getCode());
-		response.put("validFrom", savedActivity.getValidFrom());
-		response.put("validTo", savedActivity.getValidTo());
-		response.put("cropTypesCount", dto.getCropTypeIds().size());
 		response.put("message", "Atividade atualizada com sucesso!");
-		response.put("thumbnailUrl", savedActivity.getThumbnailUrl());
-		response.put("thumbnailGsutilUri", savedActivity.getThumbnailGsutilUri());
-
 		return response;
 	}
 
@@ -457,28 +566,21 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Page<ActivityListDTO> listActivities(Integer companyId, String statusCode, Integer cropTypeId,
-			Integer farmId, LocalDate startDate, LocalDate endDate, int page, int size) {
+	public Page<ActivityListDTO> listActivities(Integer companyId, String statusCode, List<Integer> cropTypeIds, // List
+			List<Integer> farmIds,
+			List<Integer> productionUnitIds,
+			LocalDate startDate, LocalDate endDate, int page, int size) {
 
-		boolean hasStatus = statusCode != null && !statusCode.isBlank();
-		boolean hasCropType = cropTypeId != null;
-		boolean hasFarm = farmId != null;
-		boolean hasStart = startDate != null;
-		boolean hasEnd = endDate != null;
+		String normalizedStatus = (statusCode != null && !statusCode.isBlank()) ? statusCode.toLowerCase() : null;
 
-		String normalizedStatus = hasStatus ? statusCode.toLowerCase() : null;
+		List<Integer> crops = (cropTypeIds != null && !cropTypeIds.isEmpty()) ? cropTypeIds : null;
+		List<Integer> farms = (farmIds != null && !farmIds.isEmpty()) ? farmIds : null;
+		List<Integer> units = (productionUnitIds != null && !productionUnitIds.isEmpty()) ? productionUnitIds : null;
 
 		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "validFrom"));
 
-		Page<Activity> activitiesPage;
-
-		if (hasStatus || hasCropType || hasFarm || hasStart || hasEnd) {
-			activitiesPage = activityRepository.findWithFilters(companyId, normalizedStatus,
-					hasCropType ? cropTypeId : null, hasFarm ? farmId : null, hasStart ? startDate : null,
-					hasEnd ? endDate : null, pageable);
-		} else {
-			activitiesPage = activityRepository.findByCompanyId(companyId, pageable);
-		}
+		Page<Activity> activitiesPage = activityRepository.findWithFilters(companyId, normalizedStatus, crops, farms,
+				units, startDate, endDate, pageable);
 
 		return activitiesPage.map(this::toActivityListDTO);
 	}
