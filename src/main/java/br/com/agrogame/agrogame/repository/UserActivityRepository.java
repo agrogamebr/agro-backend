@@ -3,6 +3,8 @@ package br.com.agrogame.agrogame.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,22 +20,21 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	Optional<UserActivity> findByUserAndActivityAndFarm(@Param("userId") Integer userId,
 			@Param("activityId") Integer activityId, @Param("farmId") Integer farmId);
 
-	// Listar user_activities com status "submitted" de uma empresa
 	@Query("""
-			    SELECT ua FROM UserActivity ua
-			    WHERE ua.activity.company.id = :companyId
-			    AND ua.status.code = 'submitted'
-			    ORDER BY ua.createdAt DESC
+			    SELECT ua
+			      FROM UserActivity ua
+			     WHERE ua.activity.company.id = :companyId
+			       AND ua.status.code = 'submitted'
+			     ORDER BY ua.createdAt DESC
 			""")
-	List<UserActivity> findSubmittedByCompanyId(@Param("companyId") Integer companyId);
+	Page<UserActivity> findSubmittedByCompanyId(@Param("companyId") Integer companyId, Pageable pageable);
 
 	// Alternativa com Specification (mais flexível para filtros futuros)
 	List<UserActivity> findAll(Specification<UserActivity> spec);
-	
+
 	@Modifying
 	@Query("UPDATE UserActivity ua SET ua.status.id = 5 " + // 5 = Cancelada
-	       "WHERE ua.farm.id = :farmId " +
-	       "AND ua.status.id IN (1, 2)") // Só cancela Pendente(1) ou Enviada(2).
+			"WHERE ua.farm.id = :farmId " + "AND ua.status.id IN (1, 2)") // Só cancela Pendente(1) ou Enviada(2).
 	void cancelActivitiesByFarm(@Param("farmId") Integer farmId);
 
 	@Modifying
