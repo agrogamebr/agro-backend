@@ -1,10 +1,12 @@
 package br.com.agrogame.agrogame.controller;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,16 +15,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
+import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.UserRepository;
-import br.com.agrogame.agrogame.service.ActivityApprovalService;
+import br.com.agrogame.agrogame.service.BackofficeActivityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -33,13 +37,14 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/backoffice/activities")
 @Tag(name = "Backoffice Activities", description = "Endpoints para aprovação de atividades no backoffice")
-public class ActivityApprovalController {
+public class BackofficeActivityController {
 
-	private final ActivityApprovalService activityApprovalService;
+	private final BackofficeActivityService backofficeActivityService;
 	private final UserRepository userRepository;
 
-	public ActivityApprovalController(ActivityApprovalService activityApprovalService, UserRepository userRepository) {
-		this.activityApprovalService = activityApprovalService;
+	public BackofficeActivityController(BackofficeActivityService activityApprovalService,
+			UserRepository userRepository) {
+		this.backofficeActivityService = activityApprovalService;
 		this.userRepository = userRepository;
 	}
 
@@ -61,23 +66,26 @@ public class ActivityApprovalController {
 			@ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
 			@ApiResponse(responseCode = "500", description = "Erro interno ao listar atividades") })
 	@GetMapping("/submissions")
-	public ResponseEntity<Map<String, Object>> listSubmittedActivities(Principal principal) {
+	public ResponseEntity<Map<String, Object>> listSubmittedActivities(@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size, Principal principal) {
 
-		// 1. Buscar usuário autenticado
-		Integer backofficeUserId = userRepository.findByEmail1(principal.getName())
-				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
+		User backofficeUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		// 2. Chamar service
-		List<BackofficeSubmissionListDTO> submissions = activityApprovalService
-				.listSubmittedActivities(backofficeUserId);
+		Integer backofficeUserId = backofficeUser.getId();
 
-		// 3. Retornar resposta formatada
+		Page<BackofficeSubmissionListDTO> submissionsPage = backofficeActivityService
+				.listSubmittedActivities(backofficeUserId, page, size);
+
 		Map<String, Object> response = new HashMap<>();
 		response.put("success", true);
-		response.put("submissions", submissions);
-		response.put("total", submissions.size());
-		response.put("message",
-				submissions.isEmpty() ? "Nenhuma atividade aguardando aprovação" : "Atividades carregadas com sucesso");
+		response.put("submissions", submissionsPage.getContent());
+		response.put("page", submissionsPage.getNumber());
+		response.put("size", submissionsPage.getSize());
+		response.put("totalElements", submissionsPage.getTotalElements());
+		response.put("totalPages", submissionsPage.getTotalPages());
+		response.put("message", submissionsPage.isEmpty() ? "Nenhuma atividade aguardando aprovação"
+				: "Atividades carregadas com sucesso");
 
 		return ResponseEntity.ok(response);
 	}
@@ -113,7 +121,7 @@ public class ActivityApprovalController {
 					.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
 			// 2. Processar decisão
-			ActivityDecisionResponseDTO result = activityApprovalService.makeDecision(userActivityId,
+			ActivityDecisionResponseDTO result = backofficeActivityService.makeDecision(userActivityId,
 					backofficeUser.getId(), decisionRequest);
 
 			// 3. Montar resposta
@@ -141,6 +149,35 @@ public class ActivityApprovalController {
 		errorResponse.put("success", false);
 		errorResponse.put("message", message);
 		return ResponseEntity.status(status).body(errorResponse);
+	}
+
+	@GetMapping("/list")
+	public ResponseEntity<Map<String, Object>> listCompanyActivities(@RequestParam(required = false) String status,
+			@RequestParam(required = false) String submissionStatus, @RequestParam(required = false) Integer cropTypeId,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer productionUnitId,
+			@RequestParam(required = false) Integer producerId,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+			Principal principal) {
+
+		User backofficeUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		Integer companyId = backofficeUser.getCompany().getId();
+
+		Page<BackofficeActivityListDTO> activitiesPage = backofficeActivityService.listActivitiesForBackoffice(
+				companyId, status, submissionStatus, producerId, farmId, productionUnitId, cropTypeId, startDate,
+				endDate, page, size);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("activities", activitiesPage.getContent());
+		response.put("page", activitiesPage.getNumber());
+		response.put("size", activitiesPage.getSize());
+		response.put("totalElements", activitiesPage.getTotalElements());
+		response.put("totalPages", activitiesPage.getTotalPages());
+
+		return ResponseEntity.ok(response);
 	}
 
 }

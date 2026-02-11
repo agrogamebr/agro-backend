@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import br.com.agrogame.agrogame.dto.ActivityWithUserActivityProjection;
+import br.com.agrogame.agrogame.dto.BackofficeActivityProjection;
 import br.com.agrogame.agrogame.model.Activity;
 import br.com.agrogame.agrogame.model.ActivityReward;
 
@@ -126,5 +127,79 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			@Param("farmIds") List<Integer> farmIds, @Param("status") String status,
 			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate,
 			@Param("cropTypeId") Integer cropTypeId);
+
+	@Query(value = """
+			SELECT
+			    a.id                   AS id,
+			    a.name                 AS name,
+			    a.company_id           AS companyId,
+			    a.description          AS description,
+			    a.points               AS points,
+			    s.code                 AS status,
+			    a.valid_from           AS validFrom,
+			    a.valid_to             AS validTo,
+			    ua.id                  AS userActivityId,
+			    uas.code               AS userActivityStatus,
+			    ua.user_id             AS userId,
+			    ua.farm_id             AS farmId,
+			    ua.production_unit_id  AS productionUnitId,
+			    a.thumbnail_url        AS thumbnailUrl,
+			    a.thumbnail_gsutil_uri AS thumbnailGsutilUri
+			FROM activities a
+			JOIN activity_statuses s
+			      ON s.id = a.activity_status_id
+			LEFT JOIN user_activities ua
+			       ON ua.activity_id = a.id
+			LEFT JOIN user_activity_statuses uas
+			       ON uas.id = ua.status_id
+			WHERE a.company_id = :companyId
+			  AND (:activityStatus IS NULL OR s.code = :activityStatus)
+			  AND (:userActivityStatus IS NULL OR uas.code = :userActivityStatus)
+			  AND (:producerId IS NULL OR ua.user_id = :producerId)
+			  AND (:farmId IS NULL OR ua.farm_id = :farmId)
+			  AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
+			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			  AND (
+			        :cropTypeId IS NULL
+			     OR EXISTS (
+			            SELECT 1
+			              FROM activity_crop_types act
+			             WHERE act.activity_id  = a.id
+			               AND act.crop_type_id = :cropTypeId
+			        )
+			  )
+			""", countQuery = """
+			SELECT COUNT(DISTINCT a.id)
+			FROM activities a
+			JOIN activity_statuses s
+			      ON s.id = a.activity_status_id
+			LEFT JOIN user_activities ua
+			       ON ua.activity_id = a.id
+			LEFT JOIN user_activity_statuses uas
+			       ON uas.id = ua.status_id
+			WHERE a.company_id = :companyId
+			  AND (:activityStatus IS NULL OR s.code = :activityStatus)
+			  AND (:userActivityStatus IS NULL OR uas.code = :userActivityStatus)
+			  AND (:producerId IS NULL OR ua.user_id = :producerId)
+			  AND (:farmId IS NULL OR ua.farm_id = :farmId)
+			  AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
+			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			  AND (
+			        :cropTypeId IS NULL
+			     OR EXISTS (
+			            SELECT 1
+			              FROM activity_crop_types act
+			             WHERE act.activity_id  = a.id
+			               AND act.crop_type_id = :cropTypeId
+			        )
+			  )
+			""", nativeQuery = true)
+	Page<BackofficeActivityProjection> findForBackoffice(@Param("companyId") Integer companyId,
+			@Param("activityStatus") String activityStatus, @Param("userActivityStatus") String userActivityStatus,
+			@Param("producerId") Integer producerId, @Param("farmId") Integer farmId,
+			@Param("productionUnitId") Integer productionUnitId, @Param("cropTypeId") Integer cropTypeId,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
 
 }
