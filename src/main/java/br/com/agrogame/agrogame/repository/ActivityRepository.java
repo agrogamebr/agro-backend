@@ -138,11 +138,11 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			    s.code                 AS status,
 			    a.valid_from           AS validFrom,
 			    a.valid_to             AS validTo,
-			    ua.id                  AS userActivityId,
-			    uas.code               AS userActivityStatus,
-			    ua.user_id             AS userId,
-			    ua.farm_id             AS farmId,
-			    ua.production_unit_id  AS productionUnitId,
+			    MAX(ua.id)             AS userActivityId,
+			    MAX(uas.code)          AS userActivityStatus,
+			    MAX(ua.user_id)        AS userId,
+			    MAX(ua.farm_id)        AS farmId,
+			    MAX(ua.production_unit_id) AS productionUnitId,
 			    a.thumbnail_url        AS thumbnailUrl,
 			    a.thumbnail_gsutil_uri AS thumbnailGsutilUri
 			FROM activities a
@@ -160,41 +160,39 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			  AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
 			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
 			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
-			  AND (
-			        :cropTypeId IS NULL
-			     OR EXISTS (
-			            SELECT 1
-			              FROM activity_crop_types act
-			             WHERE act.activity_id  = a.id
-			               AND act.crop_type_id = :cropTypeId
-			        )
-			  )
+			  AND (:cropTypeId IS NULL OR EXISTS (
+			        SELECT 1 FROM activity_crop_types act
+			        WHERE act.activity_id = a.id AND act.crop_type_id = :cropTypeId
+			  ))
+			GROUP BY
+			    a.id, a.name, a.company_id, a.description, a.points,
+			    s.code, a.valid_from, a.valid_to,
+			    a.thumbnail_url, a.thumbnail_gsutil_uri
 			""", countQuery = """
-			SELECT COUNT(DISTINCT a.id)
-			FROM activities a
-			JOIN activity_statuses s
-			      ON s.id = a.activity_status_id
-			LEFT JOIN user_activities ua
-			       ON ua.activity_id = a.id
-			LEFT JOIN user_activity_statuses uas
-			       ON uas.id = ua.status_id
-			WHERE a.company_id = :companyId
-			  AND (:activityStatus IS NULL OR s.code = :activityStatus)
-			  AND (:userActivityStatus IS NULL OR uas.code = :userActivityStatus)
-			  AND (:producerId IS NULL OR ua.user_id = :producerId)
-			  AND (:farmId IS NULL OR ua.farm_id = :farmId)
-			  AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
-			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
-			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
-			  AND (
-			        :cropTypeId IS NULL
-			     OR EXISTS (
-			            SELECT 1
-			              FROM activity_crop_types act
-			             WHERE act.activity_id  = a.id
-			               AND act.crop_type_id = :cropTypeId
-			        )
-			  )
+			SELECT COUNT(*)
+			FROM (
+			    SELECT a.id
+			    FROM activities a
+			    JOIN activity_statuses s
+			          ON s.id = a.activity_status_id
+			    LEFT JOIN user_activities ua
+			           ON ua.activity_id = a.id
+			    LEFT JOIN user_activity_statuses uas
+			           ON uas.id = ua.status_id
+			    WHERE a.company_id = :companyId
+			      AND (:activityStatus IS NULL OR s.code = :activityStatus)
+			      AND (:userActivityStatus IS NULL OR uas.code = :userActivityStatus)
+			      AND (:producerId IS NULL OR ua.user_id = :producerId)
+			      AND (:farmId IS NULL OR ua.farm_id = :farmId)
+			      AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
+			      AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			      AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			      AND (:cropTypeId IS NULL OR EXISTS (
+			            SELECT 1 FROM activity_crop_types act
+			            WHERE act.activity_id = a.id AND act.crop_type_id = :cropTypeId
+			      ))
+			    GROUP BY a.id
+			) x
 			""", nativeQuery = true)
 	Page<BackofficeActivityProjection> findForBackoffice(@Param("companyId") Integer companyId,
 			@Param("activityStatus") String activityStatus, @Param("userActivityStatus") String userActivityStatus,

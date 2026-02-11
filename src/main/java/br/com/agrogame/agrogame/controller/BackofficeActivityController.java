@@ -82,6 +82,7 @@ public class BackofficeActivityController {
 		response.put("submissions", submissionsPage.getContent());
 		response.put("page", submissionsPage.getNumber());
 		response.put("size", submissionsPage.getSize());
+		
 		response.put("totalElements", submissionsPage.getTotalElements());
 		response.put("totalPages", submissionsPage.getTotalPages());
 		response.put("message", submissionsPage.isEmpty() ? "Nenhuma atividade aguardando aprovação"
