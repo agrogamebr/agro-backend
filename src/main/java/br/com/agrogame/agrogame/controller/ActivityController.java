@@ -64,9 +64,9 @@ public class ActivityController {
 	@GetMapping("/list")
 	public ResponseEntity<Map<String, Object>> listActivities(
 	        @RequestParam(required = false) String status,
-	        @RequestParam(required = false) List<Integer> cropTypeIds, // Mudou para List
-	        @RequestParam(required = false) List<Integer> farmIds,     // Mudou para List
-	        @RequestParam(required = false) List<Integer> productionUnitIds, // Novo filtro
+	        @RequestParam(required = false) List<Integer> cropTypeIds,
+	        @RequestParam(required = false) List<Integer> farmIds,
+	        @RequestParam(required = false) List<Integer> productionUnitIds,
 	        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 	        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
 	        @RequestParam(defaultValue = "0") int page,
@@ -110,29 +110,15 @@ public class ActivityController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
-	@GetMapping("/{activityId}")
 	@Operation(summary = "Buscar atividade", description = "Retorna os detalhes de uma atividade para edição")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade encontrada"),
 			@ApiResponse(responseCode = "404", description = "Atividade não encontrada"),
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
-	public ResponseEntity<Map<String, Object>> getActivity(@PathVariable Integer activityId) {
-
-		ActivityListDTO activity = service.listActivity(activityId);
-
-		Map<String, Object> response = new HashMap<>();
-		response.put("id", activity.getId());
-		response.put("companyId", activity.getCompanyId());
-		response.put("description", activity.getDescription());
-		response.put("points", activity.getPoints());
-		response.put("status", activity.getStatus());
-		response.put("validFrom", activity.getValidFrom());
-		response.put("validTo", activity.getValidTo());
-		response.put("cropTypeIds", getCropTypeIds(activity.getId()));
-		response.put("name", activity.getName());
-		response.put("thumbnailUrl", activity.getThumbnailUrl());
-		response.put("thumbnailGsutilUri", activity.getThumbnailGsutilUri());
-
-		return ResponseEntity.ok(response);
+	@GetMapping("/{activityId}")
+	public ResponseEntity<ActivityListDTO> getActivity(@PathVariable Integer activityId) {
+	    ActivityListDTO activity = service.listActivity(activityId);
+	    
+	    return ResponseEntity.ok(activity);
 	}
 
 	private List<Integer> getCropTypeIds(Integer activityId) {

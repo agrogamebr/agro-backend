@@ -158,7 +158,7 @@ public class BackofficeActivityController {
 			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer productionUnitId,
 			@RequestParam(required = false) Integer producerId,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+		    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 			Principal principal) {
 

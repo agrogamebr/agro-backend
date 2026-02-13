@@ -1,7 +1,12 @@
 package br.com.agrogame.agrogame.model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.hibernate.annotations.Type;
+
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -23,26 +28,50 @@ public class ActivityDraft {
 	@JoinColumn(name = "activity_id", nullable = false)
 	private Activity activity;
 
+	@Column(name = "user_id")
+	private Integer userId; // Mapeado como ID simples para facilitar
+
+
+	@Type(JsonType.class)
+	@Column(name = "farm_ids", columnDefinition = "jsonb")
+	private List<Integer> farmIds = new ArrayList<>();
+
+	@Type(JsonType.class)
+	@Column(name = "production_unit_ids", columnDefinition = "jsonb")
+	private List<Integer> productionUnitIds = new ArrayList<>();
+
+	@Type(JsonType.class)
+	@Column(name = "crop_type_ids", columnDefinition = "jsonb")
+	private List<Integer> cropTypeIds = new ArrayList<>();
+
+	// --- COLUNAS ANTIGAS (Opcionais/Legado) ---
+	// Você pode mantê-las mapeadas se precisar ler dados antigos,
+	// mas não vamos mais usá-las para salvar novos rascunhos.
+
 	@ManyToOne
-	@JoinColumn(name = "farm_id")
+	@JoinColumn(name = "farm_id", insertable = false, updatable = false)
 	private Farm farm;
 
 	@ManyToOne
-	@JoinColumn(name = "production_unit_id")
+	@JoinColumn(name = "production_unit_id", insertable = false, updatable = false)
 	private ProductionUnit productionUnit;
 
 	@ManyToOne
-	@JoinColumn(name = "crop_type_id")
+	@JoinColumn(name = "crop_type_id", insertable = false, updatable = false)
 	private CropType cropType;
 
-	@Column(name = "user_id")
-	private Integer userId;
-
+	// --- Auditoria ---
 	@Column(name = "created_at")
 	private LocalDateTime createdAt;
 
 	@Column(name = "created_by")
 	private Integer createdBy;
+
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
+
+	@Column(name = "updated_by")
+	private Integer updatedBy;
 
 	public Integer getId() {
 		return id;
@@ -106,6 +135,46 @@ public class ActivityDraft {
 
 	public void setCreatedBy(Integer createdBy) {
 		this.createdBy = createdBy;
+	}
+
+	public List<Integer> getFarmIds() {
+		return farmIds;
+	}
+
+	public void setFarmIds(List<Integer> farmIds) {
+		this.farmIds = farmIds;
+	}
+
+	public List<Integer> getProductionUnitIds() {
+		return productionUnitIds;
+	}
+
+	public void setProductionUnitIds(List<Integer> productionUnitIds) {
+		this.productionUnitIds = productionUnitIds;
+	}
+
+	public List<Integer> getCropTypeIds() {
+		return cropTypeIds;
+	}
+
+	public void setCropTypeIds(List<Integer> cropTypeIds) {
+		this.cropTypeIds = cropTypeIds;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(Integer updatedBy) {
+		this.updatedBy = updatedBy;
 	}
 
 }

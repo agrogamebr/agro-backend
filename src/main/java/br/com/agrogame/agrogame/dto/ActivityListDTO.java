@@ -3,7 +3,6 @@ package br.com.agrogame.agrogame.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-
 public class ActivityListDTO {
 	private Integer id;
 	private String name;
@@ -18,9 +17,12 @@ public class ActivityListDTO {
 	private Integer userActivityId;
 	private String userActivityStatus;
 	private Integer userActivityFarmId;
-	
+
 	private String thumbnailUrl;
 	private String thumbnailGsutilUri;
+
+	private List<Integer> farmIds;
+	private List<Integer> productionUnitIds;
 
 	public Integer getId() {
 		return id;
@@ -132,6 +134,22 @@ public class ActivityListDTO {
 
 	public void setThumbnailGsutilUri(String thumbnailGsutilUri) {
 		this.thumbnailGsutilUri = thumbnailGsutilUri;
+	}
+
+	public List<Integer> getFarmIds() {
+		return farmIds;
+	}
+
+	public void setFarmIds(List<Integer> farmIds) {
+		this.farmIds = farmIds;
+	}
+
+	public List<Integer> getProductionUnitIds() {
+		return productionUnitIds;
+	}
+
+	public void setProductionUnitIds(List<Integer> productionUnitIds) {
+		this.productionUnitIds = productionUnitIds;
 	}
 
 }
