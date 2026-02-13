@@ -34,6 +34,9 @@ public class CreateActivityDTO {
 	@NotEmpty(message = "Deve ter pelo menos um tipo de cultura")
 	private List<Integer> cropTypeIds;
 
+	private List<Integer> farmIds;
+	private List<Integer> productionUnitIds;
+
 	public Integer getCompanyId() {
 		return companyId;
 	}
@@ -90,5 +93,20 @@ public class CreateActivityDTO {
 		this.name = name;
 	}
 
+	public List<Integer> getFarmIds() {
+		return farmIds;
+	}
+
+	public void setFarmIds(List<Integer> farmIds) {
+		this.farmIds = farmIds;
+	}
+
+	public List<Integer> getProductionUnitIds() {
+		return productionUnitIds;
+	}
+
+	public void setProductionUnitIds(List<Integer> productionUnitIds) {
+		this.productionUnitIds = productionUnitIds;
+	}
 
 }

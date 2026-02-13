@@ -158,8 +158,8 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			  AND (:producerId IS NULL OR ua.user_id = :producerId)
 			  AND (:farmId IS NULL OR ua.farm_id = :farmId)
 			  AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
-			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
-			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			  AND (cast(:startDate as date) IS NULL OR a.valid_to   >= :startDate)
+			  AND (cast(:endDate   as date) IS NULL OR a.valid_from <= :endDate)
 			  AND (:cropTypeId IS NULL OR EXISTS (
 			        SELECT 1 FROM activity_crop_types act
 			        WHERE act.activity_id = a.id AND act.crop_type_id = :cropTypeId
@@ -185,8 +185,8 @@ public interface ActivityRepository extends JpaRepository<Activity, Integer> {
 			      AND (:producerId IS NULL OR ua.user_id = :producerId)
 			      AND (:farmId IS NULL OR ua.farm_id = :farmId)
 			      AND (:productionUnitId IS NULL OR ua.production_unit_id = :productionUnitId)
-			      AND (:startDate IS NULL OR a.valid_from >= :startDate)
-			      AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			      AND (cast(:startDate as date) IS NULL OR a.valid_to   >= :startDate)
+			      AND (cast(:endDate   as date) IS NULL OR a.valid_from <= :endDate)
 			      AND (:cropTypeId IS NULL OR EXISTS (
 			            SELECT 1 FROM activity_crop_types act
 			            WHERE act.activity_id = a.id AND act.crop_type_id = :cropTypeId
