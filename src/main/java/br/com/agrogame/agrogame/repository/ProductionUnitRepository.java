@@ -92,5 +92,8 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 			@Param("farmId") Integer farmId, @Param("cropTypeIds") List<Integer> cropTypeIds);
 	
 	List<ProductionUnit> findByIdInAndFarmId(List<Integer> ids, Integer farmId);
+	
+	List<ProductionUnit> findByFarmIdInAndIsActiveTrue(List<Integer> farmIds);
+
 
 }
