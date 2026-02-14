@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -395,46 +399,42 @@ public class RuralProducerController {
 	}
 
 	@Operation(summary = "Listar histórico de pontos do produtor", description = """
-			Retorna a lista de transações de pontos do produtor logado, ordenadas da mais recente para a mais antiga.
-
-			Filtro opcional:
-			- farmId: filtrar transações apenas para uma fazenda específica
-
-			Cada item contém:
-			- tipo de transação (earn, spend, adjust)
-			- fonte (ex: activity_approval)
-			- descrição da atividade (se houver)
-			- nome da recompensa (se houver)
-			- pontos da transação
-			- saldo após a transação
-			""")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Histórico retornado com sucesso"),
-			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
-			@ApiResponse(responseCode = "403", description = "Fazenda não pertence ao produtor") })
+	Retorna a lista paginada de transações de pontos do produtor logado.
+	Ordenação padrão: Mais recentes primeiro.
+	""")
 	@GetMapping("/points/transactions")
-	public ResponseEntity<Map<String, Object>> getTransactions(
-			@Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer farmId,
-			Principal principal) {
-		User user = userRepository.findByEmail1(principal.getName())
-				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+	public ResponseEntity<Page<ProducerPointsTransactionDTO>> getTransactions(
+	        @Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") 
+	        @RequestParam(required = false) Integer farmId,
+	        
+	        @RequestParam(defaultValue = "0") int page,
+	        @RequestParam(defaultValue = "20") int size,
+	        
+	        Principal principal) {
+	            
+	    User user = userRepository.findByEmail1(principal.getName())
+	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		// Validar farmId se informado
-		if (farmId != null) {
-			Farm farm = farmRepository.findById(farmId)
-					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-			if (!farm.getOwner().getId().equals(user.getId())) {
-				throw new BusinessException("Fazenda não pertence ao produtor");
-			}
-		}
+	    // Validação de segurança da fazenda
+	    if (farmId != null) {
+	        Farm farm = farmRepository.findById(farmId)
+	                .orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+	        if (!farm.getOwner().getId().equals(user.getId())) {
+	            throw new BusinessException("Fazenda não pertence ao produtor");
+	        }
+	    }
 
-		List<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(user.getId(), farmId);
+	    // Cria o Pageable ordenando por data de criação (descendente - mais novo primeiro)
+	    // Assumindo que o campo de data na entidade Transaction seja 'createdAt'
+	    Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-		Map<String, Object> response = new HashMap<>();
-		response.put("success", true);
-		response.put("items", transactions);
-		response.put("total", transactions.size());
+	    Page<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(
+	            user.getId(), 
+	            farmId, 
+	            pageable
+	    );
 
-		return ResponseEntity.ok(response);
+	    return ResponseEntity.ok(transactions);
 	}
 
 	@Operation(summary = "Detalhar atividade do produtor", description = """

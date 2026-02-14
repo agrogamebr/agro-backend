@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import br.com.agrogame.agrogame.dto.BackofficePointsStatementProjection;
+import br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO;
 import br.com.agrogame.agrogame.dto.TransactionWithUserActivity;
 import br.com.agrogame.agrogame.model.UserPointsTransaction;
 
@@ -128,5 +129,49 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate,
 			@Param("operationType") String operationType, @Param("farmId") Integer farmId,
 			@Param("productionUnitId") Integer productionUnitId, Pageable pageable);
+
+	@Query(value = """
+			    SELECT new br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO(
+			        t.id,
+			        tt.code,
+			        st.code,
+			        act.name,
+			        rew.name,
+			        t.points,
+			        t.balanceAfter,
+			        t.createdAt,
+			        act.id,
+			        ua.id,
+			        f.name,
+			        f.id
+			    )
+			    FROM UserPointsTransaction t
+			    LEFT JOIN t.transactionType tt
+			    LEFT JOIN t.sourceType st
+			    LEFT JOIN t.activity act
+			    LEFT JOIN t.reward rew
+
+			    /* Join para pegar dados da Fazenda via UserActivity */
+			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    LEFT JOIN ua.farm f
+
+			    WHERE t.user.id = :userId
+			    AND (
+			        :farmId IS NULL
+			        OR (f.id = :farmId AND ua.status.id = 3)
+			    )
+			""", countQuery = """
+			    SELECT count(t)
+			    FROM UserPointsTransaction t
+			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    LEFT JOIN ua.farm f
+			    WHERE t.user.id = :userId
+			    AND (
+			        :farmId IS NULL
+			        OR (f.id = :farmId AND ua.status.id = 3)
+			    )
+			""")
+	Page<ProducerPointsTransactionDTO> findByUserAndFarmFilters(@Param("userId") Integer userId,
+			@Param("farmId") Integer farmId, Pageable pageable);
 
 }
