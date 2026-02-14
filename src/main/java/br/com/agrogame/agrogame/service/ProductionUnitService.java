@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +50,7 @@ public class ProductionUnitService {
 
 	@Autowired
 	private UserActivityRepository userActivityRepository;
-	
+
 	@Autowired
 	private AccessControlService accessControlService;
 
@@ -365,7 +367,7 @@ public class ProductionUnitService {
 		if (user.getCompany() == null) {
 			throw new BusinessException("Usuário não vinculado a nenhuma empresa.");
 		}
-		
+
 		this.accessControlService.validateBackofficeUser(user);
 
 		Integer companyId = user.getCompany().getId();
@@ -396,6 +398,58 @@ public class ProductionUnitService {
 		response.put("production_units", dtos);
 		response.put("total", dtos.size());
 		return response;
+	}
+
+	/**
+	 * Listagem específica para o Backoffice com filtros e paginação
+	 */
+	@Transactional(readOnly = true)
+	public Page<ProductionUnitDetailDTO> listBackofficeUnits(User operator, Integer farmId, Integer unitId, String name,
+			Integer cropTypeId, Pageable pageable) {
+		// 1. Validação: Obrigatoriedade de contexto (Farm ou Unit)
+		if (farmId == null && unitId == null) {
+			throw new BusinessException("É obrigatório informar o ID da Fazenda ou o ID da Unidade Produtiva.");
+		}
+
+		Integer companyId = operator.getCompany().getId();
+
+		// 2. Tratamento do filtro wildcard
+		String nameLike = (name != null && !name.isBlank()) ? "%" + name + "%" : null;
+
+		// 3. Busca paginada
+		Page<ProductionUnit> page = productionUnitRepository.findByFilters(companyId, farmId, unitId, nameLike,
+				cropTypeId, pageable);
+
+		// 4. Conversão
+		return page.map(this::toBackofficeDTO);
+	}
+
+	// Método auxiliar de conversão (Pode ser privado aqui dentro)
+	private ProductionUnitDetailDTO toBackofficeDTO(ProductionUnit pu) {
+		ProductionUnitDetailDTO dto = new ProductionUnitDetailDTO();
+		dto.setId(pu.getId());
+		dto.setFarmId(pu.getFarm().getId());
+		dto.setFarmName(pu.getFarm().getName());
+		dto.setName(pu.getName());
+		dto.setDescription(pu.getDescription());
+		dto.setArea(pu.getArea());
+		dto.setIsActive(pu.getIsActive());
+		dto.setCreatedAt(pu.getCreatedAt());
+		dto.setDeactivatedAt(pu.getDeactivatedAt());
+		dto.setThumbnailGsUrl(pu.getThumbnailGsUrl());
+
+		if (pu.getProductionUnitType() != null) {
+			dto.setProductionUnitTypeId(pu.getProductionUnitType().getId());
+			dto.setProductionUnitTypeName(pu.getProductionUnitType().getName());
+			dto.setProductionUnitTypeCode(pu.getProductionUnitType().getCode());
+		}
+
+		if (pu.getCropType() != null) {
+			dto.setCropTypeId(pu.getCropType().getId());
+			dto.setCropTypeName(pu.getCropType().getName());
+		}
+
+		return dto;
 	}
 
 }

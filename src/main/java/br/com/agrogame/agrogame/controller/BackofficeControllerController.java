@@ -5,7 +5,11 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,16 +21,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
 import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
+import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
+import br.com.agrogame.agrogame.dto.BackofficePointsStatementDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
+import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
+import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.service.BackofficeActivityService;
+import br.com.agrogame.agrogame.service.BackofficeFarmService;
+import br.com.agrogame.agrogame.service.BackofficePointsService;
+import br.com.agrogame.agrogame.service.ProductionUnitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -35,18 +47,24 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/backoffice/activities")
-@Tag(name = "Backoffice Activities", description = "Endpoints para aprovação de atividades no backoffice")
-public class BackofficeActivityController {
+@RequestMapping("/api/backoffice")
+@Tag(name = "Backoffice", description = "Gestão administrativa (Atividades, Pontos, Extratos)")
+public class BackofficeControllerController {
 
-	private final BackofficeActivityService backofficeActivityService;
-	private final UserRepository userRepository;
+	@Autowired
+	private BackofficeActivityService backofficeActivityService;
 
-	public BackofficeActivityController(BackofficeActivityService activityApprovalService,
-			UserRepository userRepository) {
-		this.backofficeActivityService = activityApprovalService;
-		this.userRepository = userRepository;
-	}
+	@Autowired
+	private BackofficePointsService backofficePointsService;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
+	private BackofficeFarmService backofficeFarmService;
+
+	@Autowired
+	private ProductionUnitService productionUnitService;
 
 	@Operation(summary = "Listar atividades submetidas para aprovação", description = """
 			    Retorna lista de atividades em status 'submitted' que aguardam aprovação pelo backoffice.
@@ -65,7 +83,7 @@ public class BackofficeActivityController {
 			@ApiResponse(responseCode = "403", description = "Sem permissão (não é backoffice ou não pertence à empresa)"),
 			@ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
 			@ApiResponse(responseCode = "500", description = "Erro interno ao listar atividades") })
-	@GetMapping("/submissions")
+	@GetMapping("/activities/submissions")
 	public ResponseEntity<Map<String, Object>> listSubmittedActivities(@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size, Principal principal) {
 
@@ -82,7 +100,7 @@ public class BackofficeActivityController {
 		response.put("submissions", submissionsPage.getContent());
 		response.put("page", submissionsPage.getNumber());
 		response.put("size", submissionsPage.getSize());
-		
+
 		response.put("totalElements", submissionsPage.getTotalElements());
 		response.put("totalPages", submissionsPage.getTotalPages());
 		response.put("message", submissionsPage.isEmpty() ? "Nenhuma atividade aguardando aprovação"
@@ -111,7 +129,7 @@ public class BackofficeActivityController {
 			@ApiResponse(responseCode = "404", description = "Recurso não encontrado"),
 			@ApiResponse(responseCode = "422", description = "Status inválido"),
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
-	@PostMapping("/submissions/{userActivityId}/decision")
+	@PostMapping("/activities/submissions/{userActivityId}/decision")
 	public ResponseEntity<Map<String, Object>> makeDecision(
 			@Parameter(description = "ID da UserActivity", example = "1") @PathVariable Integer userActivityId,
 			@Valid @RequestBody ActivityDecisionRequestDTO decisionRequest, Principal principal) {
@@ -152,13 +170,13 @@ public class BackofficeActivityController {
 		return ResponseEntity.status(status).body(errorResponse);
 	}
 
-	@GetMapping("/list")
+	@GetMapping("/activities/list")
 	public ResponseEntity<Map<String, Object>> listCompanyActivities(@RequestParam(required = false) String status,
 			@RequestParam(required = false) String submissionStatus, @RequestParam(required = false) Integer cropTypeId,
 			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer productionUnitId,
 			@RequestParam(required = false) Integer producerId,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-		    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 			Principal principal) {
 
@@ -179,6 +197,72 @@ public class BackofficeActivityController {
 		response.put("totalPages", activitiesPage.getTotalPages());
 
 		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Extrato detalhado de pontos", description = "Retorna lista de transações e o saldo atual do produtor selecionado.")
+	@GetMapping("/points/statement")
+	public ResponseEntity<Map<String, Object>> getStatement(@RequestParam(required = false) Integer producerId,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer productionUnitId,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+			@RequestParam(required = false) String operationType, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size, Principal principal) {
+
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
+
+		// 1. Busca o Extrato Paginado
+		Page<BackofficePointsStatementDTO> pageResult = backofficePointsService.getStatement(operator, producerId,
+				farmId, productionUnitId, startDate, endDate, operationType, page, size);
+
+		// 2. Busca o Saldo Atual (para o rodapé)
+		ProducerPointsBalanceDTO balanceDTO = backofficePointsService.getProducerBalance(operator, producerId, farmId);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("items", pageResult.getContent());
+		response.put("page", pageResult.getNumber());
+		response.put("size", pageResult.getSize());
+		response.put("totalElements", pageResult.getTotalElements());
+		response.put("totalPages", pageResult.getTotalPages());
+		response.put("currentBalance", balanceDTO.getCurrentBalance()); // Saldo no rodapé
+
+		return ResponseEntity.ok(response);
+	}
+
+	@GetMapping("/farms/list")
+	public ResponseEntity<Page<BackofficeFarmDTO>> listFarms(Principal principal,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) String name,
+			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
+
+		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+
+		Page<BackofficeFarmDTO> farms = backofficeFarmService.listFarmsByCompany(operator, farmId, name, ownerId,
+				pageable);
+
+		return ResponseEntity.ok(farms);
+	}
+
+	@GetMapping("/production-units/list")
+	public ResponseEntity<Page<ProductionUnitDetailDTO>> listUnits(Principal principal,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer unitId,
+			@RequestParam(required = false) String name, @RequestParam(required = false) Integer cropTypeId,
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
+
+		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+
+		try {
+			Page<ProductionUnitDetailDTO> result = productionUnitService.listBackofficeUnits(operator, farmId, unitId,
+					name, cropTypeId, pageable);
+			return ResponseEntity.ok(result);
+		} catch (IllegalArgumentException e) {
+			// Retorna 400 Bad Request se não passar os IDs obrigatórios
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+		}
 	}
 
 }

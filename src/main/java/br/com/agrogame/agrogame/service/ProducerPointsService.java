@@ -1,17 +1,14 @@
 package br.com.agrogame.agrogame.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsTransactionDTO;
-import br.com.agrogame.agrogame.dto.TransactionWithUserActivity;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
-import br.com.agrogame.agrogame.model.UserPointsTransaction;
 import br.com.agrogame.agrogame.repository.UserPointsTransactionRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 
@@ -57,25 +54,8 @@ public class ProducerPointsService {
 	 * Lista o histórico de transações de pontos do produtor (usuário autenticado).
 	 * Se farmId for informado, filtra apenas transações daquela fazenda.
 	 */
-	public List<ProducerPointsTransactionDTO> getTransactions(Integer userId, Integer farmId) {
-		List<TransactionWithUserActivity> projections; // <--- Mudou o tipo da lista
-
-		if (farmId != null) {
-			projections = userPointsTransactionRepository.findByUserIdAndFarmIdWithUserActivity(userId, farmId);
-		} else {
-			projections = userPointsTransactionRepository.findByUserIdWithUserActivity(userId);
-		}
-
-		return projections.stream().map(p -> {
-			UserPointsTransaction t = p.getTransaction(); // Recupera a entidade
-			Integer uaId = p.getUserActivityId(); // Recupera o ID solto
-
-			return new ProducerPointsTransactionDTO(t.getId(),
-					t.getTransactionType() != null ? t.getTransactionType().getCode() : null,
-					t.getSourceType() != null ? t.getSourceType().getCode() : null,
-					t.getActivity() != null ? t.getActivity().getDescription() : null,
-					t.getReward() != null ? t.getActivity().getName() : null, t.getPoints(), t.getBalanceAfter(),
-					t.getCreatedAt(), t.getActivity() != null ? t.getActivity().getId() : null, uaId, p.getFarmName(), p.getFarmId());
-		}).collect(Collectors.toList());
+	public Page<ProducerPointsTransactionDTO> getTransactions(Integer userId, Integer farmId, Pageable pageable) {
+		return userPointsTransactionRepository.findByUserAndFarmFilters(userId, farmId, pageable);
 	}
+
 }
