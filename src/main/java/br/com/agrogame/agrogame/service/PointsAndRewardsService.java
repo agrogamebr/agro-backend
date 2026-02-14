@@ -23,6 +23,7 @@ import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
 import br.com.agrogame.agrogame.repository.UserPointTransactionSourceTypeRepository;
 import br.com.agrogame.agrogame.repository.UserPointTransactionTypeRepository;
 import br.com.agrogame.agrogame.repository.UserPointsTransactionRepository;
+import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.repository.UserRewardHistoryRepository;
 import br.com.agrogame.agrogame.repository.UserRewardRepository;
 import br.com.agrogame.agrogame.repository.UserRewardStatusRepository;
@@ -40,12 +41,13 @@ public class PointsAndRewardsService {
 	private final UserRewardHistoryRepository userRewardHistoryRepository;
 	private final UserRewardStatusRepository userRewardStatusRepository;
 	private final ActivityRewardRepository activityRewardRepository;
+	private final UserRepository userRepository;
 
 	public PointsAndRewardsService(UserPointsTransactionRepository userPointsTransactionRepository,
 			UserPointTransactionTypeRepository userPointTransactionTypeRepository,
 			UserPointTransactionSourceTypeRepository userPointTransactionSourceTypeRepository,
 			UserRewardRepository userRewardRepository, UserRewardHistoryRepository userRewardHistoryRepository,
-			UserRewardStatusRepository userRewardStatusRepository, ActivityRewardRepository activityRewardRepository) {
+			UserRewardStatusRepository userRewardStatusRepository, ActivityRewardRepository activityRewardRepository, UserRepository userRepository) {
 		this.userPointsTransactionRepository = userPointsTransactionRepository;
 		this.userPointTransactionTypeRepository = userPointTransactionTypeRepository;
 		this.userPointTransactionSourceTypeRepository = userPointTransactionSourceTypeRepository;
@@ -53,6 +55,7 @@ public class PointsAndRewardsService {
 		this.userRewardHistoryRepository = userRewardHistoryRepository;
 		this.userRewardStatusRepository = userRewardStatusRepository;
 		this.activityRewardRepository = activityRewardRepository;
+		this.userRepository = userRepository;
 	}
 
 	/**
@@ -93,6 +96,9 @@ public class PointsAndRewardsService {
 				currentBalance = 0;
 			}
 			Integer newBalance = currentBalance + points;
+			
+			producer.setPointsBalance(newBalance); // Atualiza o objeto em memória
+			userRepository.save(producer); // Persiste a atualização do saldo no banco
 
 			// 6. Buscar recompensas vinculadas à atividade (antes da transação, para
 			// decidir reward_id)

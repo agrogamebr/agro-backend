@@ -140,6 +140,8 @@ public class BackofficeActivityService {
 		dto.setFilesCount(files.size());
 		dto.setStatus("submitted");
 		dto.setFiles(filesList);
+		dto.setPoints(activity.getPoints());
+		dto.setDescription(activity.getDescription());
 
 		return dto;
 	}

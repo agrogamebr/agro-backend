@@ -1,12 +1,16 @@
 package br.com.agrogame.agrogame.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import br.com.agrogame.agrogame.dto.BackofficePointsStatementProjection;
 import br.com.agrogame.agrogame.dto.TransactionWithUserActivity;
 import br.com.agrogame.agrogame.model.UserPointsTransaction;
 
@@ -73,4 +77,56 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			""")
 	List<TransactionWithUserActivity> findByUserIdAndFarmIdWithUserActivity(@Param("userId") Integer userId,
 			@Param("farmId") Integer farmId);
+
+	@Query(value = """
+			SELECT
+			    upt.id AS id,
+			    upt.created_at AS date,
+			    CASE
+			        WHEN act.name IS NOT NULL THEN act.name
+			        WHEN rew.name IS NOT NULL THEN rew.name
+			        ELSE 'Ajuste Manual'
+			    END AS description,
+			    f.name AS farmName,
+			    pu.name AS productionUnitName,
+			    tt.code AS operationType,
+			    upt.points AS points,
+			    upt.balance_after AS balanceAfter
+			FROM user_points_transactions upt
+			JOIN user_point_transaction_types tt ON tt.id = upt.transaction_type_id
+
+			LEFT JOIN activities act ON act.id = upt.activity_id
+			LEFT JOIN rewards rew ON rew.id = upt.reward_id
+			LEFT JOIN user_activities ua ON ua.activity_id = act.id AND ua.user_id = upt.user_id
+			LEFT JOIN farms f ON f.id = ua.farm_id
+			LEFT JOIN production_units pu ON pu.id = ua.production_unit_id
+
+			WHERE 1=1
+			  AND (cast(:producerId as integer) IS NULL OR upt.user_id = :producerId)
+			  AND (cast(:startDate as timestamp) IS NULL OR upt.created_at >= :startDate)
+			  AND (cast(:endDate as timestamp)   IS NULL OR upt.created_at <= :endDate)
+			  AND (cast(:operationType as text) IS NULL OR tt.code = :operationType)
+			  AND (cast(:farmId as integer) IS NULL OR f.id = :farmId)
+			  AND (cast(:productionUnitId as integer) IS NULL OR pu.id = :productionUnitId)
+			""", countQuery = """
+			SELECT COUNT(upt.id)
+			FROM user_points_transactions upt
+			JOIN user_point_transaction_types tt ON tt.id = upt.transaction_type_id
+			LEFT JOIN activities act ON act.id = upt.activity_id
+			LEFT JOIN user_activities ua ON ua.activity_id = act.id AND ua.user_id = upt.user_id
+			LEFT JOIN farms f ON f.id = ua.farm_id
+			LEFT JOIN production_units pu ON pu.id = ua.production_unit_id
+			WHERE 1=1
+			  AND (cast(:producerId as integer) IS NULL OR upt.user_id = :producerId)
+			  AND (cast(:startDate as timestamp) IS NULL OR upt.created_at >= :startDate)
+			  AND (cast(:endDate as timestamp)   IS NULL OR upt.created_at <= :endDate)
+			  AND (cast(:operationType as text) IS NULL OR tt.code = :operationType)
+			  AND (cast(:farmId as integer) IS NULL OR f.id = :farmId)
+			  AND (cast(:productionUnitId as integer) IS NULL OR pu.id = :productionUnitId)
+			""", nativeQuery = true)
+	Page<BackofficePointsStatementProjection> findStatementForBackoffice(@Param("producerId") Integer producerId,
+			@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate,
+			@Param("operationType") String operationType, @Param("farmId") Integer farmId,
+			@Param("productionUnitId") Integer productionUnitId, Pageable pageable);
+
 }
