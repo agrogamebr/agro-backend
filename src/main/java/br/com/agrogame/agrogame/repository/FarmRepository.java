@@ -65,20 +65,39 @@ public interface FarmRepository extends JpaRepository<Farm, Integer> {
 			@Param("cropTypeIds") List<Integer> cropTypeIds);
 
 	List<Farm> findByIdInAndCompanyIdAndIsActiveTrue(List<Integer> ids, Integer companyId);
-	
-    @Query(value = """
-            SELECT f 
-            FROM Farm f 
-            LEFT JOIN FETCH f.owner 
-            WHERE f.company.id = :companyId 
-            AND f.isActive = true
-        """,
-        countQuery = """
-            SELECT count(f) 
-            FROM Farm f 
-            WHERE f.company.id = :companyId 
-            AND f.isActive = true
-        """)
-        Page<Farm> buscarPorCompanyIdAndIsActiveTrue(@Param("companyId") Integer companyId, Pageable pageable);
 
+	@Query(value = """
+			    SELECT f
+			    FROM Farm f
+			    LEFT JOIN FETCH f.owner
+			    WHERE f.company.id = :companyId
+			    AND f.isActive = true
+			""", countQuery = """
+			    SELECT count(f)
+			    FROM Farm f
+			    WHERE f.company.id = :companyId
+			    AND f.isActive = true
+			""")
+	Page<Farm> buscarPorCompanyIdAndIsActiveTrue(@Param("companyId") Integer companyId, Pageable pageable);
+
+	@Query(value = """
+			    SELECT f
+			    FROM Farm f
+			    LEFT JOIN FETCH f.owner
+			    WHERE f.company.id = :companyId
+			    AND f.isActive = true
+			    AND (:farmId IS NULL OR f.id = :farmId)
+			    AND (:nameLike IS NULL OR lower(f.name) LIKE lower(cast(:nameLike as text)))
+			    AND (:ownerId IS NULL OR f.owner.id = :ownerId)
+			""", countQuery = """
+			    SELECT count(f)
+			    FROM Farm f
+			    WHERE f.company.id = :companyId
+			    AND f.isActive = true
+			    AND (:farmId IS NULL OR f.id = :farmId)
+			    AND (:nameLike IS NULL OR lower(f.name) LIKE lower(cast(:nameLike as text)))
+			    AND (:ownerId IS NULL OR f.owner.id = :ownerId)
+			""")
+	Page<Farm> findByFilters(@Param("companyId") Integer companyId, @Param("farmId") Integer farmId,
+			@Param("nameLike") String nameLike, @Param("ownerId") Integer ownerId, Pageable pageable);
 }

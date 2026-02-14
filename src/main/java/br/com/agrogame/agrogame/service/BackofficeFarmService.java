@@ -72,6 +72,47 @@ public class BackofficeFarmService {
 		});
 	}
 
+	@Transactional(readOnly = true)
+	public Page<BackofficeFarmDTO> listFarmsByCompany(User operator, Integer farmId, String name, Integer ownerId,
+			Pageable pageable) {
+		Integer companyId = operator.getCompany().getId();
+
+		// TRATAMENTO DO FILTRO DE NOME (Resolve o erro do Postgres)
+		String nameLike = null;
+		if (name != null && !name.isBlank()) {
+			nameLike = "%" + name + "%";
+		}
+
+		// Passando 'nameLike' formatado para o repositório
+		Page<Farm> farmPage = farmRepository.findByFilters(companyId, farmId, nameLike, ownerId, pageable);
+
+		if (farmPage.isEmpty()) {
+			return Page.empty(pageable);
+		}
+
+		List<Integer> pageFarmIds = farmPage.getContent().stream().map(Farm::getId).toList();
+
+		// Busca otimizada das UPs
+		List<ProductionUnit> unitsInPage = productionUnitRepository.findByFarmIdInAndIsActiveTrue(pageFarmIds);
+
+		Map<Integer, List<ProductionUnit>> unitsByFarmId = unitsInPage.stream()
+				.collect(Collectors.groupingBy(pu -> pu.getFarm().getId()));
+
+		return farmPage.map(farm -> {
+			BackofficeFarmDTO dto = new BackofficeFarmDTO();
+			dto.setId(farm.getId());
+			dto.setName(farm.getName());
+
+			if (farm.getOwner() != null) {
+				dto.setOwnerId(farm.getOwner().getId());
+			}
+
+			List<ProductionUnit> myUnits = unitsByFarmId.getOrDefault(farm.getId(), Collections.emptyList());
+			dto.setProductionUnits(myUnits.stream().map(this::toUnitDTO).toList());
+			return dto;
+		});
+	}
+
 	// Mantive o DTO detalhado da UP que você pediu antes
 	private ProductionUnitDetailDTO toUnitDTO(ProductionUnit pu) {
 		ProductionUnitDetailDTO dto = new ProductionUnitDetailDTO();

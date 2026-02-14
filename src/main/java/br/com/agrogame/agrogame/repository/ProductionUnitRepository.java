@@ -3,6 +3,8 @@ package br.com.agrogame.agrogame.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -90,10 +92,36 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 			""", nativeQuery = true)
 	List<ProductionUnit> findByIdInAndFarmIdAndCropTypesCompatible(@Param("ids") List<Integer> ids,
 			@Param("farmId") Integer farmId, @Param("cropTypeIds") List<Integer> cropTypeIds);
-	
+
 	List<ProductionUnit> findByIdInAndFarmId(List<Integer> ids, Integer farmId);
-	
+
 	List<ProductionUnit> findByFarmIdInAndIsActiveTrue(List<Integer> farmIds);
 
+	@Query(value = """
+			    SELECT pu
+			    FROM ProductionUnit pu
+			    JOIN FETCH pu.farm f
+			    LEFT JOIN FETCH pu.productionUnitType
+			    LEFT JOIN FETCH pu.cropType
+			    WHERE f.company.id = :companyId
+			    AND pu.isActive = true
+			    AND (:farmId IS NULL OR f.id = :farmId)
+			    AND (:unitId IS NULL OR pu.id = :unitId)
+			    AND (:nameLike IS NULL OR lower(pu.name) LIKE lower(cast(:nameLike as text)))
+			    AND (:cropTypeId IS NULL OR pu.cropType.id = :cropTypeId)
+			""", countQuery = """
+			    SELECT count(pu)
+			    FROM ProductionUnit pu
+			    JOIN pu.farm f
+			    WHERE f.company.id = :companyId
+			    AND pu.isActive = true
+			    AND (:farmId IS NULL OR f.id = :farmId)
+			    AND (:unitId IS NULL OR pu.id = :unitId)
+			    AND (:nameLike IS NULL OR lower(pu.name) LIKE lower(cast(:nameLike as text)))
+			    AND (:cropTypeId IS NULL OR pu.cropType.id = :cropTypeId)
+			""")
+	Page<ProductionUnit> findByFilters(@Param("companyId") Integer companyId, @Param("farmId") Integer farmId,
+			@Param("unitId") Integer unitId, @Param("nameLike") String nameLike,
+			@Param("cropTypeId") Integer cropTypeId, Pageable pageable);
 
 }

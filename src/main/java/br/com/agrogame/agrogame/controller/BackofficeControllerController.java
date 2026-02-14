@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
@@ -29,6 +30,7 @@ import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
 import br.com.agrogame.agrogame.dto.BackofficePointsStatementDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
+import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
@@ -36,6 +38,7 @@ import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.service.BackofficeActivityService;
 import br.com.agrogame.agrogame.service.BackofficeFarmService;
 import br.com.agrogame.agrogame.service.BackofficePointsService;
+import br.com.agrogame.agrogame.service.ProductionUnitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -59,6 +62,9 @@ public class BackofficeControllerController {
 
 	@Autowired
 	private BackofficeFarmService backofficeFarmService;
+
+	@Autowired
+	private ProductionUnitService productionUnitService;
 
 	@Operation(summary = "Listar atividades submetidas para aprovação", description = """
 			    Retorna lista de atividades em status 'submitted' que aguardam aprovação pelo backoffice.
@@ -225,18 +231,38 @@ public class BackofficeControllerController {
 
 	@GetMapping("/farms/list")
 	public ResponseEntity<Page<BackofficeFarmDTO>> listFarms(Principal principal,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) String name,
+			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
+
+		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+
+		Page<BackofficeFarmDTO> farms = backofficeFarmService.listFarmsByCompany(operator, farmId, name, ownerId,
+				pageable);
+
+		return ResponseEntity.ok(farms);
+	}
+
+	@GetMapping("/production-units/list")
+	public ResponseEntity<Page<ProductionUnitDetailDTO>> listUnits(Principal principal,
+			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer unitId,
+			@RequestParam(required = false) String name, @RequestParam(required = false) Integer cropTypeId,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
 		User operator = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
 
-		// AQUI ESTÁ O TRUQUE: Montamos o Pageable manualmente com os ints recebidos
-		// Adicionei o Sort por "name" para garantir ordem consistente (pode remover se
-		// quiser)
 		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
 
-		Page<BackofficeFarmDTO> farms = backofficeFarmService.listFarmsByCompany(operator, pageable);
-
-		return ResponseEntity.ok(farms);
+		try {
+			Page<ProductionUnitDetailDTO> result = productionUnitService.listBackofficeUnits(operator, farmId, unitId,
+					name, cropTypeId, pageable);
+			return ResponseEntity.ok(result);
+		} catch (IllegalArgumentException e) {
+			// Retorna 400 Bad Request se não passar os IDs obrigatórios
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+		}
 	}
 
 }
