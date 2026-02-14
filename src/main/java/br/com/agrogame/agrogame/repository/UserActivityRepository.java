@@ -21,13 +21,18 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 			@Param("activityId") Integer activityId, @Param("farmId") Integer farmId);
 
 	@Query("""
-			    SELECT ua
-			      FROM UserActivity ua
-			     WHERE ua.activity.company.id = :companyId
-			       AND ua.status.code = 'submitted'
-			     ORDER BY ua.createdAt DESC
-			""")
-	Page<UserActivity> findSubmittedByCompanyId(@Param("companyId") Integer companyId, Pageable pageable);
+		    SELECT ua
+		      FROM UserActivity ua
+		      JOIN FETCH ua.activity a
+		      JOIN FETCH ua.user u
+		      JOIN FETCH ua.farm f
+		      LEFT JOIN FETCH ua.productionUnit
+		     WHERE a.company.id = :companyId 
+		       AND ua.status.code = 'submitted'
+		     ORDER BY ua.createdAt DESC
+		""")
+		Page<UserActivity> findSubmittedByCompanyId(@Param("companyId") Integer companyId, Pageable pageable);
+
 
 	// Alternativa com Specification (mais flexível para filtros futuros)
 	List<UserActivity> findAll(Specification<UserActivity> spec);

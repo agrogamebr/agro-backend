@@ -16,6 +16,8 @@ public class BackofficeSubmissionListDTO {
 	private Integer filesCount;
 	private String status;
 	private List<BackofficeFileInfoDTO> files;
+	private Integer points;
+	private String description;
 
 	public Integer getUserActivityId() {
 		return userActivityId;
@@ -111,6 +113,22 @@ public class BackofficeSubmissionListDTO {
 
 	public void setFiles(List<BackofficeFileInfoDTO> files) {
 		this.files = files;
+	}
+
+	public Integer getPoints() {
+		return points;
+	}
+
+	public void setPoints(Integer points) {
+		this.points = points;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
 	}
 
 }
