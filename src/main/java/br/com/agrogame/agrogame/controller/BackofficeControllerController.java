@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
 import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
+import br.com.agrogame.agrogame.dto.BackofficeEmployeeSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
 import br.com.agrogame.agrogame.dto.BackofficePointsStatementDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
@@ -36,6 +37,7 @@ import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.service.BackofficeActivityService;
+import br.com.agrogame.agrogame.service.BackofficeEmployeeService;
 import br.com.agrogame.agrogame.service.BackofficeFarmService;
 import br.com.agrogame.agrogame.service.BackofficePointsService;
 import br.com.agrogame.agrogame.service.ProductionUnitService;
@@ -65,6 +67,9 @@ public class BackofficeControllerController {
 
 	@Autowired
 	private ProductionUnitService productionUnitService;
+
+	@Autowired
+	private BackofficeEmployeeService backofficeEmployeeservice;
 
 	@Operation(summary = "Listar atividades submetidas para aprovação", description = """
 			    Retorna lista de atividades em status 'submitted' que aguardam aprovação pelo backoffice.
@@ -265,4 +270,19 @@ public class BackofficeControllerController {
 		}
 	}
 
+	@GetMapping("/funcionarios/list")
+	public ResponseEntity<Page<BackofficeEmployeeSummaryDTO>> listEmployees(Principal principal,
+			@RequestParam(required = false) Integer userId, @RequestParam(required = false) String name,
+			@RequestParam(required = false) Integer userTypeId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		Pageable pageable = PageRequest.of(page, size, Sort.by("fullName"));
+
+		Page<BackofficeEmployeeSummaryDTO> result = backofficeEmployeeservice.listEmployees(operator, userId, name, userTypeId, pageable);
+
+		return ResponseEntity.ok(result);
+	}
 }
