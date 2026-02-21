@@ -19,7 +19,6 @@ import br.com.agrogame.agrogame.dto.SubmitActivityResponseDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.Activity;
-import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.model.UserActivity;
 import br.com.agrogame.agrogame.model.UserActivityStatus;
@@ -64,7 +63,7 @@ public class ActivitySubmissionService {
 	}
 
 	@Transactional
-	public FileUploadResponseDTO uploadFile(Integer producerId, Integer activityId, Integer farmId, MultipartFile file,
+	public FileUploadResponseDTO uploadFile(Integer producerId, Integer userActivityId, MultipartFile file,
 			String description) throws IOException {
 
 		// 1. Validar produtor
@@ -77,32 +76,26 @@ public class ActivitySubmissionService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// 2. Validar atividade
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		// 2. Buscar UserActivity pelo ID
+		UserActivity userActivity = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
 
-		if (!activity.getCompany().getId().equals(companyId)) {
+		// 3. Segurança: garantir vínculo com produtor, fazenda e empresa
+		if (!userActivity.getUser().getId().equals(producerId)) {
+			throw new AccessDeniedException("Atividade não pertence a este produtor");
+		}
+
+		if (!userActivity.getFarm().getCompany().getId().equals(companyId)) {
 			throw new AccessDeniedException("Atividade não pertence à empresa do produtor");
 		}
 
+		// 4. Validar status da Activity (send)
+		Activity activity = userActivity.getActivity();
 		if (!"send".equals(activity.getActivityStatus().getCode())) {
 			throw new BusinessException("Atividade não está disponível para submissão");
 		}
 
-		// 3. Validar fazenda
-		Farm farm = farmRepository.findById(farmId)
-				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-
-		if (!farm.getOwner().getId().equals(producerId) || !farm.getCompany().getId().equals(companyId)) {
-			throw new AccessDeniedException("Fazenda não pertence ao produtor ou empresa");
-		}
-
-		// 4. Obter ou criar UserActivity
-		UserActivity userActivity = userActivityRepository.findByUserAndActivityAndFarm(producerId, activityId, farmId)
-				.orElseThrow(() -> new ResourceNotFoundException(
-						"UserActivity não encontrada. Verifique se a atividade foi enviada para sua fazenda."));
-
-		// 5. Validar que não foi submetida ainda
+		// 5. Validar que UserActivity está pending
 		if (!"pending".equals(userActivity.getStatus().getCode())) {
 			throw new BusinessException("Atividade já foi submetida ou processada e não pode receber novos arquivos");
 		}
@@ -111,7 +104,7 @@ public class ActivitySubmissionService {
 		StoredFileInfo stored = fileStorageService.uploadFile(file);
 		String fileHash = fileStorageService.generateFileHash(file);
 
-		// 7. Criar registro na nova tabela user_activity_submission_files
+		// 7. Criar registro em user_activity_submission_files
 		UserActivitySubmissionFile fileEntity = new UserActivitySubmissionFile();
 		fileEntity.setUserActivity(userActivity);
 		fileEntity.setFileUrl(stored.getFileUrl());
@@ -119,7 +112,7 @@ public class ActivitySubmissionService {
 		fileEntity.setGsutilUri(stored.getGsutilUri());
 		userActivitySubmissionFileRepository.save(fileEntity);
 
-		// 8. Criar/atualizar registro em UserActivitySubmission (apenas metadados)
+		// 8. Criar registro em UserActivitySubmission
 		UserActivitySubmission submission = new UserActivitySubmission();
 		submission.setUserActivity(userActivity);
 		submission.setDescription(description);
@@ -128,14 +121,12 @@ public class ActivitySubmissionService {
 
 		UserActivitySubmission savedSubmission = userActivitySubmissionRepository.save(submission);
 
-		// 9. Retornar resposta (usando a URL pública para o front, se quiser mostrar
-		// preview)
 		return new FileUploadResponseDTO(savedSubmission.getId(), file.getOriginalFilename(), stored.getFileUrl(),
 				description, savedSubmission.getCreatedAt());
 	}
 
 	@Transactional
-	public SubmitActivityResponseDTO submitActivity(Integer producerId, Integer activityId, Integer farmId) {
+	public SubmitActivityResponseDTO submitActivity(Integer producerId, Integer userActivityId) {
 
 		// 1. Validar produtor
 		User producer = userRepository.findById(producerId)
@@ -147,32 +138,27 @@ public class ActivitySubmissionService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// 2. Validar atividade
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		// 2. Buscar UserActivity
+		UserActivity userActivity = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
 
-		if (!activity.getCompany().getId().equals(companyId)) {
+		// 3. Garantir vínculo com produtor e empresa
+		if (!userActivity.getUser().getId().equals(producerId)) {
+			throw new AccessDeniedException("Atividade não pertence a este produtor");
+		}
+
+		if (!userActivity.getFarm().getCompany().getId().equals(companyId)) {
 			throw new AccessDeniedException("Atividade não pertence à empresa do produtor");
 		}
 
-		// 3. Validar fazenda
-		Farm farm = farmRepository.findById(farmId)
-				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+		Activity activity = userActivity.getActivity();
 
-		if (!farm.getOwner().getId().equals(producerId) || !farm.getCompany().getId().equals(companyId)) {
-			throw new AccessDeniedException("Fazenda não pertence ao produtor ou empresa");
-		}
-
-		// 4. Buscar UserActivity
-		UserActivity userActivity = userActivityRepository.findByUserAndActivityAndFarm(producerId, activityId, farmId)
-				.orElseThrow(() -> new ResourceNotFoundException("Nenhuma atividade encontrada para este contexto"));
-
-		// 5. Validar status = pending (ainda não foi submetida)
+		// 4. Validar status da UserActivity
 		if (!"pending".equals(userActivity.getStatus().getCode())) {
 			throw new BusinessException("Atividade já foi submetida ou processada");
 		}
 
-		// 6. Validar que existe pelo menos 1 arquivo
+		// 5. Validar que existe pelo menos 1 arquivo
 		List<UserActivitySubmission> submissions = userActivitySubmissionRepository
 				.findByUserActivityId(userActivity.getId());
 
@@ -180,7 +166,7 @@ public class ActivitySubmissionService {
 			throw new BusinessException("É obrigatório enviar pelo menos um arquivo antes de submeter");
 		}
 
-		// 7. Mudar status para submitted
+		// 6. Mudar status para submitted
 		UserActivityStatus submittedStatus = userActivityStatusRepository.findByCode("submitted")
 				.orElseThrow(() -> new ResourceNotFoundException("Status 'submitted' não configurado"));
 
@@ -190,8 +176,7 @@ public class ActivitySubmissionService {
 
 		UserActivity savedUserActivity = userActivityRepository.save(userActivity);
 
-		// 8. Atualizar submittedAt em todos os submissions (ou deixar null, conforme
-		// design)
+		// 7. Atualizar submittedAt nos submissions
 		LocalDateTime now = LocalDateTime.now();
 		for (UserActivitySubmission submission : submissions) {
 			submission.setSubmittedAt(now);
@@ -200,13 +185,13 @@ public class ActivitySubmissionService {
 			userActivitySubmissionRepository.save(submission);
 		}
 
-		// 9. Retornar resposta
-		return new SubmitActivityResponseDTO(savedUserActivity.getId(), activityId, farmId, submittedStatus.getCode(),
-				submissions.size(), now, "Atividade submetida com sucesso! Aguarde análise da empresa.");
+		return new SubmitActivityResponseDTO(savedUserActivity.getId(), activity.getId(),
+				userActivity.getFarm().getId(), submittedStatus.getCode(), submissions.size(), now,
+				"Atividade submetida com sucesso! Aguarde análise da empresa.");
 	}
 
 	@Transactional(readOnly = true)
-	public ResponseEntity<byte[]> downloadSubmissionFile(Integer producerId, Integer activityId, Integer farmId,
+	public ResponseEntity<byte[]> downloadSubmissionFile(Integer producerId, Integer userActivityId,
 			Integer submissionFileId) {
 
 		// 1. Validar produtor
@@ -219,27 +204,19 @@ public class ActivitySubmissionService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// 2. Validar atividade
-		Activity activity = activityRepository.findById(activityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		// 2. Buscar UserActivity
+		UserActivity userActivity = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
 
-		if (!activity.getCompany().getId().equals(companyId)) {
+		if (!userActivity.getUser().getId().equals(producerId)) {
+			throw new AccessDeniedException("Atividade não pertence a este produtor");
+		}
+
+		if (!userActivity.getFarm().getCompany().getId().equals(companyId)) {
 			throw new AccessDeniedException("Atividade não pertence à empresa do produtor");
 		}
 
-		// 3. Validar fazenda
-		Farm farm = farmRepository.findById(farmId)
-				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-
-		if (!farm.getOwner().getId().equals(producerId) || !farm.getCompany().getId().equals(companyId)) {
-			throw new AccessDeniedException("Fazenda não pertence ao produtor ou empresa");
-		}
-
-		// 4. Buscar UserActivity
-		UserActivity userActivity = userActivityRepository.findByUserAndActivityAndFarm(producerId, activityId, farmId)
-				.orElseThrow(() -> new ResourceNotFoundException("Submissão de atividade não encontrada"));
-
-		// 5. Buscar arquivo na nova tabela e garantir vínculo
+		// 3. Buscar arquivo e garantir vínculo
 		UserActivitySubmissionFile fileEntity = userActivitySubmissionFileRepository.findById(submissionFileId)
 				.orElseThrow(() -> new ResourceNotFoundException("Arquivo da submissão não encontrado"));
 
