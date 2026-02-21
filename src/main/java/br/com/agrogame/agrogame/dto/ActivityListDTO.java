@@ -1,6 +1,7 @@
 package br.com.agrogame.agrogame.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class ActivityListDTO {
@@ -12,17 +13,21 @@ public class ActivityListDTO {
 	private String status;
 	private LocalDate validFrom;
 	private LocalDate validTo;
-	private List<Integer> cropTypeIds;
+    private LocalDateTime createdAt;
+    private Integer createdBy;
+    private LocalDateTime updatedAt;
+    private Integer updatedBy;
 
-	private Integer userActivityId;
 	private String userActivityStatus;
 	private Integer userActivityFarmId;
 
 	private String thumbnailUrl;
 	private String thumbnailGsutilUri;
 
+	private List<Integer> cropTypeIds;
 	private List<Integer> farmIds;
 	private List<Integer> productionUnitIds;
+	private List<Integer> userActivityIds;
 
 	public Integer getId() {
 		return id;
@@ -96,12 +101,12 @@ public class ActivityListDTO {
 		this.name = name;
 	}
 
-	public Integer getUserActivityId() {
-		return userActivityId;
+	public List<Integer> getUserActivityIds() {
+		return userActivityIds;
 	}
 
-	public void setUserActivityId(Integer userActivityId) {
-		this.userActivityId = userActivityId;
+	public void setUserActivityIds(List<Integer> userActivityIds) {
+		this.userActivityIds = userActivityIds;
 	}
 
 	public String getUserActivityStatus() {
@@ -150,6 +155,38 @@ public class ActivityListDTO {
 
 	public void setProductionUnitIds(List<Integer> productionUnitIds) {
 		this.productionUnitIds = productionUnitIds;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public Integer getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(Integer createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(Integer updatedBy) {
+		this.updatedBy = updatedBy;
 	}
 
 }

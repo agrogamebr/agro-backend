@@ -5,22 +5,18 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.validation.constraints.NotEmpty;
-
 public class CreateActivityMultipartDTO {
 	private String description;
 	private String name;
 	private Integer points;
 	private LocalDate validFrom;
 	private LocalDate validTo;
-	@NotEmpty
 	private List<Integer> cropTypeIds;
 	private MultipartFile thumbnail;
-	
 	private List<Integer> farmIds;
-    private List<Integer> productionUnitIds;
-    
-    private Boolean sendNow = false; 
+	private List<Integer> productionUnitIds;
+
+	private Boolean sendNow = false;
 
 	public String getDescription() {
 		return description;

@@ -86,7 +86,7 @@ public class RuralProducerController {
 
 	@Autowired
 	private UserActivityService userActivityService;
-	
+
 	@Autowired
 	private FarmRepository farmRepository;
 
@@ -269,11 +269,9 @@ public class RuralProducerController {
 			@ApiResponse(responseCode = "404", description = "Atividade, fazenda ou produtor não encontrado"),
 			@ApiResponse(responseCode = "422", description = "Atividade não está em status 'send' ou já foi submetida"),
 			@ApiResponse(responseCode = "500", description = "Erro interno ao enviar arquivo") })
-	@PostMapping(value = "/activities/{activityId}/farms/{farmId}/files", consumes = "multipart/form-data")
+	@PostMapping(value = "/user-activities/{userActivityId}/files", consumes = "multipart/form-data")
 	public ResponseEntity<Map<String, Object>> uploadFile(
-			@Parameter(description = "ID da atividade", example = "1") @PathVariable Integer activityId,
-
-			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
+			@Parameter(description = "ID da UserActivity", example = "1") @PathVariable Integer userActivityId,
 
 			@Parameter(description = "Arquivo para anexar") @RequestPart("file") MultipartFile file,
 
@@ -284,7 +282,7 @@ public class RuralProducerController {
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
 
-		FileUploadResponseDTO responseDto = activitySubmissionService.uploadFile(producerId, activityId, farmId, file,
+		FileUploadResponseDTO responseDto = activitySubmissionService.uploadFile(producerId, userActivityId, file,
 				description);
 
 		Map<String, Object> response = new HashMap<>();
@@ -308,25 +306,15 @@ public class RuralProducerController {
 			  - Nenhum arquivo adicional pode ser enviado para esta atividade.
 			  - A atividade fica aguardando aprovação pelo backoffice.
 			""")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade submetida com sucesso"),
-			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
-			@ApiResponse(responseCode = "403", description = "Sem permissão para esta atividade/fazenda"),
-			@ApiResponse(responseCode = "404", description = "Atividade, fazenda ou produtor não encontrado"),
-			@ApiResponse(responseCode = "422", description = "Atividade já foi submetida ou nenhum arquivo foi enviado"),
-			@ApiResponse(responseCode = "500", description = "Erro interno ao submeter atividade") })
-	@PostMapping("/activities/{activityId}/farms/{farmId}/submit")
+	@PostMapping("/user-activities/{userActivityId}/submit")
 	public ResponseEntity<Map<String, Object>> submitActivity(
-			@Parameter(description = "ID da atividade", example = "1") @PathVariable Integer activityId,
-
-			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
-
+			@Parameter(description = "ID da UserActivity", example = "1") @PathVariable Integer userActivityId,
 			Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
-		SubmitActivityResponseDTO responseDto = activitySubmissionService.submitActivity(producerId, activityId,
-				farmId);
+		SubmitActivityResponseDTO responseDto = activitySubmissionService.submitActivity(producerId, userActivityId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("success", true);
@@ -346,20 +334,18 @@ public class RuralProducerController {
 			@ApiResponse(responseCode = "403", description = "Sem permissão para acessar este arquivo"),
 			@ApiResponse(responseCode = "404", description = "Atividade, fazenda, submissão ou arquivo não encontrado"),
 			@ApiResponse(responseCode = "500", description = "Erro interno ao baixar arquivo") })
-	@GetMapping("/activities/{activityId}/farms/{farmId}/files/{submissionId}/download")
+	@GetMapping("/user-activities/{userActivityId}/files/{submissionFileId}/download")
 	public ResponseEntity<byte[]> downloadSubmissionFile(
-			@Parameter(description = "ID da atividade", example = "6") @PathVariable Integer activityId,
+			@Parameter(description = "ID da UserActivity", example = "6") @PathVariable Integer userActivityId,
 
-			@Parameter(description = "ID da fazenda", example = "1") @PathVariable Integer farmId,
-
-			@Parameter(description = "ID do registro de submissão (user_activity_submission)", example = "10") @PathVariable Integer submissionId,
+			@Parameter(description = "ID do arquivo de submissão", example = "10") @PathVariable Integer submissionFileId,
 
 			Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
-		return activitySubmissionService.downloadSubmissionFile(producerId, activityId, farmId, submissionId);
+		return activitySubmissionService.downloadSubmissionFile(producerId, userActivityId, submissionFileId);
 	}
 
 	@Operation(summary = "Obter saldo de pontos do produtor", description = """
@@ -399,42 +385,38 @@ public class RuralProducerController {
 	}
 
 	@Operation(summary = "Listar histórico de pontos do produtor", description = """
-	Retorna a lista paginada de transações de pontos do produtor logado.
-	Ordenação padrão: Mais recentes primeiro.
-	""")
+			Retorna a lista paginada de transações de pontos do produtor logado.
+			Ordenação padrão: Mais recentes primeiro.
+			""")
 	@GetMapping("/points/transactions")
 	public ResponseEntity<Page<ProducerPointsTransactionDTO>> getTransactions(
-	        @Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") 
-	        @RequestParam(required = false) Integer farmId,
-	        
-	        @RequestParam(defaultValue = "0") int page,
-	        @RequestParam(defaultValue = "20") int size,
-	        
-	        Principal principal) {
-	            
-	    User user = userRepository.findByEmail1(principal.getName())
-	            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+			@Parameter(description = "ID da fazenda para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer farmId,
 
-	    // Validação de segurança da fazenda
-	    if (farmId != null) {
-	        Farm farm = farmRepository.findById(farmId)
-	                .orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
-	        if (!farm.getOwner().getId().equals(user.getId())) {
-	            throw new BusinessException("Fazenda não pertence ao produtor");
-	        }
-	    }
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 
-	    // Cria o Pageable ordenando por data de criação (descendente - mais novo primeiro)
-	    // Assumindo que o campo de data na entidade Transaction seja 'createdAt'
-	    Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+			Principal principal) {
 
-	    Page<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(
-	            user.getId(), 
-	            farmId, 
-	            pageable
-	    );
+		User user = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-	    return ResponseEntity.ok(transactions);
+		// Validação de segurança da fazenda
+		if (farmId != null) {
+			Farm farm = farmRepository.findById(farmId)
+					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+			if (!farm.getOwner().getId().equals(user.getId())) {
+				throw new BusinessException("Fazenda não pertence ao produtor");
+			}
+		}
+
+		// Cria o Pageable ordenando por data de criação (descendente - mais novo
+		// primeiro)
+		// Assumindo que o campo de data na entidade Transaction seja 'createdAt'
+		Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+		Page<ProducerPointsTransactionDTO> transactions = producerPointsService.getTransactions(user.getId(), farmId,
+				pageable);
+
+		return ResponseEntity.ok(transactions);
 	}
 
 	@Operation(summary = "Detalhar atividade do produtor", description = """

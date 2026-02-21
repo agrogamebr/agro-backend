@@ -121,11 +121,6 @@ public class ActivityController {
 	    return ResponseEntity.ok(activity);
 	}
 
-	private List<Integer> getCropTypeIds(Integer activityId) {
-		return activityCropTypeRepository.findByActivityId(activityId).stream().map(act -> act.getCropType().getId())
-				.toList();
-	}
-
 	@PutMapping("/{activityId}")
 	@Operation(summary = "Editar atividade", description = "Edita uma atividade que está em status 'draft'")
 	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Atividade atualizada"),

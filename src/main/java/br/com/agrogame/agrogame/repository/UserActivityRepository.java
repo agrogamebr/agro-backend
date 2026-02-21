@@ -45,4 +45,7 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	@Modifying
 	@Query("UPDATE UserActivity ua SET ua.status.id = 5 WHERE ua.productionUnit.id = :unitId AND ua.status.id NOT IN (3, 4, 5)")
 	void cancelActivitiesByProductionUnit(@Param("unitId") Integer unitId);
+	
+	List<UserActivity> findByActivityId(Integer activityId);
+
 }

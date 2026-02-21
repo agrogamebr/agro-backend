@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -117,6 +118,13 @@ public class ActivityService {
 
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
 			throw new BusinessException("Data inicial não pode ser maior que a data final");
+		}
+
+		boolean hasCrops = dto.getCropTypeIds() != null && !dto.getCropTypeIds().isEmpty();
+		boolean hasFarms = dto.getFarmIds() != null && !dto.getFarmIds().isEmpty();
+
+		if (!hasCrops && !hasFarms) {
+			throw new BusinessException("Informe pelo menos um tipo de cultura ou uma fazenda.");
 		}
 
 		// ========== VALIDAÇÕES GERAIS (Empresa, Crops) ==========
@@ -340,6 +348,18 @@ public class ActivityService {
 
 		boolean hasSpecificUnits = productionUnitIds != null && !productionUnitIds.isEmpty();
 
+// 1) Carrega UserActivity já existentes para essa Activity
+		List<UserActivity> existing = userActivityRepository.findByActivityId(activity.getId());
+
+// 2) Monta um Set com chaves (userId, farmId, unitId) já criadas
+		record UAKey(Integer userId, Integer farmId, Integer unitId) {
+		}
+
+		Set<UAKey> existingKeys = existing.stream()
+				.map(ua -> new UAKey(ua.getUser().getId(), ua.getFarm().getId(),
+						ua.getProductionUnit() != null ? ua.getProductionUnit().getId() : null))
+				.collect(Collectors.toSet());
+
 		List<Farm> farmsToProcess;
 		if (targetFarms != null && !targetFarms.isEmpty()) {
 			farmsToProcess = targetFarms;
@@ -356,16 +376,21 @@ public class ActivityService {
 			}
 
 			if (hasSpecificUnits) {
-				// Units desta farm que estão na lista e são compatíveis
+// Units desta farm que estão na lista e são compatíveis
 				List<ProductionUnit> unitsForThisFarm = productionUnitRepository
 						.findByIdInAndFarmIdAndCropTypesCompatible(productionUnitIds, farm.getId(),
 								activityCropTypeIds);
 
 				if (unitsForThisFarm.isEmpty()) {
-					continue; // Se não tem UP compatível selecionada nesta farm, pula
+					continue;
 				}
 
 				for (ProductionUnit pu : unitsForThisFarm) {
+					UAKey key = new UAKey(farm.getOwner().getId(), farm.getId(), pu.getId());
+					if (existingKeys.contains(key)) {
+						continue; // já existe, não cria de novo
+					}
+
 					UserActivity ua = new UserActivity();
 					ua.setActivity(activity);
 					ua.setUser(farm.getOwner());
@@ -375,14 +400,21 @@ public class ActivityService {
 					ua.setCreatedAt(LocalDateTime.now());
 					ua.setCreatedBy(userCreatedBy);
 					userActivityRepository.save(ua);
+
+					existingKeys.add(key);
 				}
 
 			} else {
-				// Sem UP específica (comportamento padrão)
+// Sem UP específica (comportamento padrão)
 				List<ProductionUnit> units = productionUnitRepository.findByFarmAndCropTypesCompatible(farm.getId(),
 						activityCropTypeIds);
 
 				if (units.isEmpty()) {
+					UAKey key = new UAKey(farm.getOwner().getId(), farm.getId(), null);
+					if (existingKeys.contains(key)) {
+						continue;
+					}
+
 					UserActivity ua = new UserActivity();
 					ua.setActivity(activity);
 					ua.setUser(farm.getOwner());
@@ -391,8 +423,15 @@ public class ActivityService {
 					ua.setCreatedAt(LocalDateTime.now());
 					ua.setCreatedBy(userCreatedBy);
 					userActivityRepository.save(ua);
+
+					existingKeys.add(key);
 				} else {
 					for (ProductionUnit pu : units) {
+						UAKey key = new UAKey(farm.getOwner().getId(), farm.getId(), pu.getId());
+						if (existingKeys.contains(key)) {
+							continue;
+						}
+
 						UserActivity ua = new UserActivity();
 						ua.setActivity(activity);
 						ua.setUser(farm.getOwner());
@@ -402,6 +441,8 @@ public class ActivityService {
 						ua.setCreatedAt(LocalDateTime.now());
 						ua.setCreatedBy(userCreatedBy);
 						userActivityRepository.save(ua);
+
+						existingKeys.add(key);
 					}
 				}
 			}
@@ -579,32 +620,39 @@ public class ActivityService {
 
 		return activitiesPage.map(this::toActivityListDTO);
 	}
-	
+
 	@Transactional
 	public ActivityListDTO listActivity(Integer idActivity) {
 
-	    // 1. Busca a Atividade Oficial
-	    Activity activity = activityRepository.findById(idActivity)
-	            .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+		// 1. Busca a Atividade Oficial
+		Activity activity = activityRepository.findById(idActivity)
+				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
 
-	    // 2. Converte para DTO (Dados Básicos)
-	    ActivityListDTO dto = toActivityListDTO(activity);
+		// 2. Converte para DTO (Dados Básicos)
+		ActivityListDTO dto = toActivityListDTO(activity);
 
-	    // 3. SE FOR DRAFT: Busca e mescla os dados do Rascunho
-	    if ("draft".equalsIgnoreCase(activity.getActivityStatus().getCode())) {
-	        enrichDtoWithDraftData(dto, idActivity);
-	    } else {
-	        // Se não for draft, garante listas vazias para não quebrar front
-	        dto.setFarmIds(new ArrayList<>());
-	        dto.setProductionUnitIds(new ArrayList<>());
-	    }
+		// 3. SE FOR DRAFT: Busca e mescla os dados do Rascunho
+		if ("draft".equalsIgnoreCase(activity.getActivityStatus().getCode())) {
+			enrichDtoWithDraftData(dto, idActivity);
+		} else {
+			List<UserActivity> uas = userActivityRepository.findByActivityId(activity.getId());
 
-	    return dto;
+			List<Integer> userActivityIds = uas.stream().map(UserActivity::getId).toList();
+
+			List<Integer> farmIds = uas.stream().map(ua -> ua.getFarm().getId()).distinct().toList();
+
+			List<Integer> unitIds = uas.stream().map(UserActivity::getProductionUnit).filter(Objects::nonNull)
+					.map(pu -> pu.getId()).distinct().toList();
+
+			dto.setUserActivityIds(userActivityIds);
+			dto.setFarmIds(farmIds);
+			dto.setProductionUnitIds(unitIds);
+		}
+		return dto;
 	}
 
-	// Método auxiliar para converter o básico
 	private ActivityListDTO toActivityListDTO(Activity activity) {
-	    ActivityListDTO dto = new ActivityListDTO();
+		ActivityListDTO dto = new ActivityListDTO();
 		dto.setId(activity.getId());
 		dto.setCompanyId(activity.getCompany().getId());
 		dto.setDescription(activity.getDescription());
@@ -615,77 +663,53 @@ public class ActivityService {
 		dto.setName(activity.getName());
 		dto.setThumbnailUrl(activity.getThumbnailUrl());
 		dto.setThumbnailGsutilUri(activity.getThumbnailGsutilUri());
-	    
-	    // Pega cropTypes oficiais (padrão)
-	    List<Integer> officialCrops = activityCropTypeRepository.findByActivityId(activity.getId())
-	            .stream().map(act -> act.getCropType().getId()).toList();
-	    dto.setCropTypeIds(officialCrops);
-	    
-	    return dto;
+
+		// novos campos
+		dto.setCreatedAt(activity.getCreatedAt());
+		dto.setCreatedBy(activity.getCreatedBy());
+		dto.setUpdatedAt(activity.getUpdatedAt());
+		dto.setUpdatedBy(activity.getUpdatedBy());
+
+		List<Integer> officialCrops = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
+				.map(act -> act.getCropType().getId()).toList();
+		dto.setCropTypeIds(officialCrops);
+
+		return dto;
 	}
 
 	// Método auxiliar para buscar dados do Draft (JSONB)
 	private void enrichDtoWithDraftData(ActivityListDTO dto, Integer activityId) {
-	    Optional<ActivityDraft> draftOpt = activityDraftRepository.findByActivityId(activityId);
-	    
-	    if (draftOpt.isPresent()) {
-	        ActivityDraft draft = draftOpt.get();
-	        
-	        // Se tem dados no JSON do draft, usa eles (são mais recentes/editáveis)
-	        if (draft.getFarmIds() != null && !draft.getFarmIds().isEmpty()) {
-	            dto.setFarmIds(draft.getFarmIds());
-	        } else {
-	            dto.setFarmIds(new ArrayList<>());
-	        }
+		Optional<ActivityDraft> draftOpt = activityDraftRepository.findByActivityId(activityId);
 
-	        if (draft.getProductionUnitIds() != null && !draft.getProductionUnitIds().isEmpty()) {
-	            dto.setProductionUnitIds(draft.getProductionUnitIds());
-	        } else {
-	            dto.setProductionUnitIds(new ArrayList<>());
-	        }
+		if (draftOpt.isPresent()) {
+			ActivityDraft draft = draftOpt.get();
 
-	        // Crops: Se o draft tiver salvo algo diferente do oficial, usa o draft
-	        if (draft.getCropTypeIds() != null && !draft.getCropTypeIds().isEmpty()) {
-	            dto.setCropTypeIds(draft.getCropTypeIds());
-	        }
-	    } else {
-	        // Draft não encontrado (inconsistência ou deletado), usa listas vazias
-	        dto.setFarmIds(new ArrayList<>());
-	        dto.setProductionUnitIds(new ArrayList<>());
-	    }
+			if (draft.getFarmIds() != null && !draft.getFarmIds().isEmpty()) {
+				dto.setFarmIds(draft.getFarmIds());
+			} else {
+				dto.setFarmIds(new ArrayList<>());
+			}
+
+			if (draft.getProductionUnitIds() != null && !draft.getProductionUnitIds().isEmpty()) {
+				dto.setProductionUnitIds(draft.getProductionUnitIds());
+			} else {
+				dto.setProductionUnitIds(new ArrayList<>());
+			}
+
+			if (draft.getCropTypeIds() != null && !draft.getCropTypeIds().isEmpty()) {
+				dto.setCropTypeIds(draft.getCropTypeIds());
+			}
+		} else {
+			List<UserActivity> uas = userActivityRepository.findByActivityId(activityId);
+			List<Integer> farmIds = uas.stream().map(ua -> ua.getFarm().getId()).distinct().toList();
+
+			List<Integer> unitIds = uas.stream().map(ua -> ua.getProductionUnit()).filter(Objects::nonNull)
+					.map(ProductionUnit::getId).distinct().toList();
+
+			dto.setFarmIds(farmIds);
+			dto.setProductionUnitIds(unitIds);
+		}
 	}
-
-
-//	@Transactional
-//	public ActivityListDTO listActivity(Integer idActivity) {
-//
-//		Activity activity = activityRepository.findById(idActivity)
-//				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
-//
-//		return toActivityListDTO(activity);
-//	}
-//
-//	private ActivityListDTO toActivityListDTO(Activity activity) {
-//		ActivityListDTO dto = new ActivityListDTO();
-//		dto.setId(activity.getId());
-//		dto.setCompanyId(activity.getCompany().getId());
-//		dto.setDescription(activity.getDescription());
-//		dto.setPoints(activity.getPoints());
-//		dto.setStatus(activity.getActivityStatus().getCode());
-//		dto.setValidFrom(activity.getValidFrom());
-//		dto.setValidTo(activity.getValidTo());
-//		dto.setName(activity.getName());
-//		dto.setThumbnailUrl(activity.getThumbnailUrl());
-//		dto.setThumbnailGsutilUri(activity.getThumbnailGsutilUri());
-//
-//		// buscar cropTypes dessa activity
-//		List<Integer> cropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
-//				.map(actCrop -> actCrop.getCropType().getId()).toList();
-//
-//		dto.setCropTypeIds(cropTypeIds);
-//
-//		return dto;
-//	}
 
 	@Transactional
 	public void cancelDraftActivity(Integer activityId) {
@@ -799,29 +823,6 @@ public class ActivityService {
 			System.out.println("Thumbnail anterior deletada com sucesso");
 		} catch (Exception e) {
 			System.err.println("Erro ao deletar thumbnail anterior: " + e.getMessage());
-		}
-	}
-
-	private void validateProductionUnitsBelongToFarmsAndCrops(List<Integer> unitIds, List<Integer> farmIds,
-			List<Integer> cropTypeIds, Integer companyId) {
-
-		List<ProductionUnit> units = productionUnitRepository.findByIdInAndIsActiveTrue(unitIds);
-		if (units.size() != unitIds.size()) {
-			throw new BusinessException("Uma ou mais unidades produtivas são inválidas ou inativas.");
-		}
-
-		for (ProductionUnit pu : units) {
-			if (!farmIds.contains(pu.getFarm().getId())) {
-				throw new BusinessException(
-						"Unidade produtiva " + pu.getId() + " não pertence às fazendas selecionadas.");
-			}
-		}
-
-		List<Integer> compatibleIds = productionUnitRepository.findCompatibleUnitIdsByCropTypes(unitIds, cropTypeIds);
-
-		if (compatibleIds.size() != unitIds.size()) {
-			throw new BusinessException(
-					"Uma ou mais unidades produtivas não são compatíveis com as culturas selecionadas.");
 		}
 	}
 
