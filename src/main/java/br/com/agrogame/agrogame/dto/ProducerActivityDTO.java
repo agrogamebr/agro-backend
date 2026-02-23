@@ -6,19 +6,22 @@ import java.util.List;
 public class ProducerActivityDTO {
 
 	private Integer activityId;
+	private String name;
 	private String description;
 	private Integer points;
 	private LocalDate validFrom;
 	private LocalDate validTo;
-	private List<String> cropTypes; // culturas vinculadas
 	private String status;
 	private String companyName;
-	private String name;
+
 	private Integer userActivityId;
 	private String userActivityStatus;
 	private Integer userActivityFarmId;
-    private String thumbnailUrl;
-    private String thumbnailGsutilUri;
+	private Integer productionUnitId;
+
+	private List<String> cropTypes;
+	private String thumbnailUrl;
+	private String thumbnailGsutilUri;
 
 	public String getThumbnailUrl() {
 		return thumbnailUrl;
@@ -130,5 +133,13 @@ public class ProducerActivityDTO {
 
 	public void setUserActivityFarmId(Integer userActivityFarmId) {
 		this.userActivityFarmId = userActivityFarmId;
+	}
+
+	public Integer getProductionUnitId() {
+		return productionUnitId;
+	}
+
+	public void setProductionUnitId(Integer productionUnitId) {
+		this.productionUnitId = productionUnitId;
 	}
 }

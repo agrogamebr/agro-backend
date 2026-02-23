@@ -466,9 +466,19 @@ public class ActivityService {
 			throw new BusinessException("Atividade não pode ser editada pois não está em status 'draft'");
 		}
 
-		// 3. Validar empresa
-		Company company = companyRepository.findById(dto.getCompanyId())
-				.orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada"));
+		// 3. Pegar empresa a partir da Activity (e opcionalmente validar com o usuário
+		// logado)
+		Company company = activity.getCompany();
+		if (company == null) {
+			throw new BusinessException("Atividade não está vinculada a nenhuma empresa");
+		}
+
+		// (opcional, se quiser garantir que o usuário logado é da mesma empresa)
+		User updatedUser = userRepository.findById(updatedBy)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+		if (updatedUser.getCompany() == null || !updatedUser.getCompany().getId().equals(company.getId())) {
+			throw new AccessDeniedException("Usuário não pertence à empresa da atividade");
+		}
 
 		// 4. Validar datas
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
