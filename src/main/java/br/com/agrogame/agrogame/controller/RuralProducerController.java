@@ -225,33 +225,28 @@ public class RuralProducerController {
 			@ApiResponse(responseCode = "403", description = "Usuário não é produtor rural"),
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@GetMapping("/activities")
-	public ResponseEntity<Map<String, Object>> listProducerActivities(
-			@Parameter(description = "ID da fazenda para filtrar", example = "1") @RequestParam(required = false) Integer farmId,
-
-			@Parameter(description = "ID do tipo de cultura para filtrar (opcional)", example = "1") @RequestParam(required = false) Integer cropTypeId,
-
-			@Parameter(description = "Data inicial de validade (formato: yyyy-MM-dd, opcional)", example = "2025-11-26") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromStart,
-
-			@Parameter(description = "Data final de validade (formato: yyyy-MM-dd, opcional)", example = "2025-12-31") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromEnd,
-
-			@Parameter(description = "Data inicial de término (formato: yyyy-MM-dd, opcional)", example = "2025-11-26") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToStart,
-
-			@Parameter(description = "Data final de término (formato: yyyy-MM-dd, opcional)", example = "2025-11-30") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToEnd,
-
-			@Parameter(description = "Trecho do nome da atividade para filtrar (opcional)", example = "Plantio Soja") @RequestParam(required = false) String name,
-
-			Principal principal) {
+	public ResponseEntity<Map<String, Object>> listProducerActivities(@RequestParam(required = false) Integer farmId,
+			@RequestParam(required = false) Integer cropTypeId,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromStart,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromEnd,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToStart,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToEnd,
+			@RequestParam(required = false) String name, 
+			@RequestParam(required = false) String status, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size, Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
-		List<ProducerActivityDTO> activities = ruralProducerService.listActivitiesForProducerFast(producerId, farmId,
-				cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, null);
+		Page<ProducerActivityDTO> activitiesPage = ruralProducerService.listActivitiesForProducerFast(producerId,
+				farmId, cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, status, page, size);
 
 		Map<String, Object> response = new HashMap<>();
-		response.put("activities", activities);
-		response.put("total", activities.size());
-		response.put("message", "Atividades carregadas com sucesso");
+		response.put("activities", activitiesPage.getContent());
+		response.put("page", activitiesPage.getNumber());
+		response.put("size", activitiesPage.getSize());
+		response.put("totalElements", activitiesPage.getTotalElements());
+		response.put("totalPages", activitiesPage.getTotalPages());
 
 		return ResponseEntity.ok(response);
 	}

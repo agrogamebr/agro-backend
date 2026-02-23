@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Positive;
 
 public class CreateActivityDTO {
 
-	@NotNull
 	private Integer companyId;
 
 	@NotBlank(message = "Descrição é obrigatória")

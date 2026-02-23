@@ -9,14 +9,19 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ActivityCropTypeProjection;
-import br.com.agrogame.agrogame.dto.ActivityWithUserActivityProjection;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityDTO;
+import br.com.agrogame.agrogame.dto.ProducerUserActivityProjection;
 import br.com.agrogame.agrogame.dto.RuralProducerDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
@@ -42,6 +47,7 @@ import br.com.agrogame.agrogame.repository.CompanyRepository;
 import br.com.agrogame.agrogame.repository.FarmCropRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
 import br.com.agrogame.agrogame.repository.RuralProducerRepository;
+import br.com.agrogame.agrogame.repository.UserActivityRepository;
 import br.com.agrogame.agrogame.repository.UserDocumentRepository;
 import br.com.agrogame.agrogame.repository.UserDocumentTypeRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
@@ -92,6 +98,9 @@ public class RuralProducerService {
 
 	@Autowired
 	private ActivityCropTypeRepository activityCropTypeRepository;
+
+	@Autowired
+	private UserActivityRepository userActivityRepository;
 
 	@Transactional
 	public User registerRuralProducer(RuralProducerDTO dto) {
@@ -372,10 +381,9 @@ public class RuralProducerService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId, // pode ser null
+	public Page<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId,
 			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
-			LocalDate validToStart, LocalDate validToEnd, String status) {
-		// 1. Buscar produtor e validar tipo
+			LocalDate validToStart, LocalDate validToEnd, String status, int page, int size) {
 		User producer = userRepository.findByIdWithUserType(producerId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
 
@@ -389,7 +397,7 @@ public class RuralProducerService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// 2. Descobrir quais farms considerar
+		// farms do produtor
 		List<Integer> farmIds;
 		if (farmId != null) {
 			Farm farm = farmRepository.findById(farmId)
@@ -401,70 +409,76 @@ public class RuralProducerService {
 
 			farmIds = List.of(farmId);
 		} else {
-			// todas as farms do produtor nessa empresa
 			farmIds = farmRepository.findByOwnerIdAndCompanyId(producerId, companyId).stream().map(Farm::getId)
 					.toList();
 
 			if (farmIds.isEmpty()) {
-				return List.of();
+				return Page.empty();
 			}
 		}
 
-		// 3. Buscar atividades + user_activity em uma query (para todas as farms do
-		// produtor)
-		List<ActivityWithUserActivityProjection> rows = activityRepository.listActivitiesWithUserActivityForFarms(
-				companyId, producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter);
+		// paginação (ordenando por validTo asc, como você já faz no sorted)
+		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "validTo"));
 
-		if (rows.isEmpty()) {
-			return List.of();
+		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForProducer(companyId,
+				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, pageable);
+
+		if (rowsPage.isEmpty()) {
+			return Page.empty(pageable);
 		}
 
-		// 4. Buscar TODOS os crops de TODAS as atividades em UMA query
-		List<Integer> activityIds = rows.stream().map(ActivityWithUserActivityProjection::getId).distinct().toList();
+		// crops por Activity
+		List<Integer> activityIds = rowsPage.getContent().stream().map(ProducerUserActivityProjection::getActivityId)
+				.distinct().toList();
 
 		Map<Integer, List<String>> activityCropsMap = activityCropTypeRepository.findCropsByActivityIds(activityIds)
 				.stream().collect(Collectors.groupingBy(ActivityCropTypeProjection::getActivityId,
 						Collectors.mapping(ActivityCropTypeProjection::getCropName, Collectors.toList())));
 
-		// 5. Montar DTOs com filtros
-		return rows.stream().filter(row -> {
-			if (nameFilter == null || nameFilter.isBlank())
-				return true;
-			String n = row.getName();
-			return n != null && n.toLowerCase().contains(nameFilter.toLowerCase());
-		}).filter(row -> {
-			if (validToStart != null && row.getValidTo().isBefore(validToStart))
-				return false;
-			if (validToEnd != null && row.getValidTo().isAfter(validToEnd))
-				return false;
-			return true;
-		}).filter(row -> {
-			if (cropTypeIdFilter == null)
-				return true;
-			List<String> crops = activityCropsMap.getOrDefault(row.getId(), List.of());
-			return !crops.isEmpty();
-		}).map(row -> {
+		// mapear para DTO
+		Page<ProducerActivityDTO> dtoPage = rowsPage.map(row -> {
 			ProducerActivityDTO dto = new ProducerActivityDTO();
-			dto.setActivityId(row.getId());
-			dto.setName(row.getName());
+			dto.setActivityId(row.getActivityId());
+			dto.setName(row.getActivityName());
 			dto.setDescription(row.getDescription());
 			dto.setPoints(row.getPoints());
 			dto.setValidFrom(row.getValidFrom());
 			dto.setValidTo(row.getValidTo());
-			dto.setStatus(row.getStatus());
+			dto.setStatus(row.getActivityStatus());
 			dto.setCompanyName(producer.getCompany().getFantasyName());
 
-			List<String> cropTypeNames = activityCropsMap.getOrDefault(row.getId(), List.of());
+			List<String> cropTypeNames = activityCropsMap.getOrDefault(row.getActivityId(), List.of());
 			dto.setCropTypes(cropTypeNames);
 
 			dto.setUserActivityId(row.getUserActivityId());
 			dto.setUserActivityStatus(row.getUserActivityStatus());
 			dto.setUserActivityFarmId(row.getUserActivityFarmId());
+			dto.setProductionUnitId(row.getProductionUnitId());
 			dto.setThumbnailUrl(row.getThumbnailUrl());
-            dto.setThumbnailGsutilUri(row.getThumbnailGsutilUri());
+			dto.setThumbnailGsutilUri(row.getThumbnailGsutilUri());
 
 			return dto;
-		}).sorted(Comparator.comparing(ProducerActivityDTO::getValidTo)).toList();
+		});
+
+		// filtros adicionais (name, validToStart/End) ainda estão em memória
+		if ((nameFilter != null && !nameFilter.isBlank()) || validToStart != null || validToEnd != null) {
+			List<ProducerActivityDTO> filtered = dtoPage.getContent().stream().filter(dto -> {
+				if (nameFilter == null || nameFilter.isBlank())
+					return true;
+				String n = dto.getName();
+				return n != null && n.toLowerCase().contains(nameFilter.toLowerCase());
+			}).filter(dto -> {
+				if (validToStart != null && dto.getValidTo().isBefore(validToStart))
+					return false;
+				if (validToEnd != null && dto.getValidTo().isAfter(validToEnd))
+					return false;
+				return true;
+			}).sorted(Comparator.comparing(ProducerActivityDTO::getValidTo)).toList();
+
+			return new PageImpl<>(filtered, pageable, dtoPage.getTotalElements());
+		}
+
+		return dtoPage;
 	}
 
 }
