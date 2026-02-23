@@ -120,7 +120,8 @@ public class ActivityService {
 			throw new BusinessException("Data inicial não pode ser maior que a data final");
 		}
 
-		boolean hasCrops = dto.getCropTypeIds() != null && !dto.getCropTypeIds().isEmpty();
+		List<Integer> cropTypeIds = dto.getCropTypeIds();
+		boolean hasCrops = cropTypeIds != null && !cropTypeIds.isEmpty();
 		boolean hasFarms = dto.getFarmIds() != null && !dto.getFarmIds().isEmpty();
 
 		if (!hasCrops && !hasFarms) {
@@ -128,7 +129,9 @@ public class ActivityService {
 		}
 
 		// ========== VALIDAÇÕES GERAIS (Empresa, Crops) ==========
-		validateCompanyHasCropTypes(company, dto.getCropTypeIds());
+		if (hasCrops) {
+			validateCompanyHasCropTypes(company, cropTypeIds);
+		}
 
 		// ========== CRIAR/SALVAR ACTIVITY ==========
 		Activity activity = new Activity();
@@ -157,16 +160,18 @@ public class ActivityService {
 		Activity savedActivity = activityRepository.save(activity);
 
 		// ========== VINCULAR CROP TYPES ==========
-		for (Integer cropTypeId : dto.getCropTypeIds()) {
-			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new ResourceNotFoundException("CropType " + cropTypeId + " não encontrado"));
+		if (hasCrops) {
+			for (Integer cropTypeId : cropTypeIds) {
+				CropType cropType = cropTypeRepository.findById(cropTypeId)
+						.orElseThrow(() -> new ResourceNotFoundException("CropType " + cropTypeId + " não encontrado"));
 
-			ActivityCropType act = new ActivityCropType();
-			act.setActivity(savedActivity);
-			act.setCropType(cropType);
-			act.setCreatedAt(LocalDateTime.now());
-			act.setCreatedBy(createdBy);
-			activityCropTypeRepository.save(act);
+				ActivityCropType act = new ActivityCropType();
+				act.setActivity(savedActivity);
+				act.setCropType(cropType);
+				act.setCreatedAt(LocalDateTime.now());
+				act.setCreatedBy(createdBy);
+				activityCropTypeRepository.save(act);
+			}
 		}
 
 		// ========== CRIAR REWARD ==========
@@ -199,26 +204,22 @@ public class ActivityService {
 		// ========== LÓGICA DE DRAFT vs SEND ==========
 
 		if (!isSendNow) {
-			// SALVA RASCUNHO USANDO JSONB (NOVA LÓGICA)
 			saveDraftSelections(savedActivity, dto, createdBy);
 		} else {
-			// ENVIO IMEDIATO: Calcula Farms e faz Fan-out
 			List<Farm> targetFarms;
 			if (dto.getFarmIds() != null && !dto.getFarmIds().isEmpty()) {
 				targetFarms = farmRepository.findAllById(dto.getFarmIds());
+			} else if (hasCrops) {
+				targetFarms = farmRepository.findByCompanyIdAndCropTypes(company.getId(), cropTypeIds);
 			} else {
-				targetFarms = farmRepository.findByCompanyIdAndCropTypes(company.getId(), dto.getCropTypeIds());
+				throw new BusinessException("Nenhuma fazenda encontrada para os critérios selecionados.");
 			}
 
-			// Se targetFarms vier vazio aqui, talvez queira validar antes de chamar o
-			// fan-out
 			if (targetFarms.isEmpty()) {
 				throw new BusinessException("Nenhuma fazenda encontrada para os critérios selecionados.");
 			}
 
 			createUserActivitiesForMatchingFarms(savedActivity, createdBy, targetFarms, dto.getProductionUnitIds());
-
-			// Limpa draft se existir (segurança)
 			activityDraftRepository.findByActivityId(savedActivity.getId()).ifPresent(activityDraftRepository::delete);
 		}
 
@@ -346,6 +347,7 @@ public class ActivityService {
 		List<Integer> activityCropTypeIds = activityCropTypeRepository.findByActivityId(activity.getId()).stream()
 				.map(act -> act.getCropType().getId()).toList();
 
+		boolean hasActivityCrops = !activityCropTypeIds.isEmpty();
 		boolean hasSpecificUnits = productionUnitIds != null && !productionUnitIds.isEmpty();
 
 // 1) Carrega UserActivity já existentes para essa Activity
@@ -368,11 +370,14 @@ public class ActivityService {
 		}
 
 		for (Farm farm : farmsToProcess) {
-			List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
-			boolean hasCrop = farmCrops.stream().anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
+			if (hasActivityCrops) {
+				List<FarmCrop> farmCrops = farmCropRepository.findByFarmId(farm.getId());
+				boolean hasCrop = farmCrops.stream()
+						.anyMatch(fc -> activityCropTypeIds.contains(fc.getCropType().getId()));
 
-			if (!hasCrop) {
-				continue;
+				if (!hasCrop) {
+					continue;
+				}
 			}
 
 			if (hasSpecificUnits) {
@@ -470,6 +475,18 @@ public class ActivityService {
 			throw new BusinessException("Data inicial não pode ser maior que a data final");
 		}
 
+		List<Integer> cropTypeIds = dto.getCropTypeIds();
+		boolean hasCrops = cropTypeIds != null && !cropTypeIds.isEmpty();
+		boolean hasFarms = dto.getFarmIds() != null && !dto.getFarmIds().isEmpty();
+
+		if (!hasCrops && !hasFarms) {
+			throw new BusinessException("Informe pelo menos um tipo de cultura ou uma fazenda.");
+		}
+
+		if (hasCrops) {
+			validateCompanyHasCropTypes(company, cropTypeIds);
+		}
+
 		// 5. Atualizar campos básicos
 		activity.setCompany(company);
 		activity.setDescription(dto.getDescription());
@@ -485,17 +502,19 @@ public class ActivityService {
 		// 6. Atualizar vínculos de crop types
 		activityCropTypeRepository.deleteByActivityId(activityId);
 
-		for (Integer cropTypeId : dto.getCropTypeIds()) {
-			CropType cropType = cropTypeRepository.findById(cropTypeId)
-					.orElseThrow(() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
+		if (hasCrops) {
+			for (Integer cropTypeId : cropTypeIds) {
+				CropType cropType = cropTypeRepository.findById(cropTypeId).orElseThrow(
+						() -> new ResourceNotFoundException("Tipo de cultura não encontrado: " + cropTypeId));
 
-			ActivityCropType activityCropType = new ActivityCropType();
-			activityCropType.setActivity(savedActivity);
-			activityCropType.setCropType(cropType);
-			activityCropType.setCreatedAt(LocalDateTime.now());
-			activityCropType.setCreatedBy(updatedBy);
+				ActivityCropType activityCropType = new ActivityCropType();
+				activityCropType.setActivity(savedActivity);
+				activityCropType.setCropType(cropType);
+				activityCropType.setCreatedAt(LocalDateTime.now());
+				activityCropType.setCreatedBy(updatedBy);
 
-			activityCropTypeRepository.save(activityCropType);
+				activityCropTypeRepository.save(activityCropType);
+			}
 		}
 
 		// 7. Atualizar rewards
