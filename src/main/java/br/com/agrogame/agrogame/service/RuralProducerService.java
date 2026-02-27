@@ -383,7 +383,7 @@ public class RuralProducerService {
 	@Transactional(readOnly = true)
 	public Page<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId,
 			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
-			LocalDate validToStart, LocalDate validToEnd, String status, int page, int size) {
+			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page, int size) {
 		User producer = userRepository.findByIdWithUserType(producerId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
 
@@ -421,7 +421,7 @@ public class RuralProducerService {
 		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "validTo"));
 
 		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForProducer(companyId,
-				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, pageable);
+				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId, pageable);
 
 		if (rowsPage.isEmpty()) {
 			return Page.empty(pageable);
