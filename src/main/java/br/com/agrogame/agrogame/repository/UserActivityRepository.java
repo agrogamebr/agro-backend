@@ -77,6 +77,7 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	          AND a.company_id = :companyId
 	          AND s.code = 'send'
 	          AND (:status IS NULL OR uas.code = :status)
+	          AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
 	          AND (:startDate IS NULL OR a.valid_from >= :startDate)
 	          AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
 	          AND (
@@ -103,6 +104,7 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	          AND a.company_id = :companyId
 	          AND s.code = 'send'
 	          AND (:status IS NULL OR uas.code = :status)
+	          AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
 	          AND (:startDate IS NULL OR a.valid_from >= :startDate)
 	          AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
 	          AND (
@@ -124,6 +126,7 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	        @Param("startDate") LocalDate startDate,
 	        @Param("endDate") LocalDate endDate,
 	        @Param("cropTypeId") Integer cropTypeId,
+	        @Param("unidadeProdutivaId") Integer unidadeProdutivaId,
 	        Pageable pageable);
 
 

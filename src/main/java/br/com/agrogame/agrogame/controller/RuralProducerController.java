@@ -232,14 +232,16 @@ public class RuralProducerController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToStart,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToEnd,
 			@RequestParam(required = false) String name, 
-			@RequestParam(required = false) String status, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(required = false) String status, 
+			@RequestParam(required = false) Integer unidadeProdutivaId,
+			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size, Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
 		Page<ProducerActivityDTO> activitiesPage = ruralProducerService.listActivitiesForProducerFast(producerId,
-				farmId, cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, status, page, size);
+				farmId, cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, status, unidadeProdutivaId,  page, size);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activitiesPage.getContent());
