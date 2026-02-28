@@ -50,84 +50,77 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 	List<UserActivity> findByActivityId(Integer activityId);
 
 	@Query(value = """
-	        SELECT
-	            ua.id                  AS userActivityId,
-	            uas.code               AS userActivityStatus,
-	            ua.farm_id             AS userActivityFarmId,
-	            ua.production_unit_id  AS productionUnitId,
+			SELECT
+			    ua.id                  AS userActivityId,
+			    uas.code               AS userActivityStatus,
+			    ua.farm_id             AS userActivityFarmId,
+			    ua.production_unit_id  AS productionUnitId,
 
-	            a.id                   AS activityId,
-	            a.name                 AS activityName,
-	            a.description          AS description,
-	            a.points               AS points,
-	            s.code                 AS activityStatus,
-	            a.valid_from           AS validFrom,
-	            a.valid_to             AS validTo,
-	            a.thumbnail_url        AS thumbnailUrl,
-	            a.thumbnail_gsutil_uri AS thumbnailGsutilUri
-	        FROM user_activities ua
-	        JOIN activities a
-	             ON a.id = ua.activity_id
-	        JOIN activity_statuses s
-	             ON s.id = a.activity_status_id
-	        JOIN user_activity_statuses uas
-	             ON uas.id = ua.status_id
-	        WHERE ua.user_id = :producerId
-	          AND ua.farm_id IN (:farmIds)
-	          AND a.company_id = :companyId
-	          AND s.code = 'send'
-	          AND (:status IS NULL OR uas.code = :status)
-	          AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
-	          AND (:startDate IS NULL OR a.valid_from >= :startDate)
-	          AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
-	          AND (
-	                :cropTypeId IS NULL
-	             OR EXISTS (
-	                    SELECT 1
-	                    FROM activity_crop_types act
-	                    WHERE act.activity_id = a.id
-	                      AND act.crop_type_id = :cropTypeId
-	                )
-	          )
-	        """,
-	        countQuery = """
-	        SELECT COUNT(*)
-	        FROM user_activities ua
-	        JOIN activities a
-	             ON a.id = ua.activity_id
-	        JOIN activity_statuses s
-	             ON s.id = a.activity_status_id
-	        JOIN user_activity_statuses uas
-	             ON uas.id = ua.status_id
-	        WHERE ua.user_id = :producerId
-	          AND ua.farm_id IN (:farmIds)
-	          AND a.company_id = :companyId
-	          AND s.code = 'send'
-	          AND (:status IS NULL OR uas.code = :status)
-	          AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
-	          AND (:startDate IS NULL OR a.valid_from >= :startDate)
-	          AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
-	          AND (
-	                :cropTypeId IS NULL
-	             OR EXISTS (
-	                    SELECT 1
-	                    FROM activity_crop_types act
-	                    WHERE act.activity_id = a.id
-	                      AND act.crop_type_id = :cropTypeId
-	                )
-	          )
-	        """,
-	        nativeQuery = true)
-	Page<ProducerUserActivityProjection> listUserActivitiesForProducer(
-	        @Param("companyId") Integer companyId,
-	        @Param("producerId") Integer producerId,
-	        @Param("farmIds") List<Integer> farmIds,
-	        @Param("status") String status,
-	        @Param("startDate") LocalDate startDate,
-	        @Param("endDate") LocalDate endDate,
-	        @Param("cropTypeId") Integer cropTypeId,
-	        @Param("unidadeProdutivaId") Integer unidadeProdutivaId,
-	        Pageable pageable);
-
+			    a.id                   AS activityId,
+			    a.name                 AS activityName,
+			    a.description          AS description,
+			    a.points               AS points,
+			    s.code                 AS activityStatus,
+			    a.valid_from           AS validFrom,
+			    a.valid_to             AS validTo,
+			    a.thumbnail_url        AS thumbnailUrl,
+			    a.thumbnail_gsutil_uri AS thumbnailGsutilUri
+			FROM user_activities ua
+			JOIN activities a
+			     ON a.id = ua.activity_id
+			JOIN activity_statuses s
+			     ON s.id = a.activity_status_id
+			JOIN user_activity_statuses uas
+			     ON uas.id = ua.status_id
+			WHERE ua.user_id = :producerId
+			  AND ua.farm_id IN (:farmIds)
+			  AND a.company_id = :companyId
+			  AND s.code = 'send'
+			  AND (:status IS NULL OR uas.code = :status)
+			  AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
+			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			  AND (
+			        :cropTypeId IS NULL
+			     OR EXISTS (
+			            SELECT 1
+			            FROM activity_crop_types act
+			            WHERE act.activity_id = a.id
+			              AND act.crop_type_id = :cropTypeId
+			        )
+			  )
+			  ORDER BY ua.created_at DESC, ua.id DESC
+			""", countQuery = """
+			SELECT COUNT(*)
+			FROM user_activities ua
+			JOIN activities a
+			     ON a.id = ua.activity_id
+			JOIN activity_statuses s
+			     ON s.id = a.activity_status_id
+			JOIN user_activity_statuses uas
+			     ON uas.id = ua.status_id
+			WHERE ua.user_id = :producerId
+			  AND ua.farm_id IN (:farmIds)
+			  AND a.company_id = :companyId
+			  AND s.code = 'send'
+			  AND (:status IS NULL OR uas.code = :status)
+			  AND (:unidadeProdutivaId IS NULL OR ua.production_unit_id = :unidadeProdutivaId)
+			  AND (:startDate IS NULL OR a.valid_from >= :startDate)
+			  AND (:endDate   IS NULL OR a.valid_to   <= :endDate)
+			  AND (
+			        :cropTypeId IS NULL
+			     OR EXISTS (
+			            SELECT 1
+			            FROM activity_crop_types act
+			            WHERE act.activity_id = a.id
+			              AND act.crop_type_id = :cropTypeId
+			        )
+			  )
+			""", nativeQuery = true)
+	Page<ProducerUserActivityProjection> listUserActivitiesForProducer(@Param("companyId") Integer companyId,
+			@Param("producerId") Integer producerId, @Param("farmIds") List<Integer> farmIds,
+			@Param("status") String status, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate, @Param("cropTypeId") Integer cropTypeId,
+			@Param("unidadeProdutivaId") Integer unidadeProdutivaId, Pageable pageable);
 
 }

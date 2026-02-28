@@ -6,7 +6,6 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -21,10 +20,10 @@ public class CreateActivityDTO {
 	private String name;
 
 	@NotNull(message = "Pontos são obrigatórios")
-	@Positive(message = "Pontos deve ser maior que zero")
+	@Positive(message = "A pontuação da atividade deve ser maior que zero")
 	private Integer points;
 
-	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) // Garante que o String "2025-12-17" vire LocalDate
+	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
 	private LocalDate validFrom;
 
 	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)

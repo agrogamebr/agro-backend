@@ -45,7 +45,6 @@ import br.com.agrogame.agrogame.repository.ActivityDraftRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
 import br.com.agrogame.agrogame.repository.ActivityStatusRepository;
-import br.com.agrogame.agrogame.repository.CompanyRepository;
 import br.com.agrogame.agrogame.repository.CropTypeRepository;
 import br.com.agrogame.agrogame.repository.FarmCropRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
@@ -62,7 +61,6 @@ import jakarta.transaction.Transactional;
 public class ActivityService {
 
 	private final ActivityRepository activityRepository;
-	private final CompanyRepository companyRepository;
 	private final ActivityStatusRepository activityStatusRepository;
 	private final ActivityRewardRepository activityRewardRepository;
 	private final RewardRepository rewardRepository;
@@ -81,7 +79,7 @@ public class ActivityService {
 
 	private static final long MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
-	public ActivityService(ActivityRepository activityRepository, CompanyRepository companyRepository,
+	public ActivityService(ActivityRepository activityRepository,
 			ActivityStatusRepository activityStatusRepository, ActivityRewardRepository activityRewardRepository,
 			RewardRepository rewardRepository, RewardStatusRepository rewardStatusRepository,
 			CropTypeRepository cropTypeRepository, ActivityCropTypeRepository activityCropTypeRepository,
@@ -90,7 +88,6 @@ public class ActivityService {
 			FileStorageService fileStorageService, ProductionUnitRepository productionUnitRepository,
 			ActivityDraftRepository activityDraftRepository, AccessControlService accessControlService) {
 		this.activityRepository = activityRepository;
-		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
 		this.activityRewardRepository = activityRewardRepository;
 		this.rewardRepository = rewardRepository;
@@ -109,11 +106,10 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, User user)
-			throws IOException {
-		
+	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, User user) throws IOException {
+
 		this.accessControlService.validateAcessUser(user);
-		
+
 		Company company = user.getCompany();
 		Integer createdBy = user.getId();
 
@@ -125,6 +121,10 @@ public class ActivityService {
 
 		if (dto.getValidFrom().isAfter(dto.getValidTo())) {
 			throw new BusinessException("Data inicial não pode ser maior que a data final");
+		}
+
+		if (dto.getPoints() == null || dto.getPoints() <= 0) {
+			throw new BusinessException("Pontuação deve ser maior que zero");
 		}
 
 		List<Integer> cropTypeIds = dto.getCropTypeIds();
@@ -468,10 +468,14 @@ public class ActivityService {
 
 	@Transactional
 	public Map<String, Object> updateActivity(Integer activityId, CreateActivityDTO dto, User user) {
-		
+
 		this.accessControlService.validateAcessUser(user);
-		
+
 		Integer updatedBy = user.getId();
+
+		if (dto.getPoints() == null || dto.getPoints() <= 0) {
+			throw new BusinessException("A Pontuação deve ser maior que zero");
+		}
 
 		// 1. Buscar atividade
 		Activity activity = activityRepository.findById(activityId)
@@ -607,9 +611,9 @@ public class ActivityService {
 	@Transactional
 	public Map<String, Object> updateActivityThumbnail(Integer activityId, MultipartFile thumbnail, User user)
 			throws IOException {
-		
+
 		this.accessControlService.validateAcessUser(user);
-		
+
 		Integer userId = user.getId();
 
 		Activity activity = activityRepository.findById(activityId)
@@ -653,9 +657,9 @@ public class ActivityService {
 
 	@Transactional
 	public Page<ActivityListDTO> listActivities(Integer companyId, String statusCode, List<Integer> cropTypeIds, // List
-			List<Integer> farmIds, List<Integer> productionUnitIds, LocalDate startDate, LocalDate endDate, User user, int page,
-			int size) {
-		
+			List<Integer> farmIds, List<Integer> productionUnitIds, LocalDate startDate, LocalDate endDate, User user,
+			int page, int size) {
+
 		this.accessControlService.validateAcessUser(user);
 
 		String normalizedStatus = (statusCode != null && !statusCode.isBlank()) ? statusCode.toLowerCase() : null;

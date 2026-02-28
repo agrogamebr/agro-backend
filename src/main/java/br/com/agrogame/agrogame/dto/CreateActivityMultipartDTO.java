@@ -5,9 +5,12 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.constraints.Positive;
+
 public class CreateActivityMultipartDTO {
 	private String description;
 	private String name;
+	@Positive(message = "A pontuação deve ser maior que zero!")
 	private Integer points;
 	private LocalDate validFrom;
 	private LocalDate validTo;

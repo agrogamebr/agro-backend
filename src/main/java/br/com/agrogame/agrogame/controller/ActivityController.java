@@ -32,7 +32,6 @@ import br.com.agrogame.agrogame.dto.CreateActivityMultipartDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
-import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.ActivityRewardRepository;
 import br.com.agrogame.agrogame.repository.RewardRepository;
@@ -51,14 +50,12 @@ public class ActivityController {
 
 	private final ActivityService service;
 	private final UserRepository userRepository;
-	private final ActivityCropTypeRepository activityCropTypeRepository;
 
 	public ActivityController(ActivityService service, UserRepository userRepository,
 			ActivityRewardRepository activityRewardRepository, ActivityRepository activityRepository,
-			ActivityCropTypeRepository activityCropTypeRepository, RewardRepository rewardRepository) {
+			RewardRepository rewardRepository) {
 		this.service = service;
 		this.userRepository = userRepository;
-		this.activityCropTypeRepository = activityCropTypeRepository;
 	}
 
 	@GetMapping("/list")

@@ -42,12 +42,17 @@ public class ProducerPointsTransactionDTO {
 	@Schema(description = "ID da fazenda", example = "10")
 	private Integer farmId;
 
-	public ProducerPointsTransactionDTO() {
-	}
+	@Schema(description = "Nome da unidade produtiva onde a atividade foi realizada", example = "Talhão 1")
+	private String productionUnitName;
+
+	@Schema(description = "ID da unidade produtiva", example = "5")
+	private Integer productionUnitId;
 
 	public ProducerPointsTransactionDTO(Integer id, String transactionType, String sourceType,
 			String activityDescription, String rewardName, Integer points, Integer balanceAfter,
-			LocalDateTime createdAt, Integer idActivity, Integer userActivityId, String farmName, Integer farmId) {
+			LocalDateTime createdAt, Integer idActivity, Integer userActivityId, String farmName, Integer farmId,
+			String productionUnitName, Integer productionUnitId) {
+
 		this.id = id;
 		this.transactionType = transactionType;
 		this.sourceType = sourceType;
@@ -60,6 +65,11 @@ public class ProducerPointsTransactionDTO {
 		this.userActivityId = userActivityId;
 		this.farmName = farmName;
 		this.farmId = farmId;
+		this.productionUnitName = productionUnitName;
+		this.productionUnitId = productionUnitId;
+	}
+
+	public ProducerPointsTransactionDTO() {
 	}
 
 	public Integer getId() {
@@ -156,5 +166,21 @@ public class ProducerPointsTransactionDTO {
 
 	public void setFarmId(Integer farmId) {
 		this.farmId = farmId;
+	}
+
+	public String getProductionUnitName() {
+		return productionUnitName;
+	}
+
+	public void setProductionUnitName(String productionUnitName) {
+		this.productionUnitName = productionUnitName;
+	}
+
+	public Integer getProductionUnitId() {
+		return productionUnitId;
+	}
+
+	public void setProductionUnitId(Integer productionUnitId) {
+		this.productionUnitId = productionUnitId;
 	}
 }
