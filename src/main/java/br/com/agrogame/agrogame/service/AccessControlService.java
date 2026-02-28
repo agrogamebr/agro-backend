@@ -22,7 +22,7 @@ public class AccessControlService {
 	}
 	
 	public void validateAcessUser(User user) {
-		if (!isBackofficeUserType(user.getId())) {
+		if (!isBackofficeUserType(user.getUserType().getId())) {
 			throw new BusinessException("Você não tem acesso ao recurso solicitado.");
 		}
 	}

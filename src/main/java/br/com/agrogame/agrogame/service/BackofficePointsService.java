@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -51,7 +50,7 @@ public class BackofficePointsService {
 		LocalDateTime endDt = (endDate != null) ? endDate.atTime(23, 59, 59) : null;
 
 		// 4. Buscar
-		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "created_at"));
+		Pageable pageable = PageRequest.of(page, size);
 
 		Page<BackofficePointsStatementProjection> results = transactionRepository.findStatementForBackoffice(producerId,
 				startDt, endDt, operationType, farmId, productionUnitId, pageable);

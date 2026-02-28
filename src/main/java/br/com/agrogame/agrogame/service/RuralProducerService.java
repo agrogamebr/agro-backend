@@ -13,7 +13,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -417,8 +416,7 @@ public class RuralProducerService {
 			}
 		}
 
-		// paginação (ordenando por validTo asc, como você já faz no sorted)
-		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "validTo"));
+		Pageable pageable = PageRequest.of(page, size);
 
 		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForProducer(companyId,
 				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId, pageable);

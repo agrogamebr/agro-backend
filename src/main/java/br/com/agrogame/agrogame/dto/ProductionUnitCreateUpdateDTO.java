@@ -22,7 +22,6 @@ public class ProductionUnitCreateUpdateDTO {
 	@NotNull(message = "O tipo de cultura (cropType) é obrigatório")
     private Integer cropTypeId;
 
-	@NotBlank(message = "A descrição é obrigatória")
 	@Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
 	private String description;
 

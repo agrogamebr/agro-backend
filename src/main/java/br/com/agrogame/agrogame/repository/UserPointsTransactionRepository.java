@@ -109,6 +109,7 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			  AND (cast(:operationType as text) IS NULL OR tt.code = :operationType)
 			  AND (cast(:farmId as integer) IS NULL OR f.id = :farmId)
 			  AND (cast(:productionUnitId as integer) IS NULL OR pu.id = :productionUnitId)
+			ORDER BY upt.created_at DESC, upt.id DESC
 			""", countQuery = """
 			SELECT COUNT(upt.id)
 			FROM user_points_transactions upt
@@ -143,7 +144,9 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			        act.id,
 			        ua.id,
 			        f.name,
-			        f.id
+			        f.id,
+			        pu.name,
+			        pu.id
 			    )
 			    FROM UserPointsTransaction t
 			    LEFT JOIN t.transactionType tt
@@ -151,25 +154,38 @@ public interface UserPointsTransactionRepository extends JpaRepository<UserPoint
 			    LEFT JOIN t.activity act
 			    LEFT JOIN t.reward rew
 
-			    /* Join para pegar dados da Fazenda via UserActivity */
-			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    LEFT JOIN UserActivity ua
+			       ON ua.id = (
+			           SELECT MAX(ua2.id)
+			           FROM UserActivity ua2
+			           WHERE ua2.activity.id = t.activity.id
+			             AND ua2.user.id = t.user.id
+			       )
 			    LEFT JOIN ua.farm f
+			    LEFT JOIN ua.productionUnit pu
 
 			    WHERE t.user.id = :userId
-			    AND (
-			        :farmId IS NULL
-			        OR (f.id = :farmId AND ua.status.id = 3)
-			    )
+			      AND (
+			          :farmId IS NULL
+			          OR (f.id = :farmId AND ua.status.id = 3)
+			      )
+			    ORDER BY t.createdAt DESC, t.id DESC
 			""", countQuery = """
 			    SELECT count(t)
 			    FROM UserPointsTransaction t
-			    LEFT JOIN UserActivity ua ON ua.activity.id = t.activity.id AND ua.user.id = t.user.id
+			    LEFT JOIN UserActivity ua
+			       ON ua.id = (
+			           SELECT MAX(ua2.id)
+			           FROM UserActivity ua2
+			           WHERE ua2.activity.id = t.activity.id
+			             AND ua2.user.id = t.user.id
+			       )
 			    LEFT JOIN ua.farm f
 			    WHERE t.user.id = :userId
-			    AND (
-			        :farmId IS NULL
-			        OR (f.id = :farmId AND ua.status.id = 3)
-			    )
+			      AND (
+			          :farmId IS NULL
+			          OR (f.id = :farmId AND ua.status.id = 3)
+			      )
 			""")
 	Page<ProducerPointsTransactionDTO> findByUserAndFarmFilters(@Param("userId") Integer userId,
 			@Param("farmId") Integer farmId, Pageable pageable);
