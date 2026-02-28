@@ -20,6 +20,12 @@ public class AccessControlService {
 					"Apenas usuários com permissão de backoffice (tipos 1,2,3,6) podem acessar");
 		}
 	}
+	
+	public void validateAcessUser(User user) {
+		if (!isBackofficeUserType(user.getId())) {
+			throw new BusinessException("Você não tem acesso ao recurso solicitado.");
+		}
+	}
 
 	private boolean isBackofficeUserType(Integer userTypeId) {
 		return userTypeId == 1 || userTypeId == 2 || userTypeId == 3 || userTypeId == 6;

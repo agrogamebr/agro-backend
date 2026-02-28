@@ -77,6 +77,7 @@ public class ActivityService {
 	private final FileStorageService fileStorageService;
 	private final ProductionUnitRepository productionUnitRepository;
 	private final ActivityDraftRepository activityDraftRepository;
+	private final AccessControlService accessControlService;
 
 	private static final long MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -87,7 +88,7 @@ public class ActivityService {
 			UserActivityRepository userActivityRepository, UserActivityStatusRepository userActivityStatusRepository,
 			FarmRepository farmRepository, FarmCropRepository farmCropRepository, UserRepository userRepository,
 			FileStorageService fileStorageService, ProductionUnitRepository productionUnitRepository,
-			ActivityDraftRepository activityDraftRepository) {
+			ActivityDraftRepository activityDraftRepository, AccessControlService accessControlService) {
 		this.activityRepository = activityRepository;
 		this.companyRepository = companyRepository;
 		this.activityStatusRepository = activityStatusRepository;
@@ -104,11 +105,17 @@ public class ActivityService {
 		this.fileStorageService = fileStorageService;
 		this.productionUnitRepository = productionUnitRepository;
 		this.activityDraftRepository = activityDraftRepository;
+		this.accessControlService = accessControlService;
 	}
 
 	@Transactional
-	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, Company company, Integer createdBy)
+	public Map<String, Object> registerActivity(CreateActivityMultipartDTO dto, User user)
 			throws IOException {
+		
+		this.accessControlService.validateAcessUser(user);
+		
+		Company company = user.getCompany();
+		Integer createdBy = user.getId();
 
 		boolean isSendNow = dto.getSendNow();
 		String statusCode = isSendNow ? "send" : "draft";
@@ -381,10 +388,16 @@ public class ActivityService {
 			}
 
 			if (hasSpecificUnits) {
-// Units desta farm que estão na lista e são compatíveis
-				List<ProductionUnit> unitsForThisFarm = productionUnitRepository
-						.findByIdInAndFarmIdAndCropTypesCompatible(productionUnitIds, farm.getId(),
-								activityCropTypeIds);
+				List<ProductionUnit> unitsForThisFarm;
+
+				if (hasActivityCrops) {
+					// Activity tem crops -> mantém filtro de compatibilidade
+					unitsForThisFarm = productionUnitRepository.findByIdInAndFarmIdAndCropTypesCompatible(
+							productionUnitIds, farm.getId(), activityCropTypeIds);
+				} else {
+					// Activity SEM crops -> não filtra por cultura, só por farm + ids
+					unitsForThisFarm = productionUnitRepository.findByIdInAndFarmId(productionUnitIds, farm.getId());
+				}
 
 				if (unitsForThisFarm.isEmpty()) {
 					continue;
@@ -393,7 +406,7 @@ public class ActivityService {
 				for (ProductionUnit pu : unitsForThisFarm) {
 					UAKey key = new UAKey(farm.getOwner().getId(), farm.getId(), pu.getId());
 					if (existingKeys.contains(key)) {
-						continue; // já existe, não cria de novo
+						continue;
 					}
 
 					UserActivity ua = new UserActivity();
@@ -408,7 +421,6 @@ public class ActivityService {
 
 					existingKeys.add(key);
 				}
-
 			} else {
 // Sem UP específica (comportamento padrão)
 				List<ProductionUnit> units = productionUnitRepository.findByFarmAndCropTypesCompatible(farm.getId(),
@@ -455,7 +467,11 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Map<String, Object> updateActivity(Integer activityId, CreateActivityDTO dto, Integer updatedBy) {
+	public Map<String, Object> updateActivity(Integer activityId, CreateActivityDTO dto, User user) {
+		
+		this.accessControlService.validateAcessUser(user);
+		
+		Integer updatedBy = user.getId();
 
 		// 1. Buscar atividade
 		Activity activity = activityRepository.findById(activityId)
@@ -589,8 +605,12 @@ public class ActivityService {
 	}
 
 	@Transactional
-	public Map<String, Object> updateActivityThumbnail(Integer activityId, MultipartFile thumbnail, Integer userId)
+	public Map<String, Object> updateActivityThumbnail(Integer activityId, MultipartFile thumbnail, User user)
 			throws IOException {
+		
+		this.accessControlService.validateAcessUser(user);
+		
+		Integer userId = user.getId();
 
 		Activity activity = activityRepository.findById(activityId)
 				.orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
@@ -633,8 +653,10 @@ public class ActivityService {
 
 	@Transactional
 	public Page<ActivityListDTO> listActivities(Integer companyId, String statusCode, List<Integer> cropTypeIds, // List
-			List<Integer> farmIds, List<Integer> productionUnitIds, LocalDate startDate, LocalDate endDate, int page,
+			List<Integer> farmIds, List<Integer> productionUnitIds, LocalDate startDate, LocalDate endDate, User user, int page,
 			int size) {
+		
+		this.accessControlService.validateAcessUser(user);
 
 		String normalizedStatus = (statusCode != null && !statusCode.isBlank()) ? statusCode.toLowerCase() : null;
 

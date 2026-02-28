@@ -75,9 +75,12 @@ public class ActivityController {
 
 	    Integer companyId = userRepository.findByEmail1(principal.getName())
 	            .orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getCompany().getId();
+	    
+	    User user = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
 	    Page<ActivityListDTO> activitiesPage = service.listActivities(
-	            companyId, status, cropTypeIds, farmIds, productionUnitIds, startDate, endDate, page, size);
+	            companyId, status, cropTypeIds, farmIds, productionUnitIds, startDate, endDate, user, page, size);
 
 	    Map<String, Object> response = new HashMap<>();
 	    response.put("activities", activitiesPage.getContent());
@@ -104,8 +107,7 @@ public class ActivityController {
 		}
 
 		// 3. Passa a Empresa e o ID do Usuário para o Service
-		Map<String, Object> response = service.registerActivity(multipartDto, currentUser.getCompany(),
-				currentUser.getId());
+		Map<String, Object> response = service.registerActivity(multipartDto, currentUser);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
@@ -129,11 +131,11 @@ public class ActivityController {
 			@ApiResponse(responseCode = "500", description = "Erro interno") })
 	public ResponseEntity<Map<String, Object>> updateActivity(@PathVariable Integer activityId,
 			@Valid @RequestBody CreateActivityDTO dto, Principal principal) {
+		
+		User currentUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Integer updatedBy = userRepository.findByEmail1(principal.getName())
-				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
-
-		Map<String, Object> response = service.updateActivity(activityId, dto, updatedBy);
+		Map<String, Object> response = service.updateActivity(activityId, dto, currentUser);
 		return ResponseEntity.ok(response);
 	}
 
@@ -141,10 +143,10 @@ public class ActivityController {
 	public ResponseEntity<Map<String, Object>> updateActivityThumbnail(@PathVariable Integer activityId,
 			@RequestPart("thumbnail") MultipartFile thumbnail, Principal principal) throws IOException {
 
-		Integer userId = userRepository.findByEmail1(principal.getName())
-				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado")).getId();
+		User currentUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Map<String, Object> response = service.updateActivityThumbnail(activityId, thumbnail, userId);
+		Map<String, Object> response = service.updateActivityThumbnail(activityId, thumbnail, currentUser);
 		return ResponseEntity.ok(response);
 	}
 

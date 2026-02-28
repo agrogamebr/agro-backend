@@ -44,10 +44,6 @@ public class ActivityDraft {
 	@Column(name = "crop_type_ids", columnDefinition = "jsonb")
 	private List<Integer> cropTypeIds = new ArrayList<>();
 
-	// --- COLUNAS ANTIGAS (Opcionais/Legado) ---
-	// Você pode mantê-las mapeadas se precisar ler dados antigos,
-	// mas não vamos mais usá-las para salvar novos rascunhos.
-
 	@ManyToOne
 	@JoinColumn(name = "farm_id", insertable = false, updatable = false)
 	private Farm farm;

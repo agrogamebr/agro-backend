@@ -192,7 +192,7 @@ public class BackofficeControllerController {
 
 		Page<BackofficeActivityListDTO> activitiesPage = backofficeActivityService.listActivitiesForBackoffice(
 				companyId, status, submissionStatus, producerId, farmId, productionUnitId, cropTypeId, startDate,
-				endDate, page, size);
+				endDate, backofficeUser, page, size);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activitiesPage.getContent());

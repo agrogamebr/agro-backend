@@ -264,7 +264,9 @@ public class BackofficeActivityService {
 
 	public Page<BackofficeActivityListDTO> listActivitiesForBackoffice(Integer companyId, String activityStatus,
 			String userActivityStatus, Integer producerId, Integer farmId, Integer productionUnitId, Integer cropTypeId,
-			LocalDate startDate, LocalDate endDate, int page, int size) {
+			LocalDate startDate, LocalDate endDate, User backofficeUser, int page, int size) {
+		
+		validateBackofficeUserType(backofficeUser);
 
 		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "validFrom"));
 

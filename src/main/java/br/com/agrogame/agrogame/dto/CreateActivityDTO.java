@@ -30,7 +30,6 @@ public class CreateActivityDTO {
 	@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
 	private LocalDate validTo;
 
-	@NotEmpty(message = "Deve ter pelo menos um tipo de cultura")
 	private List<Integer> cropTypeIds;
 
 	private List<Integer> farmIds;
