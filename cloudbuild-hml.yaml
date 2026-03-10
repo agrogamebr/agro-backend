@@ -20,13 +20,13 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'agrogame-api-hml'                                              # nome do serviço criado no console
+      - 'agrogame-api-hml'
       - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
       - '--region=us-central1'
       - '--platform=managed'
       - '--service-account=bitbucket-deployer@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--add-cloudsql-instances=$PROJECT_ID:us-central1:agrogame-db-hml'  # sua instância HML
-      - '--update-env-vars=SPRING_PROFILES_ACTIVE=hml,APP_ENV=hml,DB_USER=agrogame_db_hml_cloudrun,DB_NAME=postgres'
+      - '--add-cloudsql-instances=$PROJECT_ID:us-central1:agrogame-postgres-hml'
+      - '--update-env-vars=SPRING_PROFILES_ACTIVE=hml,APP_ENV=hml,DB_USER=agrogame_hml_app,DB_NAME=agrogame_db'
       - '--update-secrets=DB_PASS=db-password-hml:latest,JWT_SECRET=jwt-secret:latest'
       - '--allow-unauthenticated'
       - '--quiet'
