@@ -1,0 +1,37 @@
+steps:
+  # Step 1: Build da imagem Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:latest-hml'
+      - '.'
+
+  # Step 2: Push para Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
+
+  # Step 3: Deploy para Cloud Run (HML)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'agrogame-api-hml'                                              # nome do serviço criado no console
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/agrogame-repo/agro-backend:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--service-account=bitbucket-deployer@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--add-cloudsql-instances=$PROJECT_ID:us-central1:agrogame-db-hml'  # sua instância HML
+      - '--update-env-vars=SPRING_PROFILES_ACTIVE=hml,APP_ENV=hml,DB_USER=agrogame_db_hml_cloudrun,DB_NAME=postgres'
+      - '--update-secrets=DB_PASS=db-password-hml:latest,JWT_SECRET=jwt-secret:latest'
+      - '--allow-unauthenticated'
+      - '--quiet'
+
+timeout: '3600s'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
