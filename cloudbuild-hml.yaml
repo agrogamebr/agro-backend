@@ -26,7 +26,7 @@ steps:
       - '--platform=managed'
       - '--service-account=bitbucket-deployer@$PROJECT_ID.iam.gserviceaccount.com'
       - '--add-cloudsql-instances=$PROJECT_ID:us-central1:agrogame-postgres-hml'
-      - '--update-env-vars=SPRING_PROFILES_ACTIVE=hml,APP_ENV=hml,DB_USER=agrogame_hml_app,DB_NAME=agrogame_db'
+      - '--update-env-vars=SPRING_PROFILES_ACTIVE=hml,APP_ENV=hml,DB_USER=agrogame_hml_app,DB_NAME=agrogame_db,CLOUD_SQL_INSTANCE=$PROJECT_ID:us-central1:agrogame-postgres-hml'
       - '--update-secrets=DB_PASS=db-password-hml:latest,JWT_SECRET=jwt-secret:latest'
       - '--allow-unauthenticated'
       - '--quiet'
