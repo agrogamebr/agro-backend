@@ -291,7 +291,7 @@ public class BackofficeControllerController {
 	}
 
 	@Operation(summary = "Listar os produtores vinculados a empresa", description = "Retorna os produtores que pertencem a sua empresa dentro do jogo.")
-	@GetMapping("/produtores/list")
+	@GetMapping("/producers/list")
 	public ResponseEntity<Page<BackofficeProducerSummaryDTO>> listProducers(Principal principal,
 			@RequestParam(required = false) String name, @RequestParam(required = false) String cpf,
 			@RequestParam(required = false) Integer statusId, @RequestParam(defaultValue = "0") int page,
