@@ -29,6 +29,7 @@ import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
 import br.com.agrogame.agrogame.dto.BackofficeEmployeeSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
 import br.com.agrogame.agrogame.dto.BackofficePointsStatementDTO;
+import br.com.agrogame.agrogame.dto.BackofficeProducerSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
@@ -270,19 +271,41 @@ public class BackofficeControllerController {
 		}
 	}
 
+	@Operation(summary = "Listar TODOS os funcionarios da empresa", description = "Retorna os funcionários e suas respectivas fazendas dentro do jogo.")
 	@GetMapping("/funcionarios/list")
 	public ResponseEntity<Page<BackofficeEmployeeSummaryDTO>> listEmployees(Principal principal,
 			@RequestParam(required = false) Integer userId, @RequestParam(required = false) String name,
-			@RequestParam(required = false) Integer userTypeId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(required = false) Integer userTypeId, @RequestParam(required = false) String cpf,
+			@RequestParam(required = false) Integer statusId, @RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
-		
+
 		User operator = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Pageable pageable = PageRequest.of(page, size, Sort.by("fullName"));
+		Pageable pageable = PageRequest.of(page, size);
 
-		Page<BackofficeEmployeeSummaryDTO> result = backofficeEmployeeservice.listEmployees(operator, userId, name, userTypeId, pageable);
+		Page<BackofficeEmployeeSummaryDTO> result = backofficeEmployeeservice.listEmployees(operator, userId, name,
+				userTypeId, cpf, statusId, pageable);
 
 		return ResponseEntity.ok(result);
 	}
+
+	@Operation(summary = "Listar os produtores vinculados a empresa", description = "Retorna os produtores que pertencem a sua empresa dentro do jogo.")
+	@GetMapping("/producers/list")
+	public ResponseEntity<Page<BackofficeProducerSummaryDTO>> listProducers(Principal principal,
+			@RequestParam(required = false) String name, @RequestParam(required = false) String cpf,
+			@RequestParam(required = false) Integer statusId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+
+		User operator = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		Pageable pageable = PageRequest.of(page, size);
+
+		Page<BackofficeProducerSummaryDTO> result = backofficeEmployeeservice.listProducers(operator, name, cpf,
+				statusId, pageable);
+
+		return ResponseEntity.ok(result);
+	}
+
 }
