@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
@@ -256,38 +255,47 @@ public class BackofficeControllerController {
 			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer unitId,
 			@RequestParam(required = false) String name, @RequestParam(required = false) Integer cropTypeId,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+
 		User operator = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
 
-		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+		Pageable pageable = PageRequest.of(page, size);
 
-		try {
-			Page<ProductionUnitDetailDTO> result = productionUnitService.listBackofficeUnits(operator, farmId, unitId,
-					name, cropTypeId, pageable);
-			return ResponseEntity.ok(result);
-		} catch (IllegalArgumentException e) {
-			// Retorna 400 Bad Request se não passar os IDs obrigatórios
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-		}
+		Page<ProductionUnitDetailDTO> result = productionUnitService.listBackofficeUnits(operator, farmId, unitId, name,
+				cropTypeId, pageable);
+
+		return ResponseEntity.ok(result);
 	}
 
-	@Operation(summary = "Listar TODOS os funcionarios da empresa", description = "Retorna os funcionários e suas respectivas fazendas dentro do jogo.")
-	@GetMapping("/funcionarios/list")
-	public ResponseEntity<Page<BackofficeEmployeeSummaryDTO>> listEmployees(Principal principal,
-			@RequestParam(required = false) Integer userId, @RequestParam(required = false) String name,
-			@RequestParam(required = false) Integer userTypeId, @RequestParam(required = false) String cpf,
-			@RequestParam(required = false) Integer statusId, @RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "20") int size) {
+//	@Operation(summary = "Listar TODOS os usuários da empresa", description = "Retorna os dados detalhados do usuário dentro do jogo.")
+//	@GetMapping("/user-info/list")
+//	public ResponseEntity<Page<BackofficeEmployeeSummaryDTO>> listUserInfo(Principal principal,
+//			@RequestParam(required = false) Integer userId, @RequestParam(required = false) String name,
+//			@RequestParam(required = false) Integer userTypeId, @RequestParam(required = false) String cpf,
+//			@RequestParam(required = false) Integer statusId, @RequestParam(defaultValue = "0") int page,
+//			@RequestParam(defaultValue = "20") int size) {
+//
+//		User operator = userRepository.findByEmail1(principal.getName())
+//				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+//
+//		Pageable pageable = PageRequest.of(page, size);
+//
+//		Page<BackofficeEmployeeSummaryDTO> result = backofficeEmployeeservice.listEmployees(operator, userId, name,
+//				userTypeId, cpf, statusId, pageable);
+//
+//		return ResponseEntity.ok(result);
+//	}
+
+	@Operation(summary = "Detalhar usuário", description = "Retorna os dados detalhados de um usuário dentro do jogo.")
+	@GetMapping("/user-info/{userId}")
+	public ResponseEntity<BackofficeEmployeeSummaryDTO> getUserInfo(Principal principal, @PathVariable Integer userId) {
 
 		User operator = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Pageable pageable = PageRequest.of(page, size);
+		BackofficeEmployeeSummaryDTO dto = backofficeEmployeeservice.getUserInfo(operator, userId);
 
-		Page<BackofficeEmployeeSummaryDTO> result = backofficeEmployeeservice.listEmployees(operator, userId, name,
-				userTypeId, cpf, statusId, pageable);
-
-		return ResponseEntity.ok(result);
+		return ResponseEntity.ok(dto);
 	}
 
 	@Operation(summary = "Listar os produtores vinculados a empresa", description = "Retorna os produtores que pertencem a sua empresa dentro do jogo.")
