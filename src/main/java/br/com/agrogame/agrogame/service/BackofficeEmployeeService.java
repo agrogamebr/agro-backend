@@ -2,12 +2,14 @@ package br.com.agrogame.agrogame.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.BackofficeEmployeeSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeProducerSummaryDTO;
+import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.repository.UserRepository;
 
@@ -40,6 +42,23 @@ public class BackofficeEmployeeService {
 				pageable);
 
 		return page;
+	}
+
+	@Transactional(readOnly = true)
+	public BackofficeEmployeeSummaryDTO getUserInfo(User operator, Integer userId) {
+
+		Integer companyId = operator.getCompany().getId();
+
+		Pageable pageable = PageRequest.of(0, 1);
+
+		Page<BackofficeEmployeeSummaryDTO> page = userRepository.findEmployeeSummariesByFilters(companyId, null,
+				userId, null, null, null, pageable);
+
+		if (page.isEmpty()) {
+			throw new ResourceNotFoundException("Usuário não encontrado para esta empresa");
+		}
+
+		return page.getContent().get(0);
 	}
 
 }

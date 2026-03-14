@@ -28,22 +28,24 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.id,
 			    u.fullName,
 			    u.email1,
+			    u.email2,
 			    ut.id,
 			    ut.name,
 			    d.documentNumber,
 			    dt.id,
-			    dt.name,
-			    f.id,
-			    f.name,
-			    u.phone
+			    dt.code,
+			    u.phone,
+			    u.address,
+			    u.number,
+			    u.zipcode,
+			    u.city,
+			    u.state
 			)
 			FROM User u
 			LEFT JOIN UserDocument d
 			       ON d.user.id = u.id AND d.isPrimary = true AND d.isActive = true
 			LEFT JOIN d.documentType dt
 			LEFT JOIN u.userType ut
-			LEFT JOIN Farm f
-			       ON f.owner.id = u.id AND f.isActive = true
 			WHERE u.company.id = :companyId
 			  AND (:userTypeId IS NULL OR ut.id = :userTypeId)
 			  AND (:userId IS NULL OR u.id = :userId)

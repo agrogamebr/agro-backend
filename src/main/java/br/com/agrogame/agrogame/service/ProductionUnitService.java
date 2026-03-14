@@ -406,21 +406,16 @@ public class ProductionUnitService {
 	@Transactional(readOnly = true)
 	public Page<ProductionUnitDetailDTO> listBackofficeUnits(User operator, Integer farmId, Integer unitId, String name,
 			Integer cropTypeId, Pageable pageable) {
-		// 1. Validação: Obrigatoriedade de contexto (Farm ou Unit)
-		if (farmId == null && unitId == null) {
-			throw new BusinessException("É obrigatório informar o ID da Fazenda ou o ID da Unidade Produtiva.");
-		}
 
 		Integer companyId = operator.getCompany().getId();
+		
+		this.accessControlService.validateBackofficeUser(operator);
 
-		// 2. Tratamento do filtro wildcard
-		String nameLike = (name != null && !name.isBlank()) ? "%" + name + "%" : null;
+		String nameLike = (name != null && !name.isBlank()) ? "%" + name.toLowerCase() + "%" : null;
 
-		// 3. Busca paginada
 		Page<ProductionUnit> page = productionUnitRepository.findByFilters(companyId, farmId, unitId, nameLike,
 				cropTypeId, pageable);
 
-		// 4. Conversão
 		return page.map(this::toBackofficeDTO);
 	}
 
