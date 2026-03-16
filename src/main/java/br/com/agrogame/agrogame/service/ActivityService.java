@@ -186,7 +186,7 @@ public class ActivityService {
 				.orElseThrow(() -> new BusinessException("Status de recompensa 'active' não configurado"));
 
 		Reward reward = new Reward();
-		reward.setName("Recompensa - " + savedActivity.getDescription());
+		reward.setName(savedActivity.getName());
 		reward.setPointsGain(dto.getPoints());
 		reward.setDescription("Recompensa gerada automaticamente para a atividade: " + savedActivity.getDescription());
 		reward.setValidFrom(dto.getValidFrom());
