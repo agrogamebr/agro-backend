@@ -1,6 +1,7 @@
 package br.com.agrogame.agrogame.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class UserActivityDetailDTO {
 
@@ -8,6 +9,8 @@ public class UserActivityDetailDTO {
 	private Integer userId;
 	private Integer activityId;
 	private Integer statusId;
+    private String statusName;
+    private String statusCode; 
 	private LocalDateTime startedAt;
 	private LocalDateTime completedAt;
 	private LocalDateTime createdAt;
@@ -15,6 +18,8 @@ public class UserActivityDetailDTO {
 	private LocalDateTime updatedAt;
 	private Integer updatedById;
 	private Integer farmId;
+
+	private List<UserActivityReviewDTO> reviews;
 
 	public Integer getId() {
 		return id;
@@ -102,5 +107,29 @@ public class UserActivityDetailDTO {
 
 	public void setFarmId(Integer farmId) {
 		this.farmId = farmId;
+	}
+
+	public List<UserActivityReviewDTO> getReviews() {
+		return reviews;
+	}
+
+	public void setReviews(List<UserActivityReviewDTO> reviews) {
+		this.reviews = reviews;
+	}
+
+	public String getStatusName() {
+		return statusName;
+	}
+
+	public void setStatusName(String statusName) {
+		this.statusName = statusName;
+	}
+
+	public String getStatusCode() {
+		return statusCode;
+	}
+
+	public void setStatusCode(String statusCode) {
+		this.statusCode = statusCode;
 	}
 }
