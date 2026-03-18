@@ -1,6 +1,7 @@
 package br.com.agrogame.agrogame.service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -76,11 +77,11 @@ public class ActivitySubmissionService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// 2. Buscar UserActivity pelo ID
+		// 2. Buscar UserActivity
 		UserActivity userActivity = userActivityRepository.findById(userActivityId)
 				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
 
-		// 3. Segurança: garantir vínculo com produtor, fazenda e empresa
+		// 3. Garantir vínculo com produtor e empresa
 		if (!userActivity.getUser().getId().equals(producerId)) {
 			throw new AccessDeniedException("Atividade não pertence a este produtor");
 		}
@@ -89,15 +90,22 @@ public class ActivitySubmissionService {
 			throw new AccessDeniedException("Atividade não pertence à empresa do produtor");
 		}
 
-		// 4. Validar status da Activity (send)
+		// 4. Validar Activity (status e vigência)
 		Activity activity = userActivity.getActivity();
 		if (!"send".equals(activity.getActivityStatus().getCode())) {
 			throw new BusinessException("Atividade não está disponível para submissão");
 		}
 
-		// 5. Validar que UserActivity está pending
-		if (!"pending".equals(userActivity.getStatus().getCode())) {
-			throw new BusinessException("Atividade já foi submetida ou processada e não pode receber novos arquivos");
+		LocalDate today = LocalDate.now();
+		if (activity.getValidTo() != null && activity.getValidTo().isBefore(today)) {
+			throw new BusinessException("Atividade expirada. Não é possível enviar novos arquivos.");
+		}
+
+		// 5. Validar status da UserActivity: agora permite pending OU rejected
+		String uaStatus = userActivity.getStatus().getCode();
+		if (!"pending".equals(uaStatus) && !"rejected".equals(uaStatus)) {
+			throw new BusinessException(
+					"Somente atividades em status 'pending' ou 'rejected' podem receber novos arquivos");
 		}
 
 		// 6. Upload do arquivo (GCS)
@@ -126,6 +134,31 @@ public class ActivitySubmissionService {
 	}
 
 	@Transactional
+	public SubmitActivityResponseDTO submitOrResubmitActivity(Integer producerId, Integer userActivityId) {
+
+		UserActivity ua = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
+
+		String statusCode = ua.getStatus().getCode();
+
+		if ("pending".equals(statusCode)) {
+			// fluxo atual de primeira submissão
+			return submitActivity(producerId, userActivityId);
+		}
+
+		if ("rejected".equals(statusCode)) {
+			// novo fluxo de reenvio
+			return resubmitActivity(producerId, userActivityId);
+		}
+
+		throw new BusinessException("Atividade não pode ser submetida neste status: " + statusCode
+				+ ". Somente atividades em 'pending' ou 'rejected' podem ser submetidas.");
+	}
+
+	// =========================
+	// MÉTODO(primeira submissão)
+	// =========================
+	@Transactional
 	public SubmitActivityResponseDTO submitActivity(Integer producerId, Integer userActivityId) {
 
 		// 1. Validar produtor
@@ -152,6 +185,12 @@ public class ActivitySubmissionService {
 		}
 
 		Activity activity = userActivity.getActivity();
+
+		// 4.1 Validar janela de vigência da Activity
+		LocalDate today = LocalDate.now();
+		if (activity.getValidTo() != null && activity.getValidTo().isBefore(today)) {
+			throw new BusinessException("Esta atividade está expirada e não pode mais ser submetida.");
+		}
 
 		// 4. Validar status da UserActivity
 		if (!"pending".equals(userActivity.getStatus().getCode())) {
@@ -188,6 +227,83 @@ public class ActivitySubmissionService {
 		return new SubmitActivityResponseDTO(savedUserActivity.getId(), activity.getId(),
 				userActivity.getFarm().getId(), submittedStatus.getCode(), submissions.size(), now,
 				"Atividade submetida com sucesso! Aguarde análise da empresa.");
+	}
+
+	// =========================
+	// NOVO MÉTODO (reenvio de rejeitada)
+	// =========================
+	@Transactional
+	public SubmitActivityResponseDTO resubmitActivity(Integer producerId, Integer userActivityId) {
+
+		// 1. Validar produtor (mesma lógica do submitActivity)
+		User producer = userRepository.findById(producerId)
+				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
+
+		if (producer.getUserType() == null || !producer.getUserType().getId().equals(8)) {
+			throw new AccessDeniedException("Usuário não é produtor rural");
+		}
+
+		Integer companyId = producer.getCompany().getId();
+
+		// 2. Buscar UserActivity
+		UserActivity userActivity = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("UserActivity não encontrada"));
+
+		// 3. Garantir vínculo com produtor e empresa
+		if (!userActivity.getUser().getId().equals(producerId)) {
+			throw new AccessDeniedException("Atividade não pertence a este produtor");
+		}
+
+		if (!userActivity.getFarm().getCompany().getId().equals(companyId)) {
+			throw new AccessDeniedException("Atividade não pertence à empresa do produtor");
+		}
+
+		Activity activity = userActivity.getActivity();
+
+		// 4.1 Validar janela de vigência da Activity
+		LocalDate today = LocalDate.now();
+		if (activity.getValidTo() != null && activity.getValidTo().isBefore(today)) {
+			throw new BusinessException("Esta atividade está expirada e não pode mais ser submetida.");
+		}
+
+		// 4. Validar status da UserActivity: agora tem que estar 'rejected'
+		if (!"rejected".equals(userActivity.getStatus().getCode())) {
+			throw new BusinessException("Só é possível reenviar atividades em status 'rejected'.");
+		}
+
+		// 5. Garantir que há pelo menos 1 submission associado
+		List<UserActivitySubmission> submissions = userActivitySubmissionRepository
+				.findByUserActivityId(userActivity.getId());
+
+		if (submissions.isEmpty()) {
+			throw new BusinessException("É obrigatório ter pelo menos um arquivo anexado para reenviar a atividade.");
+		}
+
+		// 6. Mudar status para submitted
+		UserActivityStatus submittedStatus = userActivityStatusRepository.findByCode("submitted")
+				.orElseThrow(() -> new ResourceNotFoundException("Status 'submitted' não configurado"));
+
+		userActivity.setStatus(submittedStatus);
+		userActivity.setUpdatedAt(LocalDateTime.now());
+		userActivity.setUpdatedBy(producer);
+		// Se completedAt só vale para 'approved', podemos garantir que esteja null
+		// aqui:
+		// userActivity.setCompletedAt(null);
+
+		UserActivity savedUserActivity = userActivityRepository.save(userActivity);
+
+		// 7. Atualizar submittedAt nos submissions (marca a data do novo envio)
+		LocalDateTime now = LocalDateTime.now();
+		for (UserActivitySubmission submission : submissions) {
+			submission.setSubmittedAt(now);
+			submission.setUpdatedAt(now);
+			submission.setUpdatedBy(producer);
+			userActivitySubmissionRepository.save(submission);
+		}
+
+		return new SubmitActivityResponseDTO(savedUserActivity.getId(), activity.getId(),
+				userActivity.getFarm().getId(), submittedStatus.getCode(), submissions.size(), now,
+				"Atividade reenviada com sucesso! Aguarde nova análise da empresa.");
 	}
 
 	@Transactional(readOnly = true)
