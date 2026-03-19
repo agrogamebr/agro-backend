@@ -39,8 +39,6 @@ spring:
   # ===========================================
   cloud:
     gcp:
-      credentials:
-        location: file:${GCP_CREDENTIALS_FILE_PATH}
       project-id: agrogame  # id do projeto de homolog/dev
     sql:
       database-name: agrogame_db        # nome do seu banco
