@@ -44,6 +44,12 @@ public class AuthCredential {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    @Column(name = "temporary_password_hash")
+    private String temporaryPasswordHash;
+    
+    @Column(name = "temporary_password_expires_at")
+    private LocalDateTime temporaryPasswordExpiresAt;
 
     @PrePersist
     protected void onCreate() {
@@ -133,6 +139,22 @@ public class AuthCredential {
 
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
+	}
+
+	public String getTemporaryPasswordHash() {
+		return temporaryPasswordHash;
+	}
+
+	public void setTemporaryPasswordHash(String temporaryPasswordHash) {
+		this.temporaryPasswordHash = temporaryPasswordHash;
+	}
+
+	public LocalDateTime getTemporaryPasswordExpiresAt() {
+		return temporaryPasswordExpiresAt;
+	}
+
+	public void setTemporaryPasswordExpiresAt(LocalDateTime temporaryPasswordExpiresAt) {
+		this.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt;
 	}
 }
 

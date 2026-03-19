@@ -14,22 +14,26 @@ public class LoginResponseDTO {
 	private String name;
 	private String userType;
 	private Long expiresIn;
+	private boolean forceChangePassword;
 
-	public LoginResponseDTO(String token, Integer userId, String email, String name) {
+	public LoginResponseDTO(String token, Integer userId, String email, String name, boolean forceChangePassword) {
 		this.token = token;
 		this.userId = userId;
 		this.email = email;
 		this.name = name;
+		this.forceChangePassword = forceChangePassword;
 	}
-	
-    public LoginResponseDTO(String token, Integer userId, String email, String name, String userType, Long expiresIn) {
-        this.token = token;
-        this.userId = userId;
-        this.email = email;
-        this.name = name;
-        this.userType = userType;
-        this.expiresIn = expiresIn;
-    }
+
+	public LoginResponseDTO(String token, Integer userId, String email, String name, String userType, Long expiresIn,
+			boolean forceChangePassword) {
+		this.token = token;
+		this.userId = userId;
+		this.email = email;
+		this.name = name;
+		this.userType = userType;
+		this.expiresIn = expiresIn;
+		this.forceChangePassword = forceChangePassword;
+	}
 
 	public String getToken() {
 		return token;
@@ -77,5 +81,13 @@ public class LoginResponseDTO {
 
 	public void setExpiresIn(Long expiresIn) {
 		this.expiresIn = expiresIn;
+	}
+
+	public boolean isForceChangePassword() {
+		return forceChangePassword;
+	}
+
+	public void setForceChangePassword(boolean forceChangePassword) {
+		this.forceChangePassword = forceChangePassword;
 	}
 }
