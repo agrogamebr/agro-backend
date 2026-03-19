@@ -114,7 +114,7 @@ app:
 gcp:
   storage:
     bucket-name: agrogame-uploads-dev     # bucket de dev/qa
-	
+
 # ===========================================
 # GOOGLE CLOUD PUBSUB CONFIGURATION
 # ===========================================
