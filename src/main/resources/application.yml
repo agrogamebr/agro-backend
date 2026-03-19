@@ -5,6 +5,14 @@
 spring:
   application:
     name: agrogame-api
+  cloud:
+    gcp:
+      credentials:
+        location: file:${GCP_CREDENTIALS_FILE_PATH}
+      project-id: agrogame
+      sql:
+        database-name: agrogame_db        # nome do seu banco
+        instance-connection-name: agrogame:us-central1:agrogame-db-qa  # já está na URL
 
   # ===========================================
   # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL Proxy

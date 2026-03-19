@@ -22,6 +22,12 @@ spring:
       hibernate:
         format_sql: true
 
+  cloud:
+    gcp:
+      sql:
+        database-name: testdb
+        instance-connection-name: fake:us-central1:fake
+
 logging:
   level:
     root: INFO
@@ -31,9 +37,6 @@ logging:
 server:
   port: 8080
 
-# ===========================================
-# JWT CONFIGURATION (para testes)
-# ===========================================
 jwt:
-  secret: 
+  secret: chave-secreta-apenas-para-testes-nao-usar-em-prod
   expiration: 86400000

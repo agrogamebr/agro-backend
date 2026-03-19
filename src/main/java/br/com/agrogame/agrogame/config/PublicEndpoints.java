@@ -22,7 +22,8 @@ public class PublicEndpoints {
 		"/swagger-ui.html",
 		"/actuator/**",
 		"/actuator/health",
-		"/actuator/info"
+		"/actuator/info",
+		 "/api/auth/forgot-password"
     );
     
     public static boolean isPublic(String path) {

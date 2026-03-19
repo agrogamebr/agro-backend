@@ -41,7 +41,10 @@ spring:
     gcp:
       credentials:
         location: file:${GCP_CREDENTIALS_FILE_PATH}
-      project-id: agrogame-qa-project-id  # id do projeto de homolog/dev
+      project-id: agrogame  # id do projeto de homolog/dev
+    sql:
+      database-name: agrogame_db        # nome do seu banco
+      instance-connection-name: agrogame:us-central1:agrogame-db-qa
 
 # ===========================================
 # SERVER CONFIGURATION
@@ -111,3 +114,10 @@ app:
 gcp:
   storage:
     bucket-name: agrogame-uploads-dev     # bucket de dev/qa
+	
+# ===========================================
+# GOOGLE CLOUD PUBSUB CONFIGURATION
+# ===========================================
+agrogame:
+  pubsub:
+    email-topic: dev-notifications-email
