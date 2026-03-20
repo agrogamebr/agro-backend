@@ -10,8 +10,8 @@ spring:
   # ===========================================
   datasource:
     # A URL e o Driver são injetados automaticamente pelo starter do Spring Cloud GCP
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    username: ${DB_USER}
+    password: ${DB_PASS}
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
