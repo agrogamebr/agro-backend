@@ -98,15 +98,16 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.google.cloud.sql</groupId>
-			<artifactId>postgres-socket-factory</artifactId>
-			<version>1.19.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
+		    <groupId>com.google.cloud.sql</groupId>
+		    <artifactId>postgres-socket-factory</artifactId>
+		    <version>1.19.0</version>
+		</dependency>
+		
+		<!-- Adicionar explicitamente a biblioteca core que contém o InternalConnectorRegistry -->
+		<dependency>
+		    <groupId>com.google.cloud.sql</groupId>
+		    <artifactId>jdbc-socket-factory-core</artifactId>
+		    <version>1.19.0</version>
 		</dependency>
 
 

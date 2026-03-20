@@ -10,8 +10,8 @@ spring:
   # ===========================================
   datasource:
     url: jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=agrogame:us-central1:agrogame-db-qa&socketFactory=com.google.cloud.sql.postgres.SocketFactory
-    username: ${DB_USER}
-    password: ${DB_PASS}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -41,7 +41,7 @@ spring:
     gcp:
       project-id: agrogame  # id do projeto de homolog/dev
     sql:
-      database-name: agrogame_db        # nome do seu banco
+      database-name: postgres        # nome do seu banco
       instance-connection-name: agrogame:us-central1:agrogame-db-qa
 
 # ===========================================
