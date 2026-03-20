@@ -35,6 +35,7 @@ import br.com.agrogame.agrogame.dto.BackofficeProducerSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
+import br.com.agrogame.agrogame.dto.UserActivityDetailDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.User;
@@ -355,4 +356,30 @@ public class BackofficeControllerController {
 		return ResponseEntity.ok(response);
 	}
 
+	@Operation(summary = "Detalhar atividade do produtor (Backoffice)", description = """
+			Retorna os dados detalhados da atividade de um produtor para o backoffice.
+			
+			Regras:
+			- O usuário do backoffice só pode consultar a atividade se o produtor que a realizou
+			  pertencer à sua mesma empresa.
+			""")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Detalhamento da atividade retornado com sucesso"),
+			@ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+			@ApiResponse(responseCode = "403", description = "Atividade pertence a um produtor de outra empresa"),
+			@ApiResponse(responseCode = "404", description = "Atividade ou Usuário não encontrados"),
+			@ApiResponse(responseCode = "500", description = "Erro interno") })
+	@GetMapping("/activities/{userActivityId}")
+	public ResponseEntity<UserActivityDetailDTO> getBackofficeUserActivityDetail(
+			@Parameter(description = "ID da UserActivity para detalhar", example = "1") @PathVariable Integer userActivityId,
+			Principal principal) {
+
+		User backofficeUser = userRepository.findByEmail1(principal.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		// O Service será responsável por validar se a atividade pertence à mesma empresa do backofficeUser
+		UserActivityDetailDTO detail = backofficeActivityService.getActivityDetailForBackoffice(backofficeUser, userActivityId);
+
+		return ResponseEntity.ok(detail);
+	}
+	
 }

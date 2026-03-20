@@ -55,7 +55,7 @@ public class UserActivityService {
 		return toDto(userActivity, reviews);
 	}
 
-	private UserActivityDetailDTO toDto(UserActivity ua, List<UserActivityReview> reviews) {
+	public UserActivityDetailDTO toDto(UserActivity ua, List<UserActivityReview> reviews) {
 		UserActivityDetailDTO dto = new UserActivityDetailDTO();
 		dto.setId(ua.getId());
 		dto.setUserId(ua.getUser() != null ? ua.getUser().getId() : null);

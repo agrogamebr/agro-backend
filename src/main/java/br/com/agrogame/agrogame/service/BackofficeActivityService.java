@@ -17,6 +17,7 @@ import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
 import br.com.agrogame.agrogame.dto.BackofficeActivityProjection;
 import br.com.agrogame.agrogame.dto.BackofficeFileInfoDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
+import br.com.agrogame.agrogame.dto.UserActivityDetailDTO;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.exceptions.ResourceNotFoundException;
 import br.com.agrogame.agrogame.model.Activity;
@@ -38,7 +39,7 @@ import br.com.agrogame.agrogame.repository.UserActivitySubmissionFileRepository;
 import br.com.agrogame.agrogame.repository.UserActivitySubmissionRepository;
 import br.com.agrogame.agrogame.repository.UserDocumentRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -54,13 +55,14 @@ public class BackofficeActivityService {
 	private final UserActivityReviewRepository userActivityReviewRepository;
 	private final PointsAndRewardsService pointsAndRewardsService;
 	private final ActivityRepository activityRepository;
+	private final UserActivityService userActivityService;
 
 	public BackofficeActivityService(UserRepository userRepository, UserActivityRepository userActivityRepository,
 			UserActivitySubmissionFileRepository submissionFileRepository,
 			UserActivityStatusRepository userActivityStatusRepository, UserDocumentRepository userDocumentRepository,
 			UserActivitySubmissionRepository userActivitySubmissionRepository,
 			ReviewStatusRepository reviewStatusRepository, UserActivityReviewRepository userActivityReviewRepository,
-			PointsAndRewardsService pointsAndRewardsService, ActivityRepository activityRepository) {
+			PointsAndRewardsService pointsAndRewardsService, ActivityRepository activityRepository, UserActivityService userActivityService) {
 		this.userRepository = userRepository;
 		this.userActivityRepository = userActivityRepository;
 		this.submissionFileRepository = submissionFileRepository;
@@ -71,6 +73,7 @@ public class BackofficeActivityService {
 		this.userActivityReviewRepository = userActivityReviewRepository;
 		this.pointsAndRewardsService = pointsAndRewardsService;
 		this.activityRepository = activityRepository;
+		this.userActivityService = userActivityService;
 	}
 
 	/**
@@ -260,6 +263,27 @@ public class BackofficeActivityService {
 		return new ActivityDecisionResponseDTO(savedActivity.getId(), savedActivity.getActivity().getId(),
 				savedActivity.getActivity().getName(), decision, newStatus.getCode(), LocalDateTime.now(),
 				decisionRequest.getReason());
+	}
+	
+	
+	@Transactional(readOnly = true)
+	public UserActivityDetailDTO getActivityDetailForBackoffice(User backofficeUser, Integer userActivityId) {
+	    
+	    // 1. Busca a atividade
+	    UserActivity userActivity = userActivityRepository.findById(userActivityId)
+	            .orElseThrow(() -> new ResourceNotFoundException("User Activity não encontrada"));
+
+	    // 2. Valida se o produtor dono da atividade pertence à MESMA EMPRESA do usuário do backoffice
+	    if (!userActivity.getUser().getCompany().getId().equals(backofficeUser.getCompany().getId())) {
+	        throw new AccessDeniedException("Esta atividade pertence a um produtor de outra empresa.");
+	    }
+
+	    // 3. Busca as reviews (se houver necessidade de exibi-las também)
+	    List<UserActivityReview> reviews = userActivityReviewRepository
+	            .findByUserActivityIdOrderByReviewedAtDesc(userActivityId);
+
+	    // 4. Reaproveita o seu método toDto que você já possui para converter e retornar
+	    return userActivityService.toDto(userActivity, reviews);
 	}
 
 	public Page<BackofficeActivityListDTO> listActivitiesForBackoffice(Integer companyId, String activityStatus,
