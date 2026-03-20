@@ -9,7 +9,7 @@ spring:
     gcp:
       project-id: agrogame
       sql:
-        database-name: agrogame_db        # nome do seu banco
+        database-name: postgres        # nome do seu banco
         instance-connection-name: agrogame:us-central1:agrogame-db-qa  # já está na URL
 
   # ===========================================

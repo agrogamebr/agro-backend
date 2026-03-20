@@ -25,8 +25,7 @@ spring:
   cloud:
     gcp:
       sql:
-        database-name: testdb
-        instance-connection-name: fake:us-central1:fake
+        enabled: false
 
 logging:
   level:
