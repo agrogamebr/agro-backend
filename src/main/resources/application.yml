@@ -7,8 +7,6 @@ spring:
     name: agrogame-api
   cloud:
     gcp:
-      credentials:
-        location: file:${GCP_CREDENTIALS_FILE_PATH}
       project-id: agrogame
       sql:
         database-name: agrogame_db        # nome do seu banco
