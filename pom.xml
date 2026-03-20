@@ -86,7 +86,6 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.30</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -100,14 +99,12 @@
 		<dependency>
 		    <groupId>com.google.cloud.sql</groupId>
 		    <artifactId>postgres-socket-factory</artifactId>
-		    <version>1.19.0</version>
 		</dependency>
 		
 		<!-- Adicionar explicitamente a biblioteca core que contém o InternalConnectorRegistry -->
 		<dependency>
 		    <groupId>com.google.cloud.sql</groupId>
 		    <artifactId>jdbc-socket-factory-core</artifactId>
-		    <version>1.19.0</version>
 		</dependency>
 
 
@@ -162,7 +159,6 @@
 		<dependency>
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-storage</artifactId>
-			<version>2.60.0</version>
 		</dependency>
 		<!-- Se estiver usando Spring Boot 3+ (Hibernate 6) -->
 		<dependency>
@@ -190,7 +186,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.11.0</version>
 				<configuration>
 					<source>21</source>
 					<target>21</target>
