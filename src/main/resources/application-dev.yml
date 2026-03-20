@@ -61,8 +61,7 @@ server:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
-    include-exception: always
-
+    include-exception: true
 # ===========================================
 # LOGGING CONFIGURATION
 # ===========================================
