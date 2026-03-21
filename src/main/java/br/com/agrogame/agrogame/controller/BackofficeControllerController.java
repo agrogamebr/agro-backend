@@ -33,6 +33,7 @@ import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
 import br.com.agrogame.agrogame.dto.BackofficePointsStatementDTO;
 import br.com.agrogame.agrogame.dto.BackofficeProducerSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeSubmissionListDTO;
+import br.com.agrogame.agrogame.dto.BackofficeWorkerDTO;
 import br.com.agrogame.agrogame.dto.ProducerPointsBalanceDTO;
 import br.com.agrogame.agrogame.dto.ProductionUnitDetailDTO;
 import br.com.agrogame.agrogame.dto.UserActivityDetailDTO;
@@ -46,6 +47,7 @@ import br.com.agrogame.agrogame.service.BackofficeFarmService;
 import br.com.agrogame.agrogame.service.BackofficePointsService;
 import br.com.agrogame.agrogame.service.ProductionUnitService;
 import br.com.agrogame.agrogame.service.RuralProducerService;
+import br.com.agrogame.agrogame.service.WorkerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -75,9 +77,12 @@ public class BackofficeControllerController {
 
 	@Autowired
 	private BackofficeEmployeeService backofficeEmployeeservice;
-	
+
 	@Autowired
 	private RuralProducerService ruralProducerService;
+
+	@Autowired
+	private WorkerService workerService;
 
 	@Operation(summary = "Listar atividades submetidas para aprovação", description = """
 			    Retorna lista de atividades em status 'submitted' que aguardam aprovação pelo backoffice.
@@ -262,7 +267,8 @@ public class BackofficeControllerController {
 	public ResponseEntity<Page<ProductionUnitDetailDTO>> listUnits(Principal principal,
 			@RequestParam(required = false) Integer farmId, @RequestParam(required = false) Integer unitId,
 			@RequestParam(required = false) String name, @RequestParam(required = false) Integer cropTypeId,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
 
 		User operator = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Operador não encontrado"));
@@ -270,7 +276,7 @@ public class BackofficeControllerController {
 		Pageable pageable = PageRequest.of(page, size);
 
 		Page<ProductionUnitDetailDTO> result = productionUnitService.listBackofficeUnits(operator, farmId, unitId, name,
-				cropTypeId, pageable);
+				cropTypeId, ownerId, pageable);
 
 		return ResponseEntity.ok(result);
 	}
@@ -323,7 +329,7 @@ public class BackofficeControllerController {
 
 		return ResponseEntity.ok(result);
 	}
-	
+
 	@Operation(summary = "Aprovar associação de funcionário na empresa", description = """
 			  Faz a aprovação da associação de um produtor rural à empresa do usuário autenticado.
 			  Somente administrador, manager ou employee da empresa do produtor podem aprovar.
@@ -358,7 +364,7 @@ public class BackofficeControllerController {
 
 	@Operation(summary = "Detalhar atividade do produtor (Backoffice)", description = """
 			Retorna os dados detalhados da atividade de um produtor para o backoffice.
-			
+
 			Regras:
 			- O usuário do backoffice só pode consultar a atividade se o produtor que a realizou
 			  pertencer à sua mesma empresa.
@@ -376,10 +382,27 @@ public class BackofficeControllerController {
 		User backofficeUser = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		// O Service será responsável por validar se a atividade pertence à mesma empresa do backofficeUser
-		UserActivityDetailDTO detail = backofficeActivityService.getActivityDetailForBackoffice(backofficeUser, userActivityId);
+		// O Service será responsável por validar se a atividade pertence à mesma
+		// empresa do backofficeUser
+		UserActivityDetailDTO detail = backofficeActivityService.getActivityDetailForBackoffice(backofficeUser,
+				userActivityId);
 
 		return ResponseEntity.ok(detail);
 	}
-	
+
+	@GetMapping("/workers/list")
+	@PreAuthorize("hasAuthority('administrator') or hasAuthority('manager')")
+	public ResponseEntity<Page<BackofficeWorkerDTO>> listWorkersByOwner(Principal principal,
+			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+
+		String loggedEmail = principal.getName();
+		Pageable pageable = PageRequest.of(page, size);
+
+		Page<BackofficeWorkerDTO> result = workerService.listWorkersByOwnerForBackoffice(loggedEmail, ownerId,
+				pageable);
+
+		return ResponseEntity.ok(result);
+	}
+
 }

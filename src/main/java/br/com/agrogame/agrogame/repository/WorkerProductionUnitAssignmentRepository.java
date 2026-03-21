@@ -1,6 +1,7 @@
 package br.com.agrogame.agrogame.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -19,4 +20,6 @@ public interface WorkerProductionUnitAssignmentRepository
 	@Modifying
 	@Query(value = "DELETE FROM worker_production_unit_assignments WHERE worker_id = :workerId", nativeQuery = true)
 	void deleteByWorkerId(@Param("workerId") Integer workerId);
+	
+	Optional<WorkerProductionUnitAssignment> findFirstActiveByWorkerId(Integer workerId);
 }
