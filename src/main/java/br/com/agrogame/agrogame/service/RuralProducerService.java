@@ -247,7 +247,7 @@ public class RuralProducerService {
 		// 6. Atualizar status e auditoria
 		producer.setUserStatus(approvedStatus);
 		producer.setUpdatedAt(LocalDateTime.now());
-		producer.setUpdatedBy(admin); // Quem aprovou
+		producer.setUpdatedBy(admin);
 
 		// 7. Salvar
 		User savedProducer = ruralProducerRepository.save(producer);
