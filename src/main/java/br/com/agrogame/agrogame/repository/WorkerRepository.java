@@ -2,6 +2,8 @@ package br.com.agrogame.agrogame.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -88,4 +90,19 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 	@Modifying
 	@Query(value = "UPDATE users SET user_status_id = :statusId WHERE id = :id", nativeQuery = true)
 	void updateUserStatusById(@Param("id") Integer id, @Param("statusId") Integer statusId);
+
+	@Query("""
+			SELECT DISTINCT w
+			FROM User w
+			JOIN WorkerProductionUnitAssignment a
+			  ON a.workerId = w.id
+			JOIN ProductionUnit pu
+			  ON pu.id = a.productionUnitId
+			JOIN pu.farm f
+			WHERE w.userType.code = 'worker'
+			  AND f.company.id = :companyId
+			  AND (:ownerId IS NULL OR f.owner.id = :ownerId)
+			""")
+	Page<User> findWorkersByOwnerAndCompany(@Param("ownerId") Integer ownerId, @Param("companyId") Integer companyId,
+			Pageable pageable);
 }

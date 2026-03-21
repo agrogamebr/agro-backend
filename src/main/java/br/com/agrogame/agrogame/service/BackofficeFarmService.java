@@ -1,6 +1,8 @@
 package br.com.agrogame.agrogame.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -75,28 +77,32 @@ public class BackofficeFarmService {
 	@Transactional(readOnly = true)
 	public Page<BackofficeFarmDTO> listFarmsByCompany(User operator, Integer farmId, String name, Integer ownerId,
 			Pageable pageable) {
+
 		Integer companyId = operator.getCompany().getId();
 
-		// TRATAMENTO DO FILTRO DE NOME (Resolve o erro do Postgres)
 		String nameLike = null;
 		if (name != null && !name.isBlank()) {
 			nameLike = "%" + name + "%";
 		}
 
-		// Passando 'nameLike' formatado para o repositório
 		Page<Farm> farmPage = farmRepository.findByFilters(companyId, farmId, nameLike, ownerId, pageable);
 
 		if (farmPage.isEmpty()) {
 			return Page.empty(pageable);
 		}
 
-		List<Integer> pageFarmIds = farmPage.getContent().stream().map(Farm::getId).toList();
+		List<Integer> farmIds = farmPage.getContent().stream().map(Farm::getId).toList();
 
-		// Busca otimizada das UPs
-		List<ProductionUnit> unitsInPage = productionUnitRepository.findByFarmIdInAndIsActiveTrue(pageFarmIds);
+		// Busca distinct culturas por fazenda
+		List<Object[]> rawCropData = productionUnitRepository.findDistinctCropNamesByFarmIds(farmIds);
 
-		Map<Integer, List<ProductionUnit>> unitsByFarmId = unitsInPage.stream()
-				.collect(Collectors.groupingBy(pu -> pu.getFarm().getId()));
+		// Mapa: farmId -> lista de nomes de culturas
+		Map<Integer, List<String>> cropsByFarmId = new HashMap<>();
+		for (Object[] row : rawCropData) {
+			Integer fId = (Integer) row[0];
+			String cropName = (String) row[1];
+			cropsByFarmId.computeIfAbsent(fId, k -> new ArrayList<>()).add(cropName);
+		}
 
 		return farmPage.map(farm -> {
 			BackofficeFarmDTO dto = new BackofficeFarmDTO();
@@ -107,10 +113,21 @@ public class BackofficeFarmService {
 				dto.setOwnerId(farm.getOwner().getId());
 			}
 
-			List<ProductionUnit> myUnits = unitsByFarmId.getOrDefault(farm.getId(), Collections.emptyList());
-			dto.setProductionUnits(myUnits.stream().map(this::toUnitDTO).toList());
+			// status baseado no boolean isActive
+			dto.setActive(farm.getIsActive()); // boolean
+			dto.setStatusLabel(farm.getIsActive() ? "ATIVA" : "INATIVA");
+
+			// município e estado
+			dto.setCity(farm.getCity());
+			dto.setState(farm.getState());
+
+			List<String> cropNames = cropsByFarmId.getOrDefault(farm.getId(), List.of());
+			dto.setCropTypes(cropNames);
+			dto.setCropTypesSummary(String.join(", ", cropNames));
+
 			return dto;
 		});
+
 	}
 
 	// Mantive o DTO detalhado da UP que você pediu antes

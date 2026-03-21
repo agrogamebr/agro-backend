@@ -4,10 +4,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.agrogame.agrogame.dto.BackofficeWorkerDTO;
 import br.com.agrogame.agrogame.dto.WorkerCreateDTO;
 import br.com.agrogame.agrogame.dto.WorkerDetailDTO;
 import br.com.agrogame.agrogame.dto.WorkerUpdateDTO;
@@ -25,6 +28,7 @@ import br.com.agrogame.agrogame.model.UserType;
 import br.com.agrogame.agrogame.model.WorkerProductionUnitAssignment;
 import br.com.agrogame.agrogame.repository.AuthCredentialRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
+import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.repository.UserStatusRepository;
 import br.com.agrogame.agrogame.repository.UserTypeRepository;
@@ -60,6 +64,9 @@ public class WorkerService {
 
 	@Autowired
 	private FarmRepository farmRepository;
+
+	@Autowired
+	private ProductionUnitRepository productionUnitRepository;
 
 	// LISTAR workers do produtor
 	@Transactional(readOnly = true)
@@ -338,4 +345,37 @@ public class WorkerService {
 		assignmentRepository.save(ass);
 	}
 
+	@Transactional(readOnly = true)
+	public Page<BackofficeWorkerDTO> listWorkersByOwnerForBackoffice(String loggedEmail, Integer ownerId,
+			Pageable pageable) {
+
+		User operator = userRepository.findByEmail1(loggedEmail)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
+
+		Integer companyId = operator.getCompany().getId();
+
+		Page<User> page = workerRepository.findWorkersByOwnerAndCompany(ownerId, companyId, pageable);
+
+		return page.map(this::toBackofficeWorkerDTO);
+	}
+
+	private BackofficeWorkerDTO toBackofficeWorkerDTO(User worker) {
+		BackofficeWorkerDTO dto = new BackofficeWorkerDTO();
+		dto.setId(worker.getId());
+		dto.setFullname(worker.getFullName());
+		dto.setEmail(worker.getEmail1());
+
+		// pega uma unidade produtiva qualquer ativa ligada a esse worker
+		Integer productionUnitId = assignmentRepository.findFirstActiveByWorkerId(worker.getId())
+				.map(WorkerProductionUnitAssignment::getProductionUnitId).orElse(null);
+
+		if (productionUnitId != null) {
+			productionUnitRepository.findById(productionUnitId).ifPresent(pu -> {
+				dto.setFarmId(pu.getFarm().getId());
+				dto.setFarmName(pu.getFarm().getName());
+			});
+		}
+
+		return dto;
+	}
 }
