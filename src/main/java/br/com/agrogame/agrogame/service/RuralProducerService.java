@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ActivityCropTypeProjection;
+import br.com.agrogame.agrogame.dto.NotificationEvent;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityDTO;
 import br.com.agrogame.agrogame.dto.ProducerUserActivityProjection;
@@ -100,6 +102,9 @@ public class RuralProducerService {
 
 	@Autowired
 	private UserActivityRepository userActivityRepository;
+
+	@Autowired
+	private NotificationPublisherService notificationPublisherService;
 
 	@Transactional
 	public User registerRuralProducer(RuralProducerDTO dto) {
@@ -192,10 +197,19 @@ public class RuralProducerService {
 		userDocumentRepository.save(document);
 
 		// 9. TODO: Enviar emails (próxima task)
-		// emailService.sendWelcomeEmailToProducer(savedProducer);
-		// emailService.sendNewProducerNotificationToCompany(savedProducer, company);
+		publishProducerPendingApprovalEvent(savedProducer);
 
 		return savedProducer;
+	}
+
+	private void publishProducerPendingApprovalEvent(User producer) {
+		Map<String, Object> vars = new HashMap<>();
+		vars.put("tipoPerfil", "PRODUTOR");
+		vars.put("nomeProdutor", producer.getFullName());
+
+		NotificationEvent event = new NotificationEvent("AGUARDANDO_APROVACAO", producer.getEmail1(), vars);
+
+		notificationPublisherService.publishNotification(event, producer.getId());
 	}
 
 	/**
@@ -237,7 +251,26 @@ public class RuralProducerService {
 
 		// 7. Salvar
 		User savedProducer = ruralProducerRepository.save(producer);
+
+		publishProducerApprovedEvent(savedProducer);
+
 		return savedProducer;
+	}
+
+	private void publishProducerApprovedEvent(User producer) {
+		// Buscar CPF do produtor em user_documents
+		String cpf = userDocumentRepository.findFirstByUserIdAndDocumentType_Code(producer.getId(), "cpf")
+				.map(UserDocument::getDocumentNumber).orElse(null);
+
+		Map<String, Object> vars = new HashMap<>();
+		vars.put("tipoPerfil", "PRODUTOR");
+		vars.put("nomeProdutor", producer.getFullName());
+		vars.put("cpf", cpf);
+		vars.put("emailProdutor", producer.getEmail1());
+
+		NotificationEvent event = new NotificationEvent("CADASTRO_APROVADO", producer.getEmail1(), vars);
+
+		notificationPublisherService.publishNotification(event, producer.getId());
 	}
 
 	@Transactional(readOnly = true)
@@ -382,7 +415,8 @@ public class RuralProducerService {
 	@Transactional(readOnly = true)
 	public Page<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId,
 			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
-			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page, int size) {
+			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page,
+			int size) {
 		User producer = userRepository.findByIdWithUserType(producerId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
 
@@ -419,7 +453,8 @@ public class RuralProducerService {
 		Pageable pageable = PageRequest.of(page, size);
 
 		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForProducer(companyId,
-				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId, pageable);
+				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId,
+				pageable);
 
 		if (rowsPage.isEmpty()) {
 			return Page.empty(pageable);

@@ -1,7 +1,9 @@
 package br.com.agrogame.agrogame.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,6 +14,8 @@ import br.com.agrogame.agrogame.dto.CompanyDocumentDTO;
 import br.com.agrogame.agrogame.dto.CompanyListDTO;
 import br.com.agrogame.agrogame.dto.CompanyTypeDTO;
 import br.com.agrogame.agrogame.dto.CreateCompanyDTO;
+import br.com.agrogame.agrogame.dto.NotificationEvent;
+import br.com.agrogame.agrogame.enumerator.EnumCompanyDocumentType;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
@@ -71,6 +75,9 @@ public class CompanyService {
 
 	@Autowired
 	private ValidationService validationService;
+
+	@Autowired
+	private NotificationPublisherService notificationPublisherService;
 
 	/**
 	 * Cadastra uma nova empresa com usuário administrador padrão
@@ -132,7 +139,20 @@ public class CompanyService {
 			companyDocumentRepository.save(doc);
 		}
 
+		publishCompanyPendingApprovalEvent(savedCompany, savedAdmin);
+
 		return savedCompany;
+	}
+
+	private void publishCompanyPendingApprovalEvent(Company company, User adminUser) {
+		Map<String, Object> templateVars = new HashMap<>();
+		templateVars.put("tipoPerfil", "EMPRESA");
+		templateVars.put("nomeEmpresa",
+				company.getFantasyName() != null ? company.getFantasyName() : company.getFullCompanyName());
+
+		NotificationEvent event = new NotificationEvent("AGUARDANDO_APROVACAO", company.getEmail1(), templateVars);
+
+		notificationPublisherService.publishNotification(event, adminUser.getId());
 	}
 
 	/**
@@ -254,7 +274,34 @@ public class CompanyService {
 		// 7. Salvar
 		Company savedCompany = companyRepository.save(company);
 
+		publishCompanyApprovedEvent(savedCompany);
+
 		return savedCompany;
+	}
+
+	private void publishCompanyApprovedEvent(Company company) {
+		Map<String, Object> templateVars = new HashMap<>();
+
+		templateVars.put("tipoPerfil", "EMPRESA");
+		templateVars.put("nomeEmpresa",
+				company.getFantasyName() != null ? company.getFantasyName() : company.getFullCompanyName());
+
+		// CNPJ: buscar na tabela company_documents usando o code do enum
+		String cnpj = companyDocumentRepository
+				.findFirstByCompanyIdAndDocumentType_Code(company.getId(), EnumCompanyDocumentType.CNPJ.getCode())
+				.map(CompanyDocument::getDocumentNumber).orElse(null);
+		templateVars.put("cnpj", cnpj);
+
+		String segmento = company.getCompanyType() != null ? company.getCompanyType().getName() : null;
+		templateVars.put("segmento", segmento);
+
+		templateVars.put("emailResponsavel", company.getEmail1());
+
+		NotificationEvent event = new NotificationEvent("CADASTRO_APROVADO", company.getEmail1(), templateVars);
+
+		Integer ownerUserId = company.getCreatedBy() != null ? company.getCreatedBy().getId() : null;
+
+		notificationPublisherService.publishNotification(event, ownerUserId);
 	}
 
 	public List<Company> findAllActive() {
