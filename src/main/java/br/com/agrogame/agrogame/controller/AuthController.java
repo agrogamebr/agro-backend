@@ -75,7 +75,7 @@ public class AuthController {
 	@PostMapping("/forgot-password")
 	public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordDTO dto) throws JsonProcessingException {
 		passwordRecoveryService.forgotPassword(dto.getEmail());
-		return ResponseEntity.ok(Map.of("message", "Se o email existir, enviaremos uma senha temporária."));
+		return ResponseEntity.ok(Map.of("message", "Se o e-mail informado estiver cadastrado e ativo, você receberá as instruções para redefinir sua senha em instantes.."));
 	}
 
 	@PostMapping("/change-password")
