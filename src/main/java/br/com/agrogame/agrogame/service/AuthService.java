@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import br.com.agrogame.agrogame.dto.LoginRequestDTO;
 import br.com.agrogame.agrogame.dto.LoginResponseDTO;
 import br.com.agrogame.agrogame.enumerator.EnumCompanyStatus;
+import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.enumerator.EnumUserType;
 import br.com.agrogame.agrogame.exceptions.AuthenticationException;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
@@ -175,6 +176,16 @@ public class AuthService {
 	public void changePassword(String email, String oldPassword, String newPassword) {
 		AuthCredential cred = authCredentialRepository.findByIdentifier(email)
 				.orElseThrow(() -> new BusinessException("Usuário não encontrado"));
+
+		var user = cred.getUser();
+		var statusCode = user.getUserStatus().getCode();
+		boolean podeRecuperarSenha = EnumUserStatus.ACTIVE.getCode().equals(statusCode)
+				|| EnumUserStatus.APPROVED.getCode().equals(statusCode);
+
+		if (!podeRecuperarSenha) {
+			// se o usuário não estiver ativo ou aprovado, não permite alterar senha
+			return;
+		}
 
 		boolean validOld = passwordEncoder.matches(oldPassword, cred.getPasswordHash())
 				|| (cred.getTemporaryPasswordHash() != null && cred.getTemporaryPasswordExpiresAt() != null

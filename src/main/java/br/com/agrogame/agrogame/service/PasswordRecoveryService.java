@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import br.com.agrogame.agrogame.dto.NotificationEvent;
+import br.com.agrogame.agrogame.enumerator.EnumUserStatus;
 import br.com.agrogame.agrogame.exceptions.BusinessException;
 import br.com.agrogame.agrogame.model.AuthCredential;
 import br.com.agrogame.agrogame.repository.AuthCredentialRepository;
@@ -35,21 +36,28 @@ public class PasswordRecoveryService {
 		AuthCredential cred = authCredentialRepository.findByIdentifier(email)
 				.orElseThrow(() -> new BusinessException("Usuário não encontrado"));
 
-		// 1) Gera senha temporária
+		var user = cred.getUser();
+		var statusCode = user.getUserStatus().getCode();
+		boolean podeRecuperarSenha = EnumUserStatus.ACTIVE.getCode().equals(statusCode)
+				|| EnumUserStatus.APPROVED.getCode().equals(statusCode);
+
+		if (!podeRecuperarSenha) {
+			// se o usuário não estiver ativo ou aprovado, não gera senha temporária e nem
+			// envia email
+			return;
+		}
+
 		String rawTempPassword = generateTemporaryPassword();
 		String encodedTempPassword = passwordEncoder.encode(rawTempPassword);
 
-		// 2) Persiste hash + expiração
 		cred.setTemporaryPasswordHash(encodedTempPassword);
 		cred.setTemporaryPasswordExpiresAt(LocalDateTime.now().plusHours(2));
 		authCredentialRepository.save(cred);
 
 		Map<String, Object> vars = Map.of("emailUsuario", email, "senhaTemporaria", rawTempPassword);
 
-		// 4) Cria o evento padronizado
 		NotificationEvent evento = new NotificationEvent("RECUPERACAO_SENHA", email, vars);
 
-		// 5) Publica usando o serviço genérico
 		notificationPublisherService.publishNotification(evento, cred.getUser().getId());
 	}
 
