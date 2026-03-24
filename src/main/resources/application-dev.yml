@@ -46,14 +46,10 @@ spring:
         enabled: true
         publisher:
           retry:
-          # Tempo máximo que a API vai ficar tentando publicar a mensagem antes de lançar a exceção
-          total-timeout-seconds: 10
-          # Segundos que ele espera antes da primeira nova tentativa
-          initial-retry-delay-seconds: 1
-          # Máximo de segundos entre as tentativas subsequentes
-          max-retry-delay-seconds: 3
-          # O quão rápido o tempo de espera entre tentativas aumenta (1.5x)
-          retry-delay-multiplier: 1.5
+            total-timeout-seconds: 10
+            initial-retry-delay-seconds: 1
+            max-retry-delay-seconds: 3
+            retry-delay-multiplier: 1.5
 # ===========================================
 # SERVER CONFIGURATION
 # ===========================================
