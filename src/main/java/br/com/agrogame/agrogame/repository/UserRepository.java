@@ -79,6 +79,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    us.id,
 			    us.name,
 			    u.createdAt,
+			    u.updatedAt,
 			   COALESCE(approver.fullName, null)
 			)
 			FROM User u
@@ -88,7 +89,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			      AND d.isActive = true
 			      AND d.documentType.id = 1
 			LEFT JOIN u.userStatus us
-			LEFT JOIN u.updatedBy approver 
+			LEFT JOIN u.updatedBy approver
 			WHERE u.company.id = :companyId
 			  AND u.userType.id = 8
 			  AND (:nameLike IS NULL OR LOWER(u.fullName) LIKE :nameLike)
