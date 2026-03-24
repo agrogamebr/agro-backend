@@ -17,45 +17,50 @@ import br.com.agrogame.agrogame.exceptions.BusinessException;
 @Service
 public class NotificationPublisherService {
 
-	private static final Logger log = LoggerFactory.getLogger(NotificationPublisherService.class);
+    private static final Logger log = LoggerFactory.getLogger(NotificationPublisherService.class);
 
-	private final PubSubTemplate pubSubTemplate;
-	private final ObjectMapper objectMapper;
+    private final PubSubTemplate pubSubTemplate;
+    private final ObjectMapper objectMapper;
+    private final String emailTopic;
 
-	@Value("${agrogame.pubsub.email-topic:dev-notifications-email}")
-	private String emailTopic;
+    public NotificationPublisherService(
+            PubSubTemplate pubSubTemplate,
+            ObjectMapper objectMapper,
+            @Value("${agrogame.pubsub.email-topic:dev-notifications-email}") String emailTopic) {
 
-	public NotificationPublisherService(PubSubTemplate pubSubTemplate, ObjectMapper objectMapper) {
-		this.pubSubTemplate = pubSubTemplate;
-		this.objectMapper = objectMapper;
-	}
+        this.pubSubTemplate = pubSubTemplate;
+        this.objectMapper = objectMapper;
+        this.emailTopic = emailTopic;
+    }
 
-	/**
-	 * Publica um evento de notificação no tópico de e-mail.
-	 *
-	 * @param event  payload padronizado (eventType, recipientEmail,
-	 *               templateVariables)
-	 * @param userId opcional, usado apenas para log (pode ser null)
-	 */
-	public void publishNotification(NotificationEvent event, Integer userId) {
-		try {
-			String jsonPayload = objectMapper.writeValueAsString(event);
-			CompletableFuture<String> future = pubSubTemplate.publish(emailTopic, jsonPayload);
+    /**
+     * Publica um evento de notificação no tópico de e-mail.
+     *
+     * @param event  payload padronizado (eventType, recipientEmail,
+     *               templateVariables)
+     * @param userId opcional, usado apenas para log (pode ser null)
+     */
+    public void publishNotification(NotificationEvent event, Integer userId) {
+        try {
+            String jsonPayload = objectMapper.writeValueAsString(event);
+            CompletableFuture<String> future = pubSubTemplate.publish(emailTopic, jsonPayload);
 
-			future.whenComplete((messageId, exception) -> {
-				if (exception != null) {
-					log.error("Falha ao publicar evento [{}]. UserId: [{}], Destino: [{}], Erro: {}",
-							event.eventType(), userId, event.recipientEmail(), exception.getMessage(), exception);
-				} else {
-					log.info("Evento [{}] publicado no Pub/Sub. UserId: [{}], Destino: [{}], MessageID: [{}]",
-							event.eventType(), userId, event.recipientEmail(), messageId);
-				}
-			});
+            future.whenComplete((messageId, exception) -> {
+                if (exception != null) {
+                    log.error("Falha ao publicar evento [{}]. UserId: [{}], Destino: [{}], Erro: {}",
+                            event.eventType(), userId, event.recipientEmail(), exception.getMessage(), exception);
+                } else {
+                    log.info("Evento [{}] publicado no Pub/Sub. UserId: [{}], Destino: [{}], MessageID: [{}]",
+                            event.eventType(), userId, event.recipientEmail(), messageId);
+                }
+            });
 
-		} catch (JsonProcessingException e) {
-			throw new RuntimeException("Falha ao serializar evento de notificação", e);
-		} catch (IllegalArgumentException e) {
-			throw new BusinessException("Tópico do Pub/Sub não configurado corretamente.");
-		}
-	}
+        } catch (JsonProcessingException e) {
+            log.error("Falha crítica ao serializar evento de notificação para o usuário [{}]", userId, e);
+            throw new RuntimeException("Falha ao serializar evento de notificação", e);
+        } catch (IllegalArgumentException e) {
+            log.error("Tópico do Pub/Sub não configurado corretamente. Evento descartado para usuário [{}]", userId, e);
+            throw new BusinessException("Tópico do Pub/Sub não configurado corretamente.");
+        }
+    }
 }
