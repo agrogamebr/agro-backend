@@ -44,12 +44,6 @@ spring:
         instance-connection-name: agrogame:us-central1:agrogame-db-qa
       pubsub:
         enabled: true
-        publisher:
-          retry:
-            total-timeout-seconds: 10
-            initial-retry-delay-seconds: 1
-            max-retry-delay-seconds: 3
-            retry-delay-multiplier: 1.5
 # ===========================================
 # SERVER CONFIGURATION
 # ===========================================
