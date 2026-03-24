@@ -29,6 +29,7 @@ steps:
       - '--update-env-vars=SPRING_PROFILES_ACTIVE=dev,APP_ENV=dev,DB_USER=agrogame_db_qa_cloudrun,DB_NAME=postgres'
       - '--update-secrets=DB_PASS=db-password-qa:latest,JWT_SECRET=jwt-secret:latest'
       - '--allow-unauthenticated'
+      - '--no-cpu-throttling'
       - '--quiet'
 
 timeout: '3600s'
