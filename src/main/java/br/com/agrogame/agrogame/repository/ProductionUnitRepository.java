@@ -109,6 +109,7 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 			  AND (:unitId IS NULL OR pu.id = :unitId)
 			  AND (:nameLike IS NULL OR LOWER(pu.name) LIKE :nameLike)
 			  AND (:cropTypeId IS NULL OR pu.cropType.id = :cropTypeId)
+			  AND (:ownerId IS NULL OR f.owner.id = :ownerId)
 			ORDER BY pu.name ASC, pu.id ASC
 			""", countQuery = """
 			SELECT count(pu)
@@ -120,9 +121,19 @@ public interface ProductionUnitRepository extends JpaRepository<ProductionUnit, 
 			  AND (:unitId IS NULL OR pu.id = :unitId)
 			  AND (:nameLike IS NULL OR LOWER(pu.name) LIKE :nameLike)
 			  AND (:cropTypeId IS NULL OR pu.cropType.id = :cropTypeId)
+			  AND (:ownerId IS NULL OR f.owner.id = :ownerId)
 			""")
 	Page<ProductionUnit> findByFilters(@Param("companyId") Integer companyId, @Param("farmId") Integer farmId,
 			@Param("unitId") Integer unitId, @Param("nameLike") String nameLike,
-			@Param("cropTypeId") Integer cropTypeId, Pageable pageable);
+			@Param("cropTypeId") Integer cropTypeId, @Param("ownerId") Integer ownerId, Pageable pageable);
+
+	@Query("""
+			SELECT DISTINCT pu.farm.id, pu.cropType.name
+			FROM ProductionUnit pu
+			WHERE pu.isActive = true
+			  AND pu.farm.id IN :farmIds
+			  AND pu.cropType IS NOT NULL
+			""")
+	List<Object[]> findDistinctCropNamesByFarmIds(@Param("farmIds") List<Integer> farmIds);
 
 }

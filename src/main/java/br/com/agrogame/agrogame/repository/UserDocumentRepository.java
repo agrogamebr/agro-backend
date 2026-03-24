@@ -36,5 +36,7 @@ public interface UserDocumentRepository extends JpaRepository<UserDocument, Inte
 			    ORDER BY ud.createdAt ASC
 			""")
 	Optional<UserDocument> findFirstCpfByUserId(@Param("userId") Integer userId);
+	
+	Optional<UserDocument> findFirstByUserIdAndDocumentType_Code(Integer userId, String documentTypeCode);
 
 }

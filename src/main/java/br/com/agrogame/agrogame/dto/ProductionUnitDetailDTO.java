@@ -20,6 +20,7 @@ public class ProductionUnitDetailDTO {
 	private Integer cropTypeId;
     private String cropTypeName;
     private String thumbnailGsUrl;
+    private String city;
 
 	public Integer getId() {
 		return id;
@@ -139,6 +140,14 @@ public class ProductionUnitDetailDTO {
 
 	public void setThumbnailGsUrl(String thumbnailGsUrl) {
 		this.thumbnailGsUrl = thumbnailGsUrl;
+	}
+
+	public String getCity() {
+		return city;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
 	}
 
 }

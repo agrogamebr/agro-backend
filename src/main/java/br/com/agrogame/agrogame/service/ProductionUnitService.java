@@ -405,16 +405,17 @@ public class ProductionUnitService {
 	 */
 	@Transactional(readOnly = true)
 	public Page<ProductionUnitDetailDTO> listBackofficeUnits(User operator, Integer farmId, Integer unitId, String name,
-			Integer cropTypeId, Pageable pageable) {
+			Integer cropTypeId, Integer ownerId, Pageable pageable) {
 
 		Integer companyId = operator.getCompany().getId();
-		
+
 		this.accessControlService.validateBackofficeUser(operator);
 
 		String nameLike = (name != null && !name.isBlank()) ? "%" + name.toLowerCase() + "%" : null;
 
+		// NÃO força ownerId quando for null -> lista tudo da company
 		Page<ProductionUnit> page = productionUnitRepository.findByFilters(companyId, farmId, unitId, nameLike,
-				cropTypeId, pageable);
+				cropTypeId, ownerId, pageable);
 
 		return page.map(this::toBackofficeDTO);
 	}
@@ -432,6 +433,7 @@ public class ProductionUnitService {
 		dto.setCreatedAt(pu.getCreatedAt());
 		dto.setDeactivatedAt(pu.getDeactivatedAt());
 		dto.setThumbnailGsUrl(pu.getThumbnailGsUrl());
+		dto.setCity(pu.getFarm().getCity());
 
 		if (pu.getProductionUnitType() != null) {
 			dto.setProductionUnitTypeId(pu.getProductionUnitType().getId());
