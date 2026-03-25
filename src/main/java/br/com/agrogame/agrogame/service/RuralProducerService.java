@@ -220,41 +220,48 @@ public class RuralProducerService {
 	 * @return User atualizado
 	 */
 	@Transactional
-	public User associateProducer(Long userId, String userEmail) {
-		// 1. Buscar usuário autenticado (admin)
+	public User processAssociation(Long userId, String userEmail, String action) {
 		User admin = ruralProducerRepository.findByEmail1(userEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
-
-		// 2. Buscar produtor rural pelo ID
 		User producer = ruralProducerRepository.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado com ID: " + userId));
+				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado: " + userId));
 
 		if (admin.getCompany() == null || producer.getCompany() == null
 				|| !admin.getCompany().getId().equals(producer.getCompany().getId())) {
 			throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
 		}
 
-		// 4. Validar se status está PENDING
 		if (!producer.getUserStatus().getCode().equals(EnumUserStatus.PENDING.getCode())) {
-			throw new BusinessException("Somente usuários com status PENDING podem ser aprovados. Status atual: "
-					+ producer.getUserStatus().getCode());
+			throw new BusinessException(
+					"Somente PENDING pode ser processado. Status: " + producer.getUserStatus().getCode());
 		}
 
-		// 5. Buscar status APPROVED
-		UserStatus approvedStatus = userStatusRepository.findByCode(EnumUserStatus.APPROVED.getCode())
-				.orElseThrow(() -> new ResourceNotFoundException("Status 'approved' não encontrado"));
+		// Buscar status pelo action
+		UserStatus targetStatus;
+		switch (action.toUpperCase()) {
+		case "APPROVED" -> targetStatus = userStatusRepository.findByCode(EnumUserStatus.APPROVED.getCode())
+				.orElseThrow(() -> new ResourceNotFoundException("Status APPROVED não encontrado"));
+		case "REJECTED" -> targetStatus = userStatusRepository.findByCode(EnumUserStatus.REJECTED.getCode())
+				.orElseThrow(() -> new ResourceNotFoundException("Status REJECTED não encontrado"));
+		default -> throw new BusinessException("Ação inválida: " + action + ". Use APPROVE ou REJECT.");
+		}
 
-		// 6. Atualizar status e auditoria
-		producer.setUserStatus(approvedStatus);
+		// 6-7. Atualizar e salvar (mesmo para approve/reject)
+		producer.setUserStatus(targetStatus);
 		producer.setUpdatedAt(LocalDateTime.now());
 		producer.setUpdatedBy(admin);
+		producer.setApprovedAt(LocalDateTime.now());
+		producer.setApprovedBy(admin);
+		User saved = ruralProducerRepository.save(producer);
 
-		// 7. Salvar
-		User savedProducer = ruralProducerRepository.save(producer);
+		if ("APPROVED".equalsIgnoreCase(action)) {
+			publishProducerApprovedEvent(saved);
+		} 
+//		else if ("REJECT".equalsIgnoreCase(action)) {
+//			publishProducerRejectedEvent(saved);
+//		}
 
-		publishProducerApprovedEvent(savedProducer);
-
-		return savedProducer;
+		return saved;
 	}
 
 	private void publishProducerApprovedEvent(User producer) {

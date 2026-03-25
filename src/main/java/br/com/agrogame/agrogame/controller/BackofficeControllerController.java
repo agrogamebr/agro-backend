@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
+import br.com.agrogame.agrogame.dto.AssociateActionDTO;
 import br.com.agrogame.agrogame.dto.BackofficeActivityListDTO;
 import br.com.agrogame.agrogame.dto.BackofficeEmployeeSummaryDTO;
 import br.com.agrogame.agrogame.dto.BackofficeFarmDTO;
@@ -50,6 +51,9 @@ import br.com.agrogame.agrogame.service.RuralProducerService;
 import br.com.agrogame.agrogame.service.WorkerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -330,35 +334,44 @@ public class BackofficeControllerController {
 		return ResponseEntity.ok(result);
 	}
 
-	@Operation(summary = "Aprovar associação de funcionário na empresa", description = """
-			  Faz a aprovação da associação de um produtor rural à empresa do usuário autenticado.
-			  Somente administrador, manager ou employee da empresa do produtor podem aprovar.
+	@Operation(summary = "Aprovar ou rejeitar associação de funcionário na empresa", description = """
+			  Faz a aprovação (APPROVED) ou rejeição (REJECTED) da associação de um produtor rural à empresa do usuário autenticado.
+			  Somente administrador, manager ou employee da empresa do produtor podem aprovar/rejeitar.
+
+			  **Body esperado:**
+			  ```json
+			  {"action": "approved"}  // ou "rejected"
+			  ```
 
 			  Principais erros:
 			  - 400: Regra de negócio violada (ex: status do produtor não está PENDING)
-			  - 403: Acesso negado (usuário não tem autoridade para aprovar)
+			  - 403: Acesso negado (usuário não tem autoridade para aprovar/rejeitar)
 			  - 404: Produtor rural ou usuário autenticado não encontrado, ou não pertencem à mesma empresa
-			  - 422: Regra de negócio específica não atendida (ex: já aprovado, associação não permitida)
+			  - 422: Ação inválida (deve ser approved ou rejected) ou regras específicas não atendidas
 			  - 500: Erro inesperado no servidor
 			""")
-	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Produtor aprovado/associado com sucesso"),
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Produtor processado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Map.class), examples = {
+					@ExampleObject(name = "Aprovado", value = "{\"id\": 123, \"userName\": \"João\", \"status\": \"approved\", \"message\": \"Produtor rural aprovado com sucesso!\"}"),
+					@ExampleObject(name = "Rejeitado", value = "{\"id\": 123, \"userName\": \"João\", \"status\": \"rejected\", \"message\": \"Produtor rural rejeitado!\"}") })),
 			@ApiResponse(responseCode = "400", description = "Regra de negócio violada"),
 			@ApiResponse(responseCode = "403", description = "Acesso negado ao recurso"),
 			@ApiResponse(responseCode = "404", description = "Usuário/Produtor não encontrado ou não pertence à sua empresa"),
-			@ApiResponse(responseCode = "422", description = "Regras específicas de negócio não atendidas"),
+			@ApiResponse(responseCode = "422", description = "Regras específicas de negócio não atendidas (ex: ação inválida)"),
 			@ApiResponse(responseCode = "500", description = "Erro inesperado no servidor") })
+
 	@PatchMapping("/associate/{userId}")
 	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee')")
-	public ResponseEntity<?> associateProducer(@PathVariable Long userId) {
+	public ResponseEntity<?> associateProducer(@PathVariable Long userId, @RequestBody AssociateActionDTO action) {
 		String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-		User approved = ruralProducerService.associateProducer(userId, userEmail);
+		User result = ruralProducerService.processAssociation(userId, userEmail, action.getAction());
 
 		Map<String, Object> response = new HashMap<>();
-		response.put("id", approved.getId());
-		response.put("userName", approved.getFullName());
-		response.put("status", approved.getUserStatus().getCode());
-		response.put("message", "Produtor rural associado com sucesso!");
-
+		response.put("id", result.getId());
+		response.put("userName", result.getFullName());
+		response.put("status", result.getUserStatus().getCode());
+		response.put("message",
+				"APPROVED".equals(action.getAction()) ? "Produtor rural aprovado!" : "Produtor rural rejeitado!");
 		return ResponseEntity.ok(response);
 	}
 
