@@ -83,6 +83,6 @@ app:
 # === PROPRIEDADES DE INFRAESTRUTURA DA APLICAÇÃO ===
 agrogame:
   pubsub:
-    email-topic: hml-notifications-email
+    email-topic: dev-notifications-email
   storage:
     bucket-name: agrogame-uploads-hml
