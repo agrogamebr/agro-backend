@@ -370,8 +370,7 @@ public class BackofficeControllerController {
 		response.put("id", result.getId());
 		response.put("userName", result.getFullName());
 		response.put("status", result.getUserStatus().getCode());
-		response.put("message",
-				"APPROVED".equals(action.getAction()) ? "Produtor rural aprovado!" : "Produtor rural rejeitado!");
+		response.put("message", "APPROVED".equalsIgnoreCase(action.getAction()) ? "Produtor rural aprovado!" : "Produtor rural rejeitado!");
 		return ResponseEntity.ok(response);
 	}
 
