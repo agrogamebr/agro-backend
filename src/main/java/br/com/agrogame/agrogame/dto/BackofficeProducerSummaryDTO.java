@@ -10,19 +10,22 @@ public class BackofficeProducerSummaryDTO {
 	private Integer statusId;
 	private String statusName;
 	private LocalDateTime createdAt;
-	private String approvedByName;
+	private LocalDateTime updatedAt;
 	private LocalDateTime approvedAt;
+	private String approvedByName;
 
 	public BackofficeProducerSummaryDTO(Integer userId, String fullName, String cpf, Integer statusId,
-			String statusName, LocalDateTime createdAt, LocalDateTime approvedAt, String approvedByName) {
+			String statusName, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime approvedAt,
+			String approvedByName) {
 		this.userId = userId;
 		this.fullName = fullName;
 		this.cpf = cpf;
 		this.statusId = statusId;
 		this.statusName = statusName;
 		this.createdAt = createdAt;
-		this.approvedByName = approvedByName;
+		this.updatedAt = updatedAt;
 		this.approvedAt = approvedAt;
+		this.approvedByName = approvedByName;
 	}
 
 	public Integer getUserId() {
@@ -87,6 +90,14 @@ public class BackofficeProducerSummaryDTO {
 
 	public void setApprovedAt(LocalDateTime approvedAt) {
 		this.approvedAt = approvedAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
 	}
 
 }

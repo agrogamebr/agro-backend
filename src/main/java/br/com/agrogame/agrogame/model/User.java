@@ -86,6 +86,13 @@ public class User {
 
 	@Column(name = "thumbnail_gs_url")
 	private String profilePictureUrl;
+	
+	@Column(name = "approved_at")
+	private LocalDateTime approvedAt;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "approved_by")
+	private User approvedBy;
 
 	@PrePersist
 	protected void onCreate() {
@@ -268,6 +275,22 @@ public class User {
 
 	public void setProfilePictureUrl(String profilePictureUrl) {
 		this.profilePictureUrl = profilePictureUrl;
+	}
+
+	public LocalDateTime getApprovedAt() {
+		return approvedAt;
+	}
+
+	public void setApprovedAt(LocalDateTime approvedAt) {
+		this.approvedAt = approvedAt;
+	}
+
+	public User getApprovedBy() {
+		return approvedBy;
+	}
+
+	public void setApprovedBy(User approvedBy) {
+		this.approvedBy = approvedBy;
 	}
 
 }
