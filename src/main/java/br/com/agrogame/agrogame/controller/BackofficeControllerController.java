@@ -96,6 +96,7 @@ public class BackofficeControllerController {
 			    - user_type 2 (Administrator)
 			    - user_type 3 (Employee)
 			    - user_type 6 (Auditor)
+			    - user_type 10 (SuperAdmin)
 
 			    Mostra apenas atividades da empresa do usuário autenticado.
 			    Inclui informações do produtor, fazenda, data de submissão e lista de arquivos.
@@ -361,7 +362,7 @@ public class BackofficeControllerController {
 			@ApiResponse(responseCode = "500", description = "Erro inesperado no servidor") })
 
 	@PatchMapping("/associate/{userId}")
-	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee')")
+	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee', 'superadmin')")
 	public ResponseEntity<?> associateProducer(@PathVariable Long userId, @RequestBody AssociateActionDTO action) {
 		String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 		User result = ruralProducerService.processAssociation(userId, userEmail, action.getAction());
@@ -403,7 +404,7 @@ public class BackofficeControllerController {
 	}
 
 	@GetMapping("/workers/list")
-	@PreAuthorize("hasAuthority('administrator') or hasAuthority('manager')")
+	@PreAuthorize("hasAuthority('administrator') or hasAuthority('manager') hasAuthority('superadmin')")
 	public ResponseEntity<Page<BackofficeWorkerDTO>> listWorkersByOwner(Principal principal,
 			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {

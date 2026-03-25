@@ -4,12 +4,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ActivityDecisionRequestDTO;
 import br.com.agrogame.agrogame.dto.ActivityDecisionResponseDTO;
@@ -39,7 +41,6 @@ import br.com.agrogame.agrogame.repository.UserActivitySubmissionFileRepository;
 import br.com.agrogame.agrogame.repository.UserActivitySubmissionRepository;
 import br.com.agrogame.agrogame.repository.UserDocumentRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -56,13 +57,16 @@ public class BackofficeActivityService {
 	private final PointsAndRewardsService pointsAndRewardsService;
 	private final ActivityRepository activityRepository;
 	private final UserActivityService userActivityService;
+	@Autowired
+	private AccessControlService accessControlService;
 
 	public BackofficeActivityService(UserRepository userRepository, UserActivityRepository userActivityRepository,
 			UserActivitySubmissionFileRepository submissionFileRepository,
 			UserActivityStatusRepository userActivityStatusRepository, UserDocumentRepository userDocumentRepository,
 			UserActivitySubmissionRepository userActivitySubmissionRepository,
 			ReviewStatusRepository reviewStatusRepository, UserActivityReviewRepository userActivityReviewRepository,
-			PointsAndRewardsService pointsAndRewardsService, ActivityRepository activityRepository, UserActivityService userActivityService) {
+			PointsAndRewardsService pointsAndRewardsService, ActivityRepository activityRepository,
+			UserActivityService userActivityService) {
 		this.userRepository = userRepository;
 		this.userActivityRepository = userActivityRepository;
 		this.submissionFileRepository = submissionFileRepository;
@@ -88,11 +92,7 @@ public class BackofficeActivityService {
 		User backofficeUser = userRepository.findById(backofficeUserId)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		Integer userTypeId = backofficeUser.getUserType().getId();
-		if (!isBackofficeUserType(userTypeId)) {
-			throw new AccessDeniedException(
-					"Apenas usuários com permissão de backoffice (tipos 1,2,3,6) podem acessar");
-		}
+		this.accessControlService.validateBackofficeUser(backofficeUser);
 
 		Integer companyId = backofficeUser.getCompany().getId();
 		if (companyId == null) {
@@ -150,26 +150,6 @@ public class BackofficeActivityService {
 	}
 
 	/**
-	 * Valida se o user_type é permitido para backoffice
-	 */
-	private boolean isBackofficeUserType(Integer userTypeId) {
-		return userTypeId != null && (userTypeId == 1 || userTypeId == 2 || userTypeId == 3 || userTypeId == 6);
-	}
-
-	private void validateBackofficeUserType(User user) {
-		if (user.getUserType() == null || user.getUserType().getId() == null) {
-			throw new AccessDeniedException("Usuário sem tipo definido");
-		}
-
-		Integer userTypeId = user.getUserType().getId();
-		if (!isBackofficeUserType(userTypeId)) {
-			throw new AccessDeniedException(String.format(
-					"Usuário tipo %d não possui permissão de backoffice. Apenas tipos 1,2,3,6 têm acesso.",
-					userTypeId));
-		}
-	}
-
-	/**
 	 * Extrai apenas o nome do arquivo da URL Ex:
 	 * "https://bucket.storage.google.com/submissions/uuid.pdf" → "uuid.pdf"
 	 */
@@ -199,7 +179,7 @@ public class BackofficeActivityService {
 		User backofficeUser = userRepository.findById(backofficeUserId)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-		validateBackofficeUserType(backofficeUser);
+		this.accessControlService.validateBackofficeUser(backofficeUser);
 
 		// 2. Buscar UserActivity
 		UserActivity userActivity = userActivityRepository.findById(userActivityId)
@@ -264,33 +244,39 @@ public class BackofficeActivityService {
 				savedActivity.getActivity().getName(), decision, newStatus.getCode(), LocalDateTime.now(),
 				decisionRequest.getReason());
 	}
-	
-	
+
 	@Transactional(readOnly = true)
 	public UserActivityDetailDTO getActivityDetailForBackoffice(User backofficeUser, Integer userActivityId) {
-	    
-	    // 1. Busca a atividade
-	    UserActivity userActivity = userActivityRepository.findById(userActivityId)
-	            .orElseThrow(() -> new ResourceNotFoundException("User Activity não encontrada"));
 
-	    // 2. Valida se o produtor dono da atividade pertence à MESMA EMPRESA do usuário do backoffice
-	    if (!userActivity.getUser().getCompany().getId().equals(backofficeUser.getCompany().getId())) {
-	        throw new AccessDeniedException("Esta atividade pertence a um produtor de outra empresa.");
-	    }
+		// 1. Busca a atividade
+		UserActivity userActivity = userActivityRepository.findById(userActivityId)
+				.orElseThrow(() -> new ResourceNotFoundException("User Activity não encontrada"));
 
-	    // 3. Busca as reviews (se houver necessidade de exibi-las também)
-	    List<UserActivityReview> reviews = userActivityReviewRepository
-	            .findByUserActivityIdOrderByReviewedAtDesc(userActivityId);
+		// 2. Valida se o produtor dono da atividade pertence à MESMA EMPRESA do usuário
+		// do backoffice
+		// 2. Superadmin bypassa validação de empresa
+		boolean isSuperAdmin = backofficeUser.getUserType().getId() == 10;
 
-	    // 4. Reaproveita o seu método toDto que você já possui para converter e retornar
-	    return userActivityService.toDto(userActivity, reviews);
+		if (!isSuperAdmin) {
+			if (!userActivity.getUser().getCompany().getId().equals(backofficeUser.getCompany().getId())) {
+				throw new AccessDeniedException("Esta atividade pertence a um produtor de outra empresa.");
+			}
+		}
+
+		// 3. Busca as reviews (se houver necessidade de exibi-las também)
+		List<UserActivityReview> reviews = userActivityReviewRepository
+				.findByUserActivityIdOrderByReviewedAtDesc(userActivityId);
+
+		// 4. Reaproveita o seu método toDto que você já possui para converter e
+		// retornar
+		return userActivityService.toDto(userActivity, reviews);
 	}
 
 	public Page<BackofficeActivityListDTO> listActivitiesForBackoffice(Integer companyId, String activityStatus,
 			String userActivityStatus, Integer producerId, Integer farmId, Integer productionUnitId, Integer cropTypeId,
 			LocalDate startDate, LocalDate endDate, User backofficeUser, int page, int size) {
-		
-		validateBackofficeUserType(backofficeUser);
+
+		this.accessControlService.validateBackofficeUser(backofficeUser);
 
 		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "validFrom"));
 

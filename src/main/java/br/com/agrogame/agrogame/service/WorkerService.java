@@ -352,7 +352,8 @@ public class WorkerService {
 		User operator = userRepository.findByEmail1(loggedEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
 
-		Integer companyId = operator.getCompany().getId();
+	    boolean isSuperAdmin = operator.getUserType().getId() == 10;
+	    Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
 
 		Page<User> page = workerRepository.findWorkersByOwnerAndCompany(ownerId, companyId, pageable);
 

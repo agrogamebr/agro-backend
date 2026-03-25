@@ -78,7 +78,8 @@ public class BackofficeFarmService {
 	public Page<BackofficeFarmDTO> listFarmsByCompany(User operator, Integer farmId, String name, Integer ownerId,
 			Pageable pageable) {
 
-		Integer companyId = operator.getCompany().getId();
+		boolean isSuperAdmin = operator.getUserType().getId() == 10;
+		Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
 
 		String nameLike = null;
 		if (name != null && !name.isBlank()) {

@@ -34,7 +34,8 @@ public class BackofficeEmployeeService {
 	public Page<BackofficeProducerSummaryDTO> listProducers(User operator, String name, String cpf, Integer statusId,
 			Pageable pageable) {
 
-		Integer companyId = operator.getCompany().getId();
+		boolean isSuperAdmin = operator.getUserType().getId() == 10;
+		Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
 		String nameLike = (name != null && !name.isBlank()) ? "%" + name.toLowerCase() + "%" : null;
 		String cpfLike = (cpf != null && !cpf.isBlank()) ? "%" + cpf + "%" : null;
 
@@ -47,12 +48,13 @@ public class BackofficeEmployeeService {
 	@Transactional(readOnly = true)
 	public BackofficeEmployeeSummaryDTO getUserInfo(User operator, Integer userId) {
 
-		Integer companyId = operator.getCompany().getId();
+		boolean isSuperAdmin = operator.getUserType().getId() == 10;
+		Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
 
 		Pageable pageable = PageRequest.of(0, 1);
 
-		Page<BackofficeEmployeeSummaryDTO> page = userRepository.findEmployeeSummariesByFilters(companyId, null,
-				userId, null, null, null, pageable);
+		Page<BackofficeEmployeeSummaryDTO> page = userRepository.findEmployeeSummariesByFilters(companyId, null, userId,
+				null, null, null, pageable);
 
 		if (page.isEmpty()) {
 			throw new ResourceNotFoundException("Usuário não encontrado para esta empresa");

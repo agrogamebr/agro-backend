@@ -163,7 +163,7 @@ public class CompanyController {
 			@ApiResponse(responseCode = "404", description = "Empresa não encontrada")
 	})
 	@PatchMapping("/approve/{companyId}")
-	@PreAuthorize("hasAuthority('administrator')")
+	@PreAuthorize("hasAuthority('superadmin')")
 	public ResponseEntity<?> approveCompany(@PathVariable Integer companyId) {
 		String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 		Company approved = service.approveCompany(companyId, userEmail);

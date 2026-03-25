@@ -226,9 +226,13 @@ public class RuralProducerService {
 		User producer = ruralProducerRepository.findById(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado: " + userId));
 
-		if (admin.getCompany() == null || producer.getCompany() == null
-				|| !admin.getCompany().getId().equals(producer.getCompany().getId())) {
-			throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
+		boolean isSuperAdmin = admin.getUserType().getCode().equals(EnumUserType.SUPERADMIN.getCode());
+
+		if (!isSuperAdmin) {
+			if (admin.getCompany() == null || producer.getCompany() == null
+					|| !admin.getCompany().getId().equals(producer.getCompany().getId())) {
+				throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
+			}
 		}
 
 		if (!producer.getUserStatus().getCode().equals(EnumUserStatus.PENDING.getCode())) {
@@ -256,7 +260,7 @@ public class RuralProducerService {
 
 		if ("APPROVED".equalsIgnoreCase(action)) {
 			publishProducerApprovedEvent(saved);
-		} 
+		}
 //		else if ("REJECT".equalsIgnoreCase(action)) {
 //			publishProducerRejectedEvent(saved);
 //		}
