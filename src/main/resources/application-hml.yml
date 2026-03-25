@@ -1,18 +1,13 @@
 # ===========================================
-# PROFILE: HOMOLOGATION
+# PROFILE: HOMOLOGAÇÃO
 # ===========================================
 spring:
   application:
-    name: agrogame-api
-
-  # ===========================================
-  # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
-  # ===========================================
+    name: agrogame-api-hml
   datasource:
-    url: jdbc:postgresql:///agrogame_db?cloudSqlInstance=${CLOUD_SQL_INSTANCE}&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    # A URL e o Driver são injetados automaticamente pelo starter do Spring Cloud GCP
     username: ${DB_USER}
     password: ${DB_PASS}
-    driver-class-name: org.postgresql.Driver
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -34,51 +29,41 @@ spring:
       max-file-size: 10MB
       max-request-size: 50MB
 
-  # ===========================================
-  # SPRING CLOUD GCP
-  # ===========================================
   cloud:
     gcp:
-      project-id: agrogame # id real do projeto GCP
+      project-id: agrogame
+      sql:
+        database-name: ${DB_NAME}
+        instance-connection-name: agrogame:us-central1:agrogame-postgres-hml
+      pubsub:
+        enable: true
 
-# ===========================================
-# SERVER CONFIGURATION
-# ===========================================
 server:
   port: ${PORT:8080}
   compression:
     enabled: true
-  tomcat:
-    remoteip:
-      remote-ip-header: X-Forwarded-For
-      protocol-header: X-Forwarded-Proto
+    tomcat:
+      remoteip:
+        remote-ip-header: X-Forwarded-For
+        protocol-header: X-Forwarded-Proto
   error:
     include-message: always
     include-binding-errors: always
     include-stacktrace: on_param
     include-exception: false
 
-# ===========================================
-# LOGGING CONFIGURATION
-# ===========================================
 logging:
   level:
     root: INFO
-    br.com.agrogame.agrogame: INFO
-    org.hibernate.SQL: WARN
+    br.com.agrogame.agrogame: DEBUG
+    org.hibernate.SQL: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
-# ===========================================
-# JWT CONFIGURATION
-# ===========================================
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 86400000 # 24 horas
+  expiration: 86400000
 
-# ===========================================
-# ACTUATOR CONFIGURATION
-# ===========================================
 management:
   endpoints:
     web:
@@ -88,24 +73,19 @@ management:
     health:
       show-details: always
 
-# ===========================================
-# APPLICATION CUSTOM PROPERTIES
-# ===========================================
 app:
   swagger:
     server-url: https://hml-api.agribit.com.br
-    server-description: Homologation/Stagging
-
+    server-description: HMl / STG
   pagination:
     default-page-size: 20
     max-page-size: 100
-
   points:
     max-transaction-per-day: 50
 
-# ===========================================
-# GCP STORAGE (BUCKET)
-# ===========================================
-gcp:
+# === PROPRIEDADES DE INFRAESTRUTURA DA APLICAÇÃO ===
+agrogame:
+  pubsub:
+    email-topic: dev-notifications-email
   storage:
-    bucket-name: agrogame-uploads-dev # bucket de dev
+    bucket-name: agrogame-uploads-hml

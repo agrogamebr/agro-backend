@@ -405,22 +405,18 @@ public class ProductionUnitService {
 	 */
 	@Transactional(readOnly = true)
 	public Page<ProductionUnitDetailDTO> listBackofficeUnits(User operator, Integer farmId, Integer unitId, String name,
-			Integer cropTypeId, Pageable pageable) {
-		// 1. Validação: Obrigatoriedade de contexto (Farm ou Unit)
-		if (farmId == null && unitId == null) {
-			throw new BusinessException("É obrigatório informar o ID da Fazenda ou o ID da Unidade Produtiva.");
-		}
+			Integer cropTypeId, Integer ownerId, Pageable pageable) {
 
 		Integer companyId = operator.getCompany().getId();
 
-		// 2. Tratamento do filtro wildcard
-		String nameLike = (name != null && !name.isBlank()) ? "%" + name + "%" : null;
+		this.accessControlService.validateBackofficeUser(operator);
 
-		// 3. Busca paginada
+		String nameLike = (name != null && !name.isBlank()) ? "%" + name.toLowerCase() + "%" : null;
+
+		// NÃO força ownerId quando for null -> lista tudo da company
 		Page<ProductionUnit> page = productionUnitRepository.findByFilters(companyId, farmId, unitId, nameLike,
-				cropTypeId, pageable);
+				cropTypeId, ownerId, pageable);
 
-		// 4. Conversão
 		return page.map(this::toBackofficeDTO);
 	}
 
@@ -437,6 +433,7 @@ public class ProductionUnitService {
 		dto.setCreatedAt(pu.getCreatedAt());
 		dto.setDeactivatedAt(pu.getDeactivatedAt());
 		dto.setThumbnailGsUrl(pu.getThumbnailGsUrl());
+		dto.setCity(pu.getFarm().getCity());
 
 		if (pu.getProductionUnitType() != null) {
 			dto.setProductionUnitTypeId(pu.getProductionUnitType().getId());

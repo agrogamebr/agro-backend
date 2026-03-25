@@ -3,16 +3,15 @@
 # ===========================================
 spring:
   application:
-    name: agrogame-api
+    name: agrogame-api-dev
 
   # ===========================================
   # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
   # ===========================================
   datasource:
-    url: jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=agrogame:us-central1:agrogame-db-qa&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    # A URL e o Driver são injetados automaticamente pelo starter do Spring Cloud GCP
     username: ${DB_USER}
     password: ${DB_PASS}
-    driver-class-name: org.postgresql.Driver
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -39,10 +38,12 @@ spring:
   # ===========================================
   cloud:
     gcp:
-      credentials:
-        location: file:${GCP_CREDENTIALS_FILE_PATH}
-      project-id: agrogame-qa-project-id  # id do projeto de homolog/dev
-
+      project-id: agrogame  # id do projeto de homolog/dev
+      sql:
+        database-name: ${DB_NAME}       # nome do seu banco
+        instance-connection-name: agrogame:us-central1:agrogame-db-qa
+      pubsub:
+        enabled: true
 # ===========================================
 # SERVER CONFIGURATION
 # ===========================================
@@ -50,16 +51,16 @@ server:
   port: ${PORT:8080}
   compression:
     enabled: true
-    tomcat:
-      remoteip:
-        remote-ip-header: X-Forwarded-For
-        protocol-header: X-Forwarded-Proto
+    # Opcional: Você pode definir os mime-types aqui se quiser restringir a compressão
+  tomcat:
+    remoteip: # Corrigido: Movido para fora do bloco 'compression'
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
   error:
     include-message: always
     include-binding-errors: always
-    include-stacktrace: on_param
-    include-exception: false
-
+    include-stacktrace: always
+    include-exception: true
 # ===========================================
 # LOGGING CONFIGURATION
 # ===========================================
@@ -97,17 +98,15 @@ app:
   swagger:
     server-url: https://agrogame-api-dev-1017408486443.us-central1.run.app
     server-description: Development / QA
-
   pagination:
     default-page-size: 20
     max-page-size: 100
-
   points:
     max-transaction-per-day: 50
 
-# ===========================================
-# GCP STORAGE (BUCKET)
-# ===========================================
-gcp:
+# === PROPRIEDADES DE INFRAESTRUTURA DA APLICAÇÃO ===
+agrogame:
+  pubsub:
+    email-topic: dev-notifications-email
   storage:
-    bucket-name: agrogame-uploads-dev     # bucket de dev/qa
+    bucket-name: agrogame-uploads-dev

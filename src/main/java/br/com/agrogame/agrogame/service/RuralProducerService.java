@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.agrogame.agrogame.dto.ActivityCropTypeProjection;
+import br.com.agrogame.agrogame.dto.NotificationEvent;
 import br.com.agrogame.agrogame.dto.ProducerActivityByFarmDTO;
 import br.com.agrogame.agrogame.dto.ProducerActivityDTO;
 import br.com.agrogame.agrogame.dto.ProducerUserActivityProjection;
@@ -100,6 +102,9 @@ public class RuralProducerService {
 
 	@Autowired
 	private UserActivityRepository userActivityRepository;
+
+	@Autowired
+	private NotificationPublisherService notificationPublisherService;
 
 	@Transactional
 	public User registerRuralProducer(RuralProducerDTO dto) {
@@ -192,10 +197,19 @@ public class RuralProducerService {
 		userDocumentRepository.save(document);
 
 		// 9. TODO: Enviar emails (próxima task)
-		// emailService.sendWelcomeEmailToProducer(savedProducer);
-		// emailService.sendNewProducerNotificationToCompany(savedProducer, company);
+		publishProducerPendingApprovalEvent(savedProducer);
 
 		return savedProducer;
+	}
+
+	private void publishProducerPendingApprovalEvent(User producer) {
+		Map<String, Object> vars = new HashMap<>();
+		vars.put("tipoPerfil", "PRODUTOR");
+		vars.put("nomeProdutor", producer.getFullName());
+
+		NotificationEvent event = new NotificationEvent("AGUARDANDO_APROVACAO", producer.getEmail1(), vars);
+
+		notificationPublisherService.publishNotification(event, producer.getId());
 	}
 
 	/**
@@ -206,38 +220,64 @@ public class RuralProducerService {
 	 * @return User atualizado
 	 */
 	@Transactional
-	public User associateProducer(Long userId, String userEmail) {
-		// 1. Buscar usuário autenticado (admin)
+	public User processAssociation(Long userId, String userEmail, String action) {
 		User admin = ruralProducerRepository.findByEmail1(userEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
-
-		// 2. Buscar produtor rural pelo ID
 		User producer = ruralProducerRepository.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado com ID: " + userId));
+				.orElseThrow(() -> new ResourceNotFoundException("Produtor rural não encontrado: " + userId));
 
 		if (admin.getCompany() == null || producer.getCompany() == null
 				|| !admin.getCompany().getId().equals(producer.getCompany().getId())) {
 			throw new BusinessException("Você só pode aprovar produtores da sua empresa!");
 		}
 
-		// 4. Validar se status está PENDING
 		if (!producer.getUserStatus().getCode().equals(EnumUserStatus.PENDING.getCode())) {
-			throw new BusinessException("Somente usuários com status PENDING podem ser aprovados. Status atual: "
-					+ producer.getUserStatus().getCode());
+			throw new BusinessException(
+					"Somente PENDING pode ser processado. Status: " + producer.getUserStatus().getCode());
 		}
 
-		// 5. Buscar status APPROVED
-		UserStatus approvedStatus = userStatusRepository.findByCode(EnumUserStatus.APPROVED.getCode())
-				.orElseThrow(() -> new ResourceNotFoundException("Status 'approved' não encontrado"));
+		// Buscar status pelo action
+		UserStatus targetStatus;
+		switch (action.toUpperCase()) {
+		case "APPROVED" -> targetStatus = userStatusRepository.findByCode(EnumUserStatus.APPROVED.getCode())
+				.orElseThrow(() -> new ResourceNotFoundException("Status APPROVED não encontrado"));
+		case "REJECTED" -> targetStatus = userStatusRepository.findByCode(EnumUserStatus.REJECTED.getCode())
+				.orElseThrow(() -> new ResourceNotFoundException("Status REJECTED não encontrado"));
+		default -> throw new BusinessException("Ação inválida: " + action + ". Use APPROVE ou REJECT.");
+		}
 
-		// 6. Atualizar status e auditoria
-		producer.setUserStatus(approvedStatus);
+		// 6-7. Atualizar e salvar (mesmo para approve/reject)
+		producer.setUserStatus(targetStatus);
 		producer.setUpdatedAt(LocalDateTime.now());
-		producer.setUpdatedBy(admin); // Quem aprovou
+		producer.setUpdatedBy(admin);
+		producer.setApprovedAt(LocalDateTime.now());
+		producer.setApprovedBy(admin);
+		User saved = ruralProducerRepository.save(producer);
 
-		// 7. Salvar
-		User savedProducer = ruralProducerRepository.save(producer);
-		return savedProducer;
+		if ("APPROVED".equalsIgnoreCase(action)) {
+			publishProducerApprovedEvent(saved);
+		} 
+//		else if ("REJECT".equalsIgnoreCase(action)) {
+//			publishProducerRejectedEvent(saved);
+//		}
+
+		return saved;
+	}
+
+	private void publishProducerApprovedEvent(User producer) {
+		// Buscar CPF do produtor em user_documents
+		String cpf = userDocumentRepository.findFirstByUserIdAndDocumentType_Code(producer.getId(), "cpf")
+				.map(UserDocument::getDocumentNumber).orElse(null);
+
+		Map<String, Object> vars = new HashMap<>();
+		vars.put("tipoPerfil", "PRODUTOR");
+		vars.put("nomeProdutor", producer.getFullName());
+		vars.put("cpf", cpf);
+		vars.put("emailProdutor", producer.getEmail1());
+
+		NotificationEvent event = new NotificationEvent("CADASTRO_APROVADO", producer.getEmail1(), vars);
+
+		notificationPublisherService.publishNotification(event, producer.getId());
 	}
 
 	@Transactional(readOnly = true)
@@ -382,7 +422,8 @@ public class RuralProducerService {
 	@Transactional(readOnly = true)
 	public Page<ProducerActivityDTO> listActivitiesForProducerFast(Integer producerId, Integer farmId,
 			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
-			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page, int size) {
+			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page,
+			int size) {
 		User producer = userRepository.findByIdWithUserType(producerId)
 				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
 
@@ -419,7 +460,8 @@ public class RuralProducerService {
 		Pageable pageable = PageRequest.of(page, size);
 
 		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForProducer(companyId,
-				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId, pageable);
+				producerId, farmIds, status, validFromStart, validFromEnd, cropTypeIdFilter, unidadeProdutivaId,
+				pageable);
 
 		if (rowsPage.isEmpty()) {
 			return Page.empty(pageable);

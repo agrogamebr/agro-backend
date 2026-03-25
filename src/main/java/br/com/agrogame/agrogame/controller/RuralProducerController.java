@@ -14,10 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -174,38 +171,6 @@ public class RuralProducerController {
 		return companyService.findAllActive().stream().map(CompanyListDTO::new).toList();
 	}
 
-	@Operation(summary = "Aprovar associação de funcionário na empresa", description = """
-			  Faz a aprovação da associação de um produtor rural à empresa do usuário autenticado.
-			  Somente administrador, manager ou employee da empresa do produtor podem aprovar.
-
-			  Principais erros:
-			  - 400: Regra de negócio violada (ex: status do produtor não está PENDING)
-			  - 403: Acesso negado (usuário não tem autoridade para aprovar)
-			  - 404: Produtor rural ou usuário autenticado não encontrado, ou não pertencem à mesma empresa
-			  - 422: Regra de negócio específica não atendida (ex: já aprovado, associação não permitida)
-			  - 500: Erro inesperado no servidor
-			""")
-	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Produtor aprovado/associado com sucesso"),
-			@ApiResponse(responseCode = "400", description = "Regra de negócio violada"),
-			@ApiResponse(responseCode = "403", description = "Acesso negado ao recurso"),
-			@ApiResponse(responseCode = "404", description = "Usuário/Produtor não encontrado ou não pertence à sua empresa"),
-			@ApiResponse(responseCode = "422", description = "Regras específicas de negócio não atendidas"),
-			@ApiResponse(responseCode = "500", description = "Erro inesperado no servidor") })
-	@PatchMapping("/associate/{userId}")
-	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'employee')")
-	public ResponseEntity<?> associateProducer(@PathVariable Long userId) {
-		String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-		User approved = ruralProducerService.associateProducer(userId, userEmail);
-
-		Map<String, Object> response = new HashMap<>();
-		response.put("id", approved.getId());
-		response.put("userName", approved.getFullName());
-		response.put("status", approved.getUserStatus().getCode());
-		response.put("message", "Produtor rural associado com sucesso!");
-
-		return ResponseEntity.ok(response);
-	}
-
 	@Operation(summary = "Listar atividades disponíveis para produtor", description = """
 			  Retorna as atividades cadastradas pela empresa do produtor,
 			  filtradas por fazenda, cultura, datas de validade e descrição.
@@ -230,17 +195,16 @@ public class RuralProducerController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFromEnd,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToStart,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validToEnd,
-			@RequestParam(required = false) String name, 
-			@RequestParam(required = false) String status, 
-			@RequestParam(required = false) Integer unidadeProdutivaId,
-			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(required = false) String name, @RequestParam(required = false) String status,
+			@RequestParam(required = false) Integer unidadeProdutivaId, @RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size, Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
 		Page<ProducerActivityDTO> activitiesPage = ruralProducerService.listActivitiesForProducerFast(producerId,
-				farmId, cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, status, unidadeProdutivaId,  page, size);
+				farmId, cropTypeId, name, validFromStart, validFromEnd, validToStart, validToEnd, status,
+				unidadeProdutivaId, page, size);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activities", activitiesPage.getContent());
@@ -253,10 +217,11 @@ public class RuralProducerController {
 	}
 
 	@Operation(summary = "Upload de arquivo para atividade", description = """
-			  Permite que o produtor anexe arquivos (fotos, documentos) a uma atividade.
-			  Arquivos permitidos: PDF, DOCX, PNG, JPEG, JPG.
-			  Múltiplos uploads são permitidos enquanto a atividade estiver em status 'pending'.
+			Permite que o produtor anexe arquivos (fotos, documentos) a uma atividade.
+			Arquivos permitidos: PDF, DOCX, PNG, JPEG, JPG.
 
+			Múltiplos uploads são permitidos enquanto a UserActivity estiver em status 'pending' ou 'rejected',
+			e a Activity estiver dentro do período de vigência.
 			""")
 	@ApiResponses({ @ApiResponse(responseCode = "201", description = "Arquivo enviado com sucesso"),
 			@ApiResponse(responseCode = "400", description = "Arquivo inválido ou vazio"),
@@ -291,26 +256,31 @@ public class RuralProducerController {
 
 	// ============ API 2: SUBMETER ATIVIDADE ============
 
-	@Operation(summary = "Submeter atividade para aprovação", description = """
-			  Finaliza a submissão de uma atividade, mudando seu status de 'pending' para 'submitted'.
+	@Operation(summary = "Submeter ou reenviar atividade para aprovação", description = """
+			    Finaliza a submissão de uma atividade, mudando seu status para 'submitted'.
 
-			  Pré-requisitos:
-			  - Atividade deve estar em status 'pending' (estado inicial).
-			  - Pelo menos um arquivo deve ter sido enviado anteriormente.
+			    Comportamento:
+			    - Se a UserActivity estiver em 'pending': primeira submissão.
+			    - Se a UserActivity estiver em 'rejected': reenvio após correção.
 
-			  Após a submissão:
-			  - Nenhum arquivo adicional pode ser enviado para esta atividade.
-			  - A atividade fica aguardando aprovação pelo backoffice.
+			    Pré-requisitos:
+			    - Atividade deve pertencer ao produtor autenticado e à sua empresa.
+			    - Para primeira submissão ('pending'): deve existir pelo menos um arquivo enviado.
+			    - Para reenvio ('rejected'): deve existir pelo menos um arquivo associado (original ou atualizado).
+
+			    Após a submissão:
+			    - Atividade fica aguardando aprovação pelo backoffice (status 'submitted').
 			""")
 	@PostMapping("/user-activities/{userActivityId}/submit")
-	public ResponseEntity<Map<String, Object>> submitActivity(
+	public ResponseEntity<Map<String, Object>> submitOrResubmitActivity(
 			@Parameter(description = "ID da UserActivity", example = "1") @PathVariable Integer userActivityId,
 			Principal principal) {
 
 		Integer producerId = userRepository.findByEmail1(principal.getName())
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado")).getId();
 
-		SubmitActivityResponseDTO responseDto = activitySubmissionService.submitActivity(producerId, userActivityId);
+		SubmitActivityResponseDTO responseDto = activitySubmissionService.submitOrResubmitActivity(producerId,
+				userActivityId);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("success", true);
