@@ -3,7 +3,7 @@
 # ===========================================
 spring:
   application:
-    name: agrogame-api
+    name: agrogame-api-dev
 
   # ===========================================
   # DATABASE CONFIGURATION - PostgreSQL via Cloud SQL
