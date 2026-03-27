@@ -404,7 +404,7 @@ public class BackofficeControllerController {
 	}
 
 	@GetMapping("/workers/list")
-	@PreAuthorize("hasAuthority('administrator') or hasAuthority('manager') hasAuthority('superadmin')")
+	@PreAuthorize("hasAnyAuthority('administrator', 'manager', 'superadmin')")
 	public ResponseEntity<Page<BackofficeWorkerDTO>> listWorkersByOwner(Principal principal,
 			@RequestParam(required = false) Integer ownerId, @RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {

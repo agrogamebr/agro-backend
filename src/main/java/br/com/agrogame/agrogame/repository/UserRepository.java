@@ -30,7 +30,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.email1,
 			    u.email2,
 			    ut.id,
-			    ut.name,
+			    ut.code,
 			    d.documentNumber,
 			    dt.id,
 			    dt.code,
@@ -39,7 +39,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.number,
 			    u.zipcode,
 			    u.city,
-			    u.state
+			    u.state,
+			    u.userStatus.id,
+			    u.userStatus.code
 			)
 			FROM User u
 			LEFT JOIN UserDocument d
