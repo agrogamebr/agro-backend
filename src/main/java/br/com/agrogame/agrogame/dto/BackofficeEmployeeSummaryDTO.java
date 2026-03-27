@@ -8,6 +8,8 @@ public class BackofficeEmployeeSummaryDTO {
 	private Integer userTypeId;
 	private String userTypeName;
 	private String telefone;
+	private String userStatusName; // novo
+	private String userStatusCode;
 
 	private String documentNumber;
 	private Integer documentTypeId;
@@ -21,8 +23,8 @@ public class BackofficeEmployeeSummaryDTO {
 
 	public BackofficeEmployeeSummaryDTO(Integer userId, String fullName, String email1, String email2,
 			Integer userTypeId, String userTypeName, String documentNumber, Integer documentTypeId,
-			String documentTypeCode, String telefone, String address,
-			String addressNumber, String zipCode, String city, String state) {
+			String documentTypeCode, String telefone, String address, String addressNumber, String zipCode, String city,
+			String state, String userStatusName, String userStatusCode) {
 		this.userId = userId;
 		this.fullName = fullName;
 		this.email1 = email1;
@@ -38,6 +40,8 @@ public class BackofficeEmployeeSummaryDTO {
 		this.zipCode = zipCode;
 		this.city = city;
 		this.state = state;
+		this.userStatusName = userStatusName;
+		this.userStatusCode = userStatusCode;
 	}
 
 	public Integer getUserId() {
@@ -159,4 +163,21 @@ public class BackofficeEmployeeSummaryDTO {
 	public void setState(String state) {
 		this.state = state;
 	}
+
+	public String getUserStatusName() {
+		return userStatusName;
+	}
+
+	public void setUserStatusName(String userStatusName) {
+		this.userStatusName = userStatusName;
+	}
+
+	public String getUserStatusCode() {
+		return userStatusCode;
+	}
+
+	public void setUserStatusCode(String userStatusCode) {
+		this.userStatusCode = userStatusCode;
+	}
+
 }

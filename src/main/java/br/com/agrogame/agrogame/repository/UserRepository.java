@@ -39,7 +39,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.number,
 			    u.zipcode,
 			    u.city,
-			    u.state
+			    u.state,
+			    u.userStatus.name,
+			    u.userStatus.code
 			)
 			FROM User u
 			LEFT JOIN UserDocument d
