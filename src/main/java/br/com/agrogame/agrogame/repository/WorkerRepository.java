@@ -100,9 +100,10 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 			  ON pu.id = a.productionUnitId
 			JOIN pu.farm f
 			WHERE w.userType.code = 'worker'
-			  AND f.company.id = :companyId
+			  AND (:companyId IS NULL OR f.company.id = :companyId)
 			  AND (:ownerId IS NULL OR f.owner.id = :ownerId)
 			""")
 	Page<User> findWorkersByOwnerAndCompany(@Param("ownerId") Integer ownerId, @Param("companyId") Integer companyId,
 			Pageable pageable);
+
 }

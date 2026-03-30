@@ -1,13 +1,16 @@
 package br.com.agrogame.agrogame.dto;
 
 public class BackofficeEmployeeSummaryDTO {
+
 	private Integer userId;
 	private String fullName;
 	private String email1;
 	private String email2;
 	private Integer userTypeId;
-	private String userTypeName;
+	private String userTypeCode;
 	private String telefone;
+	private Integer userStatusId;
+	private String userStatusCode;
 
 	private String documentNumber;
 	private Integer documentTypeId;
@@ -20,15 +23,15 @@ public class BackofficeEmployeeSummaryDTO {
 	private String state;
 
 	public BackofficeEmployeeSummaryDTO(Integer userId, String fullName, String email1, String email2,
-			Integer userTypeId, String userTypeName, String documentNumber, Integer documentTypeId,
-			String documentTypeCode, String telefone, String address,
-			String addressNumber, String zipCode, String city, String state) {
+			Integer userTypeId, String userTypeCode, String documentNumber, Integer documentTypeId,
+			String documentTypeCode, String telefone, String address, String addressNumber, String zipCode, String city,
+			String state, Integer userStatusId, String userStatusCode) {
 		this.userId = userId;
 		this.fullName = fullName;
 		this.email1 = email1;
 		this.email2 = email2;
 		this.userTypeId = userTypeId;
-		this.userTypeName = userTypeName;
+		this.userTypeCode = userTypeCode;
 		this.documentNumber = documentNumber;
 		this.documentTypeId = documentTypeId;
 		this.documentTypeCode = documentTypeCode;
@@ -38,6 +41,8 @@ public class BackofficeEmployeeSummaryDTO {
 		this.zipCode = zipCode;
 		this.city = city;
 		this.state = state;
+		this.userStatusId = userStatusId;
+		this.userStatusCode = userStatusCode;
 	}
 
 	public Integer getUserId() {
@@ -88,12 +93,12 @@ public class BackofficeEmployeeSummaryDTO {
 		this.userTypeId = userTypeId;
 	}
 
-	public String getUserTypeName() {
-		return userTypeName;
+	public String getUserTypeCode() {
+		return userTypeCode;
 	}
 
-	public void setUserTypeName(String userTypeName) {
-		this.userTypeName = userTypeName;
+	public void setUserTypeCode(String userTypeCode) {
+		this.userTypeCode = userTypeCode;
 	}
 
 	public String getTelefone() {
@@ -159,4 +164,21 @@ public class BackofficeEmployeeSummaryDTO {
 	public void setState(String state) {
 		this.state = state;
 	}
+
+	public Integer getUserStatusId() {
+		return userStatusId;
+	}
+
+	public void setUserStatusId(Integer userStatusId) {
+		this.userStatusId = userStatusId;
+	}
+
+	public String getUserStatusCode() {
+		return userStatusCode;
+	}
+
+	public void setUserStatusCode(String userStatusCode) {
+		this.userStatusCode = userStatusCode;
+	}
+
 }

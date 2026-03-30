@@ -74,7 +74,7 @@ public class BackofficePointsService {
 
 	// Método auxiliar para centralizar validação de segurança
 	private void validateAccess(User operator, Integer producerId, Integer farmId) {
-		boolean isGlobalAdmin = (operator.getUserType().getId() == 1 || operator.getUserType().getId() == 2);
+		boolean isGlobalAdmin = (operator.getUserType().getId() == 1 || operator.getUserType().getId() == 2 || operator.getUserType().getId() == 3 || operator.getUserType().getId() == 10);
 
 		if (!isGlobalAdmin) {
 			if (producerId != null) {

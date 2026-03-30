@@ -30,7 +30,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.email1,
 			    u.email2,
 			    ut.id,
-			    ut.name,
+			    ut.code,
 			    d.documentNumber,
 			    dt.id,
 			    dt.code,
@@ -39,14 +39,16 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			    u.number,
 			    u.zipcode,
 			    u.city,
-			    u.state
+			    u.state,
+			    u.userStatus.id,
+			    u.userStatus.code
 			)
 			FROM User u
 			LEFT JOIN UserDocument d
 			       ON d.user.id = u.id AND d.isPrimary = true AND d.isActive = true
 			LEFT JOIN d.documentType dt
 			LEFT JOIN u.userType ut
-			WHERE u.company.id = :companyId
+			WHERE (:companyId IS NULL OR u.company.id = :companyId)
 			  AND (:userTypeId IS NULL OR ut.id = :userTypeId)
 			  AND (:userId IS NULL OR u.id = :userId)
 			  AND (:nameLike IS NULL OR lower(u.fullName) LIKE lower(cast(:nameLike as string)))
@@ -59,7 +61,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			       ON d.user.id = u.id AND d.isPrimary = true AND d.isActive = true
 			LEFT JOIN d.documentType dt
 			LEFT JOIN u.userType ut
-			WHERE u.company.id = :companyId
+			WHERE (:companyId IS NULL OR u.company.id = :companyId)
 			  AND (:userTypeId IS NULL OR ut.id = :userTypeId)
 			  AND (:userId IS NULL OR u.id = :userId)
 			  AND (:nameLike IS NULL OR lower(u.fullName) LIKE lower(cast(:nameLike as string)))
@@ -91,7 +93,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			      AND d.documentType.id = 1
 			LEFT JOIN u.userStatus us
 			LEFT JOIN u.approvedBy approver
-			WHERE u.company.id = :companyId
+			WHERE (:companyId IS NULL OR u.company.id = :companyId)
 			  AND u.userType.id = 8
 			  AND (:nameLike IS NULL OR LOWER(u.fullName) LIKE :nameLike)
 			  AND (:cpfLike  IS NULL OR d.documentNumber LIKE :cpfLike)
@@ -106,7 +108,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 			      AND d.isActive = true
 			      AND d.documentType.id = 1
 			LEFT JOIN u.userStatus us
-			WHERE u.company.id = :companyId
+			WHERE (:companyId IS NULL OR u.company.id = :companyId)
 			  AND u.userType.id = 8
 			  AND (:nameLike IS NULL OR LOWER(u.fullName) LIKE :nameLike)
 			  AND (:cpfLike  IS NULL OR d.documentNumber LIKE :cpfLike)
