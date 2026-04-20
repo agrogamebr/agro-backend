@@ -29,7 +29,6 @@ public class FarmCreateUpdateDTO {
 	@NotBlank
 	private String city;
 
-	@NotBlank
 	private String zipcode;
 
 	private String description;

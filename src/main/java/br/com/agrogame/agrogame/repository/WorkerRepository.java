@@ -105,5 +105,6 @@ public interface WorkerRepository extends JpaRepository<User, Integer> {
 			""")
 	Page<User> findWorkersByOwnerAndCompany(@Param("ownerId") Integer ownerId, @Param("companyId") Integer companyId,
 			Pageable pageable);
+	
 
 }
