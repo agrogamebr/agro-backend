@@ -8,6 +8,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +65,7 @@ public class ProductionUnitService {
 
 		// Valida se é Produtor Rural (ID 8)
 		if (user.getUserType() == null || !user.getUserType().getId().equals(8)) {
-			throw new AuthenticationException("FORBIDDEN", "Apenas produtores rurais podem acessar este recurso.");
+			throw new AccessDeniedException("Apenas produtores rurais podem acessar este recurso.");
 		}
 		return user;
 	}
@@ -83,7 +84,7 @@ public class ProductionUnitService {
 
 		// Validar Dono da Fazenda
 		if (!farm.getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN", "Você não tem permissão para criar unidades nesta fazenda.");
+			throw new AccessDeniedException("Você não tem permissão para criar unidades nesta fazenda.");
 		}
 
 		// Validar se Fazenda está ativa
@@ -138,7 +139,7 @@ public class ProductionUnitService {
 					.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
 
 			if (!farm.getOwner().getId().equals(user.getId())) {
-				throw new AuthenticationException("FORBIDDEN", "Você não tem permissão para acessar esta fazenda.");
+				throw new AccessDeniedException("Você não tem permissão para acessar esta fazenda.");
 			}
 		}
 
@@ -163,8 +164,7 @@ public class ProductionUnitService {
 
 		// Validar ownership através da fazenda
 		if (!unit.getFarm().getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN",
-					"Você não tem permissão para acessar esta unidade produtiva.");
+			throw new AccessDeniedException("Você não tem permissão para acessar esta unidade produtiva.");
 		}
 
 		return toDetailDTO(unit);
@@ -180,8 +180,7 @@ public class ProductionUnitService {
 
 		// Validar ownership
 		if (!unit.getFarm().getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN",
-					"Você não tem permissão para editar esta unidade produtiva.");
+			throw new AccessDeniedException("Você não tem permissão para editar esta unidade produtiva.");
 		}
 
 		if (!Boolean.TRUE.equals(unit.getIsActive())) {
@@ -246,8 +245,7 @@ public class ProductionUnitService {
 				.orElseThrow(() -> new ResourceNotFoundException("Unidade produtiva não encontrada"));
 
 		if (!unit.getFarm().getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN",
-					"Você não tem permissão para deletar esta unidade produtiva.");
+			throw new AccessDeniedException("Você não tem permissão para deletar esta unidade produtiva.");
 		}
 
 		if (!Boolean.TRUE.equals(unit.getIsActive())) {
@@ -276,8 +274,7 @@ public class ProductionUnitService {
 				.orElseThrow(() -> new ResourceNotFoundException("Unidade produtiva não encontrada"));
 
 		if (!unit.getFarm().getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN",
-					"Você não tem permissão para reativar esta unidade produtiva.");
+			throw new AccessDeniedException("Você não tem permissão para reativar esta unidade produtiva.");
 		}
 
 		if (Boolean.TRUE.equals(unit.getIsActive())) {
@@ -308,7 +305,7 @@ public class ProductionUnitService {
 				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
 
 		if (!farm.getOwner().getId().equals(user.getId())) {
-			throw new AuthenticationException("FORBIDDEN", "Você não tem permissão para acessar dados desta fazenda.");
+			throw new AccessDeniedException("Você não tem permissão para acessar dados desta fazenda.");
 		}
 
 		// 2. Buscar tipos compatíveis direto do banco
