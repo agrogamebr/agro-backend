@@ -1,5 +1,5 @@
 # ===========================================
-# PROFILE: LOCAL (Eclipse) usando banco DEV/QA
+# PROFILE: LOCAL (Eclipse)
 # ===========================================
 spring:
   application:
