@@ -21,11 +21,13 @@ public class BackofficeEmployeeSummaryDTO {
 	private String zipCode;
 	private String city;
 	private String state;
+	
+	private String thumbnail_gs_url;
 
 	public BackofficeEmployeeSummaryDTO(Integer userId, String fullName, String email1, String email2,
 			Integer userTypeId, String userTypeCode, String documentNumber, Integer documentTypeId,
 			String documentTypeCode, String telefone, String address, String addressNumber, String zipCode, String city,
-			String state, Integer userStatusId, String userStatusCode) {
+			String state, Integer userStatusId, String userStatusCode, String thumbnail_gs_url) {
 		this.userId = userId;
 		this.fullName = fullName;
 		this.email1 = email1;
@@ -43,6 +45,7 @@ public class BackofficeEmployeeSummaryDTO {
 		this.state = state;
 		this.userStatusId = userStatusId;
 		this.userStatusCode = userStatusCode;
+		this.thumbnail_gs_url = thumbnail_gs_url;
 	}
 
 	public Integer getUserId() {
@@ -179,6 +182,14 @@ public class BackofficeEmployeeSummaryDTO {
 
 	public void setUserStatusCode(String userStatusCode) {
 		this.userStatusCode = userStatusCode;
+	}
+
+	public String getThumbnail_gs_url() {
+		return thumbnail_gs_url;
+	}
+
+	public void setThumbnail_gs_url(String thumbnail_gs_url) {
+		this.thumbnail_gs_url = thumbnail_gs_url;
 	}
 
 }

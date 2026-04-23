@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.agrogame.agrogame.dto.WorkerCreateDTO;
 import br.com.agrogame.agrogame.dto.WorkerDetailDTO;
-import br.com.agrogame.agrogame.dto.WorkerUnitsAssignDTO;
 import br.com.agrogame.agrogame.dto.WorkerUpdateDTO;
 import br.com.agrogame.agrogame.service.WorkerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,25 +90,25 @@ public class WorkerController {
 		return ResponseEntity.ok(updated);
 	}
 
-	@Operation(summary = "Associar worker a unidades produtivas", description = """
-			Define as unidades produtivas às quais o worker estará vinculado.
-			Somente o produtor dono do worker pode alterar esses vínculos.
-			""")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Vínculos atualizados com sucesso"),
-			@ApiResponse(responseCode = "403", description = "Sem permissão"),
-			@ApiResponse(responseCode = "404", description = "Worker não encontrado") })
-	@PostMapping("/{workerId}/production-units")
-	public ResponseEntity<Map<String, Object>> assignUnits(@PathVariable Integer workerId,
-			@Valid @RequestBody WorkerUnitsAssignDTO dto, Principal principal) {
-
-		workerService.assignUnit(principal.getName(), workerId, dto.getProductionUnitId());
-
-		Map<String, Object> response = new HashMap<>();
-		response.put("success", true);
-		response.put("message", "Unidades produtivas associadas com sucesso");
-
-		return ResponseEntity.ok(response);
-	}
+//	@Operation(summary = "Associar worker a unidades produtivas", description = """
+//			Define as unidades produtivas às quais o worker estará vinculado.
+//			Somente o produtor dono do worker pode alterar esses vínculos.
+//			""")
+//	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Vínculos atualizados com sucesso"),
+//			@ApiResponse(responseCode = "403", description = "Sem permissão"),
+//			@ApiResponse(responseCode = "404", description = "Worker não encontrado") })
+//	@PostMapping("/{workerId}/production-units")
+//	public ResponseEntity<Map<String, Object>> assignUnits(@PathVariable Integer workerId,
+//			@Valid @RequestBody WorkerUnitsAssignDTO dto, Principal principal) {
+//
+//		workerService.assignUnit(principal.getName(), workerId, dto.getProductionUnitId());
+//
+//		Map<String, Object> response = new HashMap<>();
+//		response.put("success", true);
+//		response.put("message", "Unidades produtivas associadas com sucesso");
+//
+//		return ResponseEntity.ok(response);
+//	}
 
 	@Operation(summary = "Inativar worker", description = """
 			Realiza delete lógico do worker (user_status_id = INACTIVE),

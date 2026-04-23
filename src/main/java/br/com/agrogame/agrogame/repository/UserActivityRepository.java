@@ -147,7 +147,8 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 			    ON uas.id = ua.status_id
 			WHERE ua.farm_id = :farmId
 			  AND (
-			        ua.production_unit_id = :productionUnitId
+			        :productionUnitId IS NULL
+			     OR ua.production_unit_id = :productionUnitId
 			     OR ua.production_unit_id IS NULL
 			  )
 			  AND a.company_id = :companyId
@@ -181,7 +182,8 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Inte
 			    ON uas.id = ua.status_id
 			WHERE ua.farm_id = :farmId
 			  AND (
-			        ua.production_unit_id = :productionUnitId
+			        :productionUnitId IS NULL
+			     OR ua.production_unit_id = :productionUnitId
 			     OR ua.production_unit_id IS NULL
 			  )
 			  AND a.company_id = :companyId

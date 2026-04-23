@@ -62,7 +62,7 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/backoffice")
 @Tag(name = "Backoffice", description = "Gestão administrativa (Atividades, Pontos, Extratos)")
-public class BackofficeControllerController {
+public class BackofficeController {
 
 	@Autowired
 	private BackofficeActivityService backofficeActivityService;
