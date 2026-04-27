@@ -25,14 +25,13 @@ import br.com.agrogame.agrogame.model.Farm;
 import br.com.agrogame.agrogame.model.User;
 import br.com.agrogame.agrogame.model.UserStatus;
 import br.com.agrogame.agrogame.model.UserType;
-import br.com.agrogame.agrogame.model.WorkerProductionUnitAssignment;
+import br.com.agrogame.agrogame.model.WorkerFarmAssignment;
 import br.com.agrogame.agrogame.repository.AuthCredentialRepository;
 import br.com.agrogame.agrogame.repository.FarmRepository;
-import br.com.agrogame.agrogame.repository.ProductionUnitRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.repository.UserStatusRepository;
 import br.com.agrogame.agrogame.repository.UserTypeRepository;
-import br.com.agrogame.agrogame.repository.WorkerProductionUnitAssignmentRepository;
+import br.com.agrogame.agrogame.repository.WorkerFarmAssignmentRepository;
 import br.com.agrogame.agrogame.repository.WorkerRepository;
 
 @Service
@@ -51,7 +50,7 @@ public class WorkerService {
 	private WorkerRepository workerRepository;
 
 	@Autowired
-	private WorkerProductionUnitAssignmentRepository assignmentRepository;
+	private WorkerFarmAssignmentRepository workerFarmAssignmentRepository;
 
 	@Autowired
 	private AuthCredentialRepository authCredentialRepository;
@@ -65,10 +64,6 @@ public class WorkerService {
 	@Autowired
 	private FarmRepository farmRepository;
 
-	@Autowired
-	private ProductionUnitRepository productionUnitRepository;
-
-	// LISTAR workers do produtor
 	@Transactional(readOnly = true)
 	public List<WorkerDetailDTO> listWorkers(String producerEmail, Integer farmIdFilter, Integer workerIdFilter) {
 		User producer = findUserByEmailWithType(producerEmail);
@@ -156,27 +151,25 @@ public class WorkerService {
 
 		authCredentialRepository.save(credential);
 
-		// 7) vincular unidades produtivas (se vierem)
-		if (dto.getProductionUnitId() != null) {
-			assignSingleUnitInternalForFarm(producer, dto.getFarmId(), savedWorker.getId(), dto.getProductionUnitId());
-		}
+		// 7) vincular worker à farm (nova tabela)
+		createWorkerFarmAssignment(producer, savedWorker.getId(), dto.getFarmId());
 
 		return toDetailDTO(savedWorker);
 	}
 
+	/**
+	 * Endpoint antigo de associar unidade produtiva. Com a nova regra worker ↔
+	 * farm, esse método não deve mais ser usado para vincular UP; pode ser mantido
+	 * temporariamente para compatibilidade, ou deprecado/removido quando o front
+	 * parar de chamar.
+	 */
 	@Transactional
 	public void assignUnit(String loggedEmail, Integer workerId, Integer productionUnitId) {
-		User loggedUser = findUserByEmailWithType(loggedEmail);
-
-		boolean isProducerOwner = isProducer(loggedUser)
-				&& workerRepository.existsWorkerBelongsToProducer(loggedEmail, workerId);
-
-		if (!isProducerOwner) {
-			throw new BusinessException("Você não tem permissão para editar este worker");
-		}
-
-		// Reaproveita sua lógica interna de vínculo
-		assignUnitInternal(loggedUser, workerId, productionUnitId);
+		// Regra nova: worker vê todas as UPs da farm.
+		// Aqui podemos:
+		// - lançar exceção explicando que o vínculo agora é por farm; ou
+		// - simplesmente ignorar se você quiser manter compatibilidade.
+		throw new BusinessException("Vínculo de worker agora é feito por fazenda, não por unidade produtiva.");
 	}
 
 	// EDITAR worker (produtor ou o próprio worker)
@@ -223,9 +216,9 @@ public class WorkerService {
 		worker.setUpdatedAt(LocalDateTime.now());
 		User saved = userRepository.save(worker);
 
-		if (isProducerOwner && dto.getProductionUnitId() != null) {
-			assignUnitInternal(loggedUser, workerId, dto.getProductionUnitId());
-		}
+		// Se no futuro permitir trocar a farm do worker aqui,
+		// dá pra adicionar um campo farmId no WorkerUpdateDTO
+		// e chamar createWorkerFarmAssignment(loggedUser, workerId, dto.getFarmId()).
 
 		return toDetailDTO(saved);
 	}
@@ -258,32 +251,6 @@ public class WorkerService {
 			cred.setUpdatedAt(LocalDateTime.now());
 			authCredentialRepository.save(cred);
 		});
-	}
-
-	// ASSOCIAR unidade produtiva (uso interno)
-	@Transactional
-	protected void assignUnitInternal(User producer, Integer workerId, Integer productionUnitId) {
-		// Se vier null, apenas remove qualquer vínculo existente
-		if (productionUnitId == null) {
-			assignmentRepository.deleteByWorkerId(workerId);
-			return;
-		}
-
-		// Valida se a unidade pertence a alguma fazenda do produtor
-		Long count = workerRepository.countUnitsByProducer(List.of(productionUnitId), producer.getId());
-		if (!count.equals(1L)) {
-			throw new BusinessException("Unidade produtiva não pertence às fazendas do produtor");
-		}
-
-		// Remove vínculos antigos e cria o novo
-		assignmentRepository.deleteByWorkerId(workerId);
-
-		WorkerProductionUnitAssignment ass = new WorkerProductionUnitAssignment();
-		ass.setWorkerId(workerId);
-		ass.setProductionUnitId(productionUnitId);
-		ass.setIsActive(true);
-		ass.setCreatedAt(LocalDateTime.now());
-		assignmentRepository.save(ass);
 	}
 
 	// AUXILIARES
@@ -322,27 +289,27 @@ public class WorkerService {
 	}
 
 	@Transactional
-	protected void assignSingleUnitInternalForFarm(User producer, Integer farmId, Integer workerId,
-			Integer productionUnitId) {
-		// valida se a unit pertence ao produtor e à farm
-		Long countByProducer = workerRepository.countUnitsByProducer(List.of(productionUnitId), producer.getId());
-		if (countByProducer != 1L) {
-			throw new BusinessException("Unidade produtiva não pertence às fazendas do produtor");
+	protected void createWorkerFarmAssignment(User producer, Integer workerId, Integer farmId) {
+		Farm farm = farmRepository.findById(farmId)
+				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+
+		if (!farm.getOwner().getId().equals(producer.getId())) {
+			throw new BusinessException("Fazenda não pertence ao produtor logado");
 		}
 
-		Long countByFarm = workerRepository.countUnitsByFarm(List.of(productionUnitId), farmId);
-		if (countByFarm != 1L) {
-			throw new BusinessException("Unidade produtiva não pertence à fazenda informada");
-		}
+		workerFarmAssignmentRepository.findByWorkerIdAndIsActiveTrue(workerId.longValue()).ifPresent(active -> {
+			active.setIsActive(false);
+			active.setUpdatedBy(producer.getId().longValue());
+			workerFarmAssignmentRepository.save(active);
+		});
 
-		assignmentRepository.deleteByWorkerId(workerId);
+		WorkerFarmAssignment assignment = new WorkerFarmAssignment();
+		assignment.setWorkerId(workerId.longValue());
+		assignment.setFarmId(farm.getId().longValue());
+		assignment.setIsActive(true);
+		assignment.setUpdatedBy(producer.getId().longValue());
 
-		WorkerProductionUnitAssignment ass = new WorkerProductionUnitAssignment();
-		ass.setWorkerId(workerId);
-		ass.setProductionUnitId(productionUnitId);
-		ass.setIsActive(true);
-		ass.setCreatedAt(LocalDateTime.now());
-		assignmentRepository.save(ass);
+		workerFarmAssignmentRepository.save(assignment);
 	}
 
 	@Transactional(readOnly = true)
@@ -352,8 +319,8 @@ public class WorkerService {
 		User operator = userRepository.findByEmail1(loggedEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
 
-	    boolean isSuperAdmin = operator.getUserType().getId() == 10;
-	    Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
+		boolean isSuperAdmin = operator.getUserType().getId() == 10;
+		Integer companyId = isSuperAdmin ? null : operator.getCompany().getId();
 
 		Page<User> page = workerRepository.findWorkersByOwnerAndCompany(ownerId, companyId, pageable);
 
@@ -366,16 +333,14 @@ public class WorkerService {
 		dto.setFullname(worker.getFullName());
 		dto.setEmail(worker.getEmail1());
 
-		// pega uma unidade produtiva qualquer ativa ligada a esse worker
-		Integer productionUnitId = assignmentRepository.findFirstActiveByWorkerId(worker.getId())
-				.map(WorkerProductionUnitAssignment::getProductionUnitId).orElse(null);
-
-		if (productionUnitId != null) {
-			productionUnitRepository.findById(productionUnitId).ifPresent(pu -> {
-				dto.setFarmId(pu.getFarm().getId());
-				dto.setFarmName(pu.getFarm().getName());
-			});
-		}
+		// Agora pega a farm ativa via worker_farm_assignments
+		workerFarmAssignmentRepository.findByWorkerIdAndIsActiveTrue(worker.getId().longValue())
+				.ifPresent(assignment -> {
+					farmRepository.findById(assignment.getFarmId().intValue()).ifPresent(farm -> {
+						dto.setFarmId(farm.getId());
+						dto.setFarmName(farm.getName());
+					});
+				});
 
 		return dto;
 	}

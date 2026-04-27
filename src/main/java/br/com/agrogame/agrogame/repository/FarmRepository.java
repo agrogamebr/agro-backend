@@ -30,11 +30,9 @@ public interface FarmRepository extends JpaRepository<Farm, Integer> {
 	@Query("""
 			    SELECT DISTINCT f
 			    FROM Farm f
-			    JOIN ProductionUnit pu ON pu.farm.id = f.id
-			    JOIN WorkerProductionUnitAssignment wpu ON wpu.productionUnitId = pu.id
-			    WHERE wpu.workerId = :workerId
-			      AND wpu.isActive = true
-			      AND pu.isActive = true
+			    JOIN WorkerFarmAssignment wfa ON wfa.farmId = f.id
+			    WHERE wfa.workerId = :workerId
+			      AND wfa.isActive = true
 			      AND f.isActive = true
 			""")
 	List<Farm> findByWorkerAssignments(@Param("workerId") Integer workerId);
@@ -42,12 +40,10 @@ public interface FarmRepository extends JpaRepository<Farm, Integer> {
 	@Query("""
 			    SELECT DISTINCT f
 			    FROM Farm f
-			    JOIN ProductionUnit pu ON pu.farm.id = f.id
-			    JOIN WorkerProductionUnitAssignment wpu ON wpu.productionUnitId = pu.id
-			    WHERE wpu.workerId = :workerId
+			    JOIN WorkerFarmAssignment wfa ON wfa.farmId = f.id
+			    WHERE wfa.workerId = :workerId
 			      AND f.id = :farmId
-			      AND wpu.isActive = true
-			      AND pu.isActive = true
+			      AND wfa.isActive = true
 			      AND f.isActive = true
 			""")
 	Optional<Farm> findByIdAndWorkerAssignments(@Param("farmId") Integer farmId, @Param("workerId") Integer workerId);

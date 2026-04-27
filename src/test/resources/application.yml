@@ -27,6 +27,9 @@ spring:
       sql:
         enabled: false
 
+  flyway:
+    enabled: false
+
 logging:
   level:
     root: INFO

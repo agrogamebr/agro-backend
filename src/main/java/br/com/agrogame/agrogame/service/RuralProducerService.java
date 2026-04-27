@@ -41,6 +41,7 @@ import br.com.agrogame.agrogame.model.UserDocument;
 import br.com.agrogame.agrogame.model.UserDocumentType;
 import br.com.agrogame.agrogame.model.UserStatus;
 import br.com.agrogame.agrogame.model.UserType;
+import br.com.agrogame.agrogame.model.WorkerFarmAssignment;
 import br.com.agrogame.agrogame.repository.ActivityCropTypeRepository;
 import br.com.agrogame.agrogame.repository.ActivityRepository;
 import br.com.agrogame.agrogame.repository.AuthCredentialRepository;
@@ -54,6 +55,7 @@ import br.com.agrogame.agrogame.repository.UserDocumentTypeRepository;
 import br.com.agrogame.agrogame.repository.UserRepository;
 import br.com.agrogame.agrogame.repository.UserStatusRepository;
 import br.com.agrogame.agrogame.repository.UserTypeRepository;
+import br.com.agrogame.agrogame.repository.WorkerFarmAssignmentRepository;
 
 @Service
 public class RuralProducerService {
@@ -106,6 +108,9 @@ public class RuralProducerService {
 	@Autowired
 	private NotificationPublisherService notificationPublisherService;
 
+	@Autowired
+	private WorkerFarmAssignmentRepository workerFarmAssignmentRepository;
+	
 	@Transactional
 	public User registerRuralProducer(RuralProducerDTO dto) {
 
@@ -428,8 +433,16 @@ public class RuralProducerService {
 			Integer cropTypeIdFilter, String nameFilter, LocalDate validFromStart, LocalDate validFromEnd,
 			LocalDate validToStart, LocalDate validToEnd, String status, Integer unidadeProdutivaId, int page,
 			int size) {
-		User producer = userRepository.findByIdWithUserType(producerId)
-				.orElseThrow(() -> new ResourceNotFoundException("Produtor não encontrado"));
+
+		User user = userRepository.findByIdWithUserType(producerId)
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+		if (user.getUserType() != null && user.getUserType().getId() == 9) {
+			return listActivitiesForWorkerFast(user, nameFilter, validFromStart, validFromEnd, validToStart, validToEnd,
+					status, page, size);
+		}
+
+		User producer = user;
 
 		if (producer.getUserType() == null || producer.getUserType().getId() != 8) {
 			throw new BusinessException("Usuário não é produtor rural");
@@ -441,7 +454,6 @@ public class RuralProducerService {
 
 		Integer companyId = producer.getCompany().getId();
 
-		// farms do produtor
 		List<Integer> farmIds;
 		if (farmId != null) {
 			Farm farm = farmRepository.findById(farmId)
@@ -471,7 +483,6 @@ public class RuralProducerService {
 			return Page.empty(pageable);
 		}
 
-		// crops por Activity
 		List<Integer> activityIds = rowsPage.getContent().stream().map(ProducerUserActivityProjection::getActivityId)
 				.distinct().toList();
 
@@ -479,7 +490,6 @@ public class RuralProducerService {
 				.stream().collect(Collectors.groupingBy(ActivityCropTypeProjection::getActivityId,
 						Collectors.mapping(ActivityCropTypeProjection::getCropName, Collectors.toList())));
 
-		// mapear para DTO
 		Page<ProducerActivityDTO> dtoPage = rowsPage.map(row -> {
 			ProducerActivityDTO dto = new ProducerActivityDTO();
 			dto.setActivityId(row.getActivityId());
@@ -504,7 +514,6 @@ public class RuralProducerService {
 			return dto;
 		});
 
-		// filtros adicionais (name, validToStart/End) ainda estão em memória
 		if ((nameFilter != null && !nameFilter.isBlank()) || validToStart != null || validToEnd != null) {
 			List<ProducerActivityDTO> filtered = dtoPage.getContent().stream().filter(dto -> {
 				if (nameFilter == null || nameFilter.isBlank())
@@ -525,4 +534,93 @@ public class RuralProducerService {
 		return dtoPage;
 	}
 
+	@Transactional(readOnly = true)
+	public Page<ProducerActivityDTO> listActivitiesForWorkerFast(User worker, String nameFilter,
+			LocalDate validFromStart, LocalDate validFromEnd, LocalDate validToStart, LocalDate validToEnd,
+			String status, int page, int size) {
+
+		if (worker.getUserType() == null || worker.getUserType().getId() != 9) {
+			throw new BusinessException("Usuário não é worker");
+		}
+
+		if (worker.getCompany() == null) {
+			throw new BusinessException("Worker não vinculado a uma empresa");
+		}
+
+		Integer companyId = worker.getCompany().getId();
+
+		WorkerFarmAssignment assignment = workerFarmAssignmentRepository
+				.findByWorkerIdAndIsActiveTrue(worker.getId().longValue())
+				.orElseThrow(() -> new ResourceNotFoundException("Worker sem fazenda ativa vinculada"));
+
+		Integer farmId = assignment.getFarmId().intValue();
+
+		Farm farm = farmRepository.findById(farmId)
+				.orElseThrow(() -> new ResourceNotFoundException("Fazenda não encontrada"));
+
+		if (farm.getCompany() == null || !farm.getCompany().getId().equals(companyId)) {
+			throw new BusinessException("Fazenda vinculada ao worker não pertence à empresa do worker");
+		}
+
+		Pageable pageable = PageRequest.of(page, size);
+
+		Page<ProducerUserActivityProjection> rowsPage = userActivityRepository.listUserActivitiesForWorker(companyId,
+				farmId, status, validFromStart, validFromEnd, null, // cropTypeId
+				null, // productionUnitId
+				pageable);
+
+		if (rowsPage.isEmpty()) {
+			return Page.empty(pageable);
+		}
+
+		List<Integer> activityIds = rowsPage.getContent().stream().map(ProducerUserActivityProjection::getActivityId)
+				.distinct().toList();
+
+		Map<Integer, List<String>> activityCropsMap = activityCropTypeRepository.findCropsByActivityIds(activityIds)
+				.stream().collect(Collectors.groupingBy(ActivityCropTypeProjection::getActivityId,
+						Collectors.mapping(ActivityCropTypeProjection::getCropName, Collectors.toList())));
+
+		Page<ProducerActivityDTO> dtoPage = rowsPage.map(row -> {
+			ProducerActivityDTO dto = new ProducerActivityDTO();
+			dto.setActivityId(row.getActivityId());
+			dto.setName(row.getActivityName());
+			dto.setDescription(row.getDescription());
+			dto.setPoints(row.getPoints());
+			dto.setValidFrom(row.getValidFrom());
+			dto.setValidTo(row.getValidTo());
+			dto.setStatus(row.getActivityStatus());
+			dto.setCompanyName(worker.getCompany().getFantasyName());
+
+			List<String> cropTypeNames = activityCropsMap.getOrDefault(row.getActivityId(), List.of());
+			dto.setCropTypes(cropTypeNames);
+
+			dto.setUserActivityId(row.getUserActivityId());
+			dto.setUserActivityStatus(row.getUserActivityStatus());
+			dto.setUserActivityFarmId(row.getUserActivityFarmId());
+			dto.setProductionUnitId(row.getProductionUnitId());
+			dto.setThumbnailUrl(row.getThumbnailUrl());
+			dto.setThumbnailGsutilUri(row.getThumbnailGsutilUri());
+
+			return dto;
+		});
+
+		if ((nameFilter != null && !nameFilter.isBlank()) || validToStart != null || validToEnd != null) {
+			List<ProducerActivityDTO> filtered = dtoPage.getContent().stream().filter(dto -> {
+				if (nameFilter == null || nameFilter.isBlank())
+					return true;
+				String n = dto.getName();
+				return n != null && n.toLowerCase().contains(nameFilter.toLowerCase());
+			}).filter(dto -> {
+				if (validToStart != null && dto.getValidTo().isBefore(validToStart))
+					return false;
+				if (validToEnd != null && dto.getValidTo().isAfter(validToEnd))
+					return false;
+				return true;
+			}).sorted(Comparator.comparing(ProducerActivityDTO::getValidTo)).toList();
+
+			return new PageImpl<>(filtered, pageable, dtoPage.getTotalElements());
+		}
+
+		return dtoPage;
+	}
 }

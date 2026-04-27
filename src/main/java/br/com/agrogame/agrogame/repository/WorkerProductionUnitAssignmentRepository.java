@@ -22,4 +22,5 @@ public interface WorkerProductionUnitAssignmentRepository
 	void deleteByWorkerId(@Param("workerId") Integer workerId);
 	
 	Optional<WorkerProductionUnitAssignment> findFirstActiveByWorkerId(Integer workerId);
+	Optional<WorkerProductionUnitAssignment> findFirstByWorkerIdAndIsActiveTrue(Integer workerId);
 }
